@@ -221,6 +221,67 @@ Call `generate_report` to produce the final report. The report must cover:
 
 Present the report to the user and offer to drill into any section.
 
+## Resuming a Conversation
+
+Migration plans can span weeks or months, and conversations may be restarted many times. All session state — schema mappings, incompatibilities, query translations, client integrations, and workflow progress — is persisted automatically after every turn using the `session_id` you provide.
+
+### How to resume
+
+When starting a new conversation, pass the same `session_id` you used previously:
+
+```python
+# Resume an existing session — all prior context is restored automatically
+response = skill.handle_message("Let's continue the migration", session_id="my-project-migration")
+```
+
+Via MCP:
+```json
+{ "tool": "handle_message", "arguments": { "message": "Let's continue", "session_id": "my-project-migration" } }
+```
+
+The advisor will reload the full `SessionState` (history, facts, progress, incompatibilities, client integrations) and pick up exactly where you left off.
+
+### Choosing a session ID
+
+Use a stable, meaningful identifier tied to your project — not a random UUID — so it is easy to recall across restarts:
+
+- `acme-solr-migration`
+- `projectname-prod-cluster`
+- `team-search-migration-2025`
+
+### Listing and inspecting existing sessions
+
+```python
+from scripts.storage import FileStorage
+
+storage = FileStorage("sessions")
+
+# List all saved sessions
+print(storage.list_sessions())
+
+# Inspect a specific session
+state = storage.load("my-project-migration")
+print(f"Progress: Step {state.progress}")
+print(f"Incompatibilities found: {len(state.incompatibilities)}")
+print(f"Facts: {state.facts}")
+```
+
+### Session files
+
+With the default `FileStorage` backend, each session is stored as a JSON file at `sessions/<session_id>.json`. You can back these up, copy them between machines, or inspect them directly. The file is human-readable and contains the full conversation history, all discovered facts, and migration progress.
+
+### Starting fresh
+
+To reset a session and start over:
+
+```python
+storage.delete("my-project-migration")
+```
+
+Or simply use a new `session_id`.
+
+---
+
 ## Instructions
 
 - Always maintain the session context using the `session_id`. Every call loads the full `SessionState` (history, facts, progress, incompatibilities) and saves it back before returning — sessions are fully resumable across restarts.
