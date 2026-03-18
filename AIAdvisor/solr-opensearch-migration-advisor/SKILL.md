@@ -282,6 +282,12 @@ Or simply use a new `session_id`.
 
 ---
 
+## Reference Knowledge Base
+
+You have access to a verified knowledge base of technical information about Apache Solr and OpenSearch located under the `references` directory. Before answering any questions, search the provided context and cite your sources from the reference materials.
+
+#[[file:references/01-sample-reference.md]]
+
 ## Instructions
 
 - Always maintain the session context using the `session_id`. Every call loads the full `SessionState` (history, facts, progress, incompatibilities) and saves it back before returning — sessions are fully resumable across restarts.
