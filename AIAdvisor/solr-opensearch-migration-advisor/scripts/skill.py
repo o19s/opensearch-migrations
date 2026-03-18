@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.request
+import urllib.error
 from typing import Any, Dict, Optional
 
 from schema_converter import SchemaConverter
@@ -59,6 +61,7 @@ class SolrToOpenSearchMigrationSkill:
         self._query_converter = QueryConverter()
         self._storage = storage or FileStorage()
         self._steering_docs = self._load_steering_docs()
+        self._aws_knowledge_url = "https://knowledge-mcp.global.api.aws"
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -83,6 +86,46 @@ class SolrToOpenSearchMigrationSkill:
 
     def _save_session(self, state: SessionState) -> None:
         self._storage.save(state)
+
+    def _query_aws_knowledge(self, query: str, topic: str = "general") -> str:
+        """Query the AWS Knowledge MCP Server for accurate AWS information.
+
+        Falls back gracefully if the server is unreachable.
+
+        Args:
+            query: Natural-language search phrase.
+            topic: Documentation topic (e.g. "general", "reference_documentation",
+                   "troubleshooting", "current_awareness").
+
+        Returns:
+            Relevant documentation excerpts, or an empty string on failure.
+        """
+        payload = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "search_documentation",
+                "arguments": {"search_phrase": query, "topics": [topic]},
+            },
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            self._aws_knowledge_url,
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                content = result.get("result", {}).get("content", [])
+                return "\n".join(
+                    item.get("text", "")
+                    for item in content
+                    if item.get("type") == "text"
+                )
+        except Exception:  # noqa: BLE001 — degrade gracefully
+            return ""
 
     # ------------------------------------------------------------------
     # Conversational interface
@@ -163,11 +206,30 @@ class SolrToOpenSearchMigrationSkill:
             response = self.get_field_type_mapping_reference()
 
         else:
-            response = (
-                "I'm your Solr to OpenSearch migration advisor. How can I help you "
-                "today? I can convert schemas, translate queries, or generate a "
-                "migration report."
+            # For general OpenSearch questions, enrich the response with
+            # accurate information from the AWS Knowledge MCP Server.
+            aws_context = ""
+            opensearch_keywords = (
+                "opensearch", "index", "shard", "replica", "mapping",
+                "cluster", "node", "query dsl", "aggregation", "analyzer",
+                "aws", "service", "region", "pricing", "instance",
             )
+            if any(kw in message_lc for kw in opensearch_keywords):
+                aws_context = self._query_aws_knowledge(
+                    message, topic="general"
+                )
+
+            if aws_context:
+                response = (
+                    "Here is accurate information from AWS documentation:\n\n"
+                    + aws_context
+                )
+            else:
+                response = (
+                    "I'm your Solr to OpenSearch migration advisor. How can I help you "
+                    "today? I can convert schemas, translate queries, or generate a "
+                    "migration report."
+                )
 
         state.append_turn(message, response)
         self._save_session(state)

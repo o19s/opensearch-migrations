@@ -10,6 +10,11 @@ Or configure in your MCP client (.kiro/settings/mcp.json):
         "solr-to-opensearch": {
           "command": "python3",
           "args": [".kiro/skills/solr-to-opensearch/scripts/mcp_server.py"]
+        },
+        "aws-knowledge-mcp-server": {
+          "url": "https://knowledge-mcp.global.api.aws",
+          "type": "http",
+          "disabled": false
         }
       }
     }
@@ -17,6 +22,9 @@ Or configure in your MCP client (.kiro/settings/mcp.json):
 
 import sys
 import os
+import json
+import urllib.request
+import urllib.error
 
 # Ensure the scripts directory is on the path when invoked directly.
 sys.path.insert(0, os.path.dirname(__file__))
@@ -195,6 +203,85 @@ def create_opensearch_index(index_name: str, mapping_json: str) -> str:
             f"Could not connect to OpenSearch at {base_url}: {exc.reason}. "
             "Check that OpenSearch is running and OPENSEARCH_URL is set correctly."
         )
+
+
+_AWS_KNOWLEDGE_URL = "https://knowledge-mcp.global.api.aws"
+
+
+def _call_aws_knowledge(tool_name: str, arguments: dict) -> str:
+    """Call a tool on the AWS Knowledge MCP server via HTTP/JSON-RPC."""
+    payload = json.dumps({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": tool_name, "arguments": arguments},
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        _AWS_KNOWLEDGE_URL,
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            content = result.get("result", {}).get("content", [])
+            return "\n".join(
+                item.get("text", "") for item in content if item.get("type") == "text"
+            ) or json.dumps(result)
+    except urllib.error.URLError as exc:
+        return f"AWS Knowledge MCP server unreachable: {exc.reason}"
+    except Exception as exc:  # noqa: BLE001
+        return f"Error calling AWS Knowledge MCP server: {exc}"
+
+
+@mcp.tool()
+def aws_knowledge_search(query: str, topic: str = "general") -> str:
+    """Search AWS documentation and knowledge base for accurate AWS information.
+
+    Uses the AWS Knowledge MCP Server to retrieve up-to-date documentation,
+    best practices, API references, and architectural guidance — especially
+    useful for OpenSearch service details, regional availability, and
+    migration guidance.
+
+    Valid topics: general, reference_documentation, troubleshooting,
+    current_awareness, amplify_docs, cdk_docs, cdk_constructs,
+    cloudformation, agent_sops.
+
+    Args:
+        query: The search query (e.g. "OpenSearch index settings best practices").
+        topic: Documentation topic to narrow the search (default: "general").
+
+    Returns:
+        Relevant AWS documentation excerpts as a string.
+    """
+    return _call_aws_knowledge(
+        "search_documentation",
+        {"search_phrase": query, "topics": [topic]},
+    )
+
+
+@mcp.tool()
+def aws_opensearch_regional_availability(region: str = "") -> str:
+    """Check regional availability of Amazon OpenSearch Service.
+
+    Uses the AWS Knowledge MCP Server to retrieve accurate regional
+    availability data for OpenSearch Service features and APIs.
+
+    Args:
+        region: Optional AWS region code (e.g. "us-east-1"). If omitted,
+                returns availability across all regions.
+
+    Returns:
+        Regional availability information as a string.
+    """
+    args: dict = {
+        "resource_type": "product",
+        "filters": ["Amazon OpenSearch Service"],
+    }
+    if region:
+        args["region"] = region
+    return _call_aws_knowledge("get_regional_availability", args)
 
 
 if __name__ == "__main__":

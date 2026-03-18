@@ -6,6 +6,8 @@ description: >
   Translates Solr XML/JSON schemas to OpenSearch mappings and converts 
   Solr syntax (Standard, DisMax, eDisMax) into OpenSearch DSL. 
   Provides sizing for nodes, shards, and JVM heap.
+  Uses the AWS Knowledge MCP Server for accurate, up-to-date OpenSearch
+  and AWS service information.
 keywords: 
   - "Solr to OpenSearch"
   - "migrate Solr"
@@ -14,6 +16,9 @@ keywords:
   - "edismax to bool query"
   - "synonyms.txt"
   - "SolrCloud vs OpenSearch Cluster"
+  - "OpenSearch best practices"
+  - "AWS OpenSearch Service"
+  - "OpenSearch regional availability"
 metadata:
   author: jzonthemtn
   version: "0.2.0"
@@ -37,9 +42,29 @@ Use this skill when:
   equivalent OpenSearch index mapping.
 - A user has Solr query strings and needs them translated to OpenSearch Query DSL.
 - A user needs a migration report covering milestones, blockers, and cost estimates.
+- A user has questions about Amazon OpenSearch Service features, regional availability, or AWS best practices.
 
 **Trigger phrases:** "migrate from Solr", "convert Solr schema", "translate Solr
-query", "Solr to OpenSearch", "migration advisor", "migration report".
+query", "Solr to OpenSearch", "migration advisor", "migration report",
+"OpenSearch best practices", "AWS OpenSearch Service".
+
+## AWS Knowledge Integration
+
+This skill integrates with the [AWS Knowledge MCP Server](https://awslabs.github.io/mcp/servers/aws-knowledge-mcp-server/)
+(`https://knowledge-mcp.global.api.aws`) to provide accurate, up-to-date information about:
+
+- Amazon OpenSearch Service features and configuration
+- OpenSearch regional availability across AWS regions
+- AWS best practices for search workloads
+- Current AWS documentation and API references
+
+The integration is used automatically when users ask OpenSearch or AWS-specific questions.
+Two dedicated MCP tools are also exposed:
+
+- `aws_knowledge_search(query, topic)` — search AWS docs for any AWS/OpenSearch topic
+- `aws_opensearch_regional_availability(region)` — check OpenSearch Service regional availability
+
+No AWS account or authentication is required to use the AWS Knowledge MCP Server.
 
 ## Migration Workflow
 
