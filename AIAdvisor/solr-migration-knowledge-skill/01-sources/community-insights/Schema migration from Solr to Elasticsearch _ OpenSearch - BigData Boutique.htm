@@ -1,0 +1,523 @@
+bigdata boutique bigdata boutique <https://bigdataboutique.com/>
+
+<https://bigdataboutique.com/contact>
+
+  * Services
+
+    Services
+
+    <#>
+      o We are World-Class Experts who build, optimize and support
+        production-grade Big Data platforms
+      o
+        Big Data
+        Big Data Consulting <https://bigdataboutique.com/services>
+      o
+
+        Elasticsearch <https://bigdataboutique.com/services/
+        elasticsearch-consulting>
+      o
+
+        OpenSearch <https://bigdataboutique.com/services/opensearch-
+        consulting>
+      o
+
+        Apache Kafka <https://bigdataboutique.com/services/apache-kafka-
+        consulting>
+      o
+        flink
+        Apache Flink <https://bigdataboutique.com/services/apache-flink-
+        consulting>
+      o
+
+        Apache Spark <https://bigdataboutique.com/services/apache-spark-
+        consulting>
+      o
+        Databricks
+        Databricks <https://bigdataboutique.com/services/databricks-
+        consulting>
+      o
+
+        ClickHouse <https://bigdataboutique.com/services/clickhouse-
+        consulting>
+      o
+
+        PostgreSQL <https://bigdataboutique.com/services/postgresql-
+        consulting>
+      o
+
+        ES → OpenSearch <https://bigdataboutique.com/services/
+        elasticsearch-to-opensearch-migration>
+  * Solutions
+
+    Solutions
+
+    <#>
+      o
+
+        Semantic Search
+        Go beyond keyword search, make your search AI and Agentic ready
+        <https://bigdataboutique.com/solutions/semantic-search>
+      o
+
+        Data Platform Modernization
+        Apache Spark, Flink, Kafka, Databricks, ClickHouse and more
+        <https://bigdataboutique.com/solutions/data-platform-modernization>
+      o
+
+        Data to Analytics & AI
+        Make operational databases accessible to analytics and AI workloads
+        <https://bigdataboutique.com/solutions/data-to-analytics-ai>
+      o
+
+        Data Platform Migrations
+        Apache Spark, Flink, Kafka, Databricks, ClickHouse and more
+        <https://bigdataboutique.com/solutions/data-platform-migrations>
+      o
+
+        Build Agentic Workloads
+        From POC to production-ready AI agents on your data
+        <https://bigdataboutique.com/solutions/build-agentic-workloads>
+      o
+
+        eCommerce Search
+        AI-powered product search that converts and engages
+        <https://bigdataboutique.com/solutions/ecommerce-search>
+      o
+
+        Real-Time Analytics
+        Sub-second insights on billions of events with Kafka &amp;
+        ClickHouse
+        <https://bigdataboutique.com/solutions/real-time-analytics>
+      o
+        Hadoop
+        Migrate from Hadoop
+        Move to Databricks, AWS EMR, or Apache Iceberg cloud-native
+        platforms
+        <https://bigdataboutique.com/solutions/migrate-from-hadoop>
+  * Enterprise Support
+
+    Enterprise Support
+
+    <https://bigdataboutique.com/enterprise-support>
+      o
+
+        Elasticsearch Support
+        <https://bigdataboutique.com/enterprise-support/elasticsearch>
+      o
+
+        OpenSearch Support
+        <https://bigdataboutique.com/enterprise-support/opensearch>
+      o
+
+        ClickHouse Support
+        <https://bigdataboutique.com/enterprise-support/clickhouse>
+  * Blog <https://bigdataboutique.com/blog>
+  * Company
+
+    Company
+
+    <#>
+      o
+
+        About Us
+        <https://bigdataboutique.com/about-us>
+      o
+
+        Case Studies
+        <https://bigdataboutique.com/customers>
+      o
+
+        Partners
+        <https://bigdataboutique.com/partners>
+      o
+
+        Careers
+        <https://bigdataboutique.com/careers>
+      o
+
+        Contact Us
+        <https://bigdataboutique.com/contact>
+  *
+
+    <https://bigdataboutique.com/contact>
+
+October 24th, 2022
+
+4 min read
+
+<https://facebook.com/sharer/sharer.php?
+u=https%3A%2F%2Fbigdataboutique.com%2Fblog%2Fschema-migration-from-solr-
+to-elasticsearch-opensearch-a0072b>
+
+<https://twitter.com/intent/tweet/?
+text=Schema%20migration%20from%20Solr%20to%20Elasticsearch%20%2F%20OpenSearch&url=https%3A%2F%2Fbigdataboutique.com%2Fblog%2Fschema-migration-from-solr-to-elasticsearch-opensearch-a0072b>
+
+<https://www.linkedin.com/shareArticle?
+mini=true&url=https%3A%2F%2Fbigdataboutique.com%2Fblog%2Fschema-
+migration-from-solr-to-elasticsearch-opensearch-
+a0072b&title=Schema%20migration%20from%20Solr%20to%20Elasticsearch%20%2F%20OpenSearch&summary=Schema%20migration%20from%20Solr%20to%20Elasticsearch%20%2F%20OpenSearch&source=https%3A%2F%2Fbigdataboutique.com%2Fblog>
+copy url
+
+<javascript:void(0)>
+
+
+  Schema migration from Solr to Elasticsearch / OpenSearch
+
+Elasticsearch <https://bigdataboutique.com/blog/tagged/elasticsearch>
+OpenSearch <https://bigdataboutique.com/blog/tagged/opensearch> Solr
+<https://bigdataboutique.com/blog/tagged/solr>
+Arkadii Chumachenko Arkadii Chumachenko
+
+Instead of manually converting Solr schema files to Elasticsearch or
+OpenSearch index mappings, our team created a script which helps
+automating the process. Migrating from Solr to Elasticsearch (or
+OpenSearch) was never easier.
+
+We often get asked by customers to migrate their Solr cluster to
+Elasticsearch or OpenSearch. All three search engines are based on the
+Lucene full-text search library, but the latter two offer a better
+feature set, easier to use API, various important scaling out features,
+and lower maintenance costs, so it doesn’t come as too much of a
+surprise when teams decide to migrate.
+
+Sometimes, when the cluster is relatively small and the data schema is
+simple, these migrations can be very straightforward. You just update
+your ETL and client app to use Elasticsearch client, make it build a
+query in a slightly different way, test everything, and it’s done. Some
+systems are a bit bigger, and it brings some complexity onboard.
+
+One of our large customers were considering migration of a fairly
+complex cluster from Solr to Elasticsearch, and they had a somewhat
+complex data schema: about a hundred fields (all top-level, which indeed
+simplifies the task a bit) and extensive use of custom analyzers (both
+language and domain specific)
+
+One approach, of course, is to manually recreate the schema. It would
+also allow cleaning up unused features and fields, but this would be
+error-prone and require a lot of effort. Also, the customer stated that
+the Solr schema is being raked regularly and shouldn’t contain any garbage.
+
+Luckily, since both Solr and ES/OS use Lucene under the hood, it’s
+possible to migrate the schema automatically. To do so, we need a few
+key components.
+
+Schema migration from Solr to Elasticsearch / OpenSearch <https://
+bigdataboutique.com/blog-images/a0072b.webp>
+
+
+    Basic field types
+    /
+
+    / <#basic-field-types>
+
+First and simplest part is to map Solr field types to ES, so we built a
+mapping for that:
+
+|BASIC_TYPES = {
+  "string": "keyword",
+  "strings": "keyword",
+  "boolean": "boolean",
+  "booleans": "boolean",
+  "pint": "long",
+  "pints": "long",
+  "pfloat": "double",
+  "pfloats": "double",
+  "plong": "long",
+  "plongs": "long",
+  "pdouble": "double",
+  "pdoubles": "double",
+  "pdate": "date",
+  "pdates": "date",
+  "binary": "binary"
+}|
+
+Solr is using separate types for “one” and “many” docs, but
+Elasticsearch can happily store a list into any basic-typed field. It
+would get a bit complicated with nested field type, but luckily this
+customer had a flat schema.
+
+
+    Non-standard fields
+    /
+
+    / <#non-standard-fields>
+
+The Solr schema had some “random” type fields generating a random value
+when accessed, so we used runtime mappings to recreate this behavior.
+Those runtime fields would look as simple as:
+
+|{
+  "type": "double",
+  "script": {
+    "source": "Math.random()"
+  }
+}|
+
+
+    Tokenizers and token filters
+    /
+
+    / <#tokenizers-and-token-filters>
+
+The next step would be tokenizers. Both ES and Solr use Lucene
+tokenizers, so the mapping is relatively straightforward as well, either
+to an out-of-the-box analyzer, or custom one (tokens with |>| get
+replaced by the script with the corresponding attribute values):
+
+|TOKENIZERS = {
+  "solr.StandardTokenizerFactory": "standard",
+  "solr.WhitespaceTokenizerFactory": "whitespace",
+  "solr.KeywordTokenizerFactory": "keyword",
+  "solr.JapaneseTokenizerFactory": {"type": "kuromoji_tokenizer", "mode": ">mode"},
+  "solr.KoreanTokenizerFactory": {"type": "nori_tokenizer", "decompound_mode": ">decompound_mode"},
+  "solr.PathHierarchyTokenizerFactory": {"type": "path_hierarchy", "delimiter": ">delimiter", "replacement": ">replacement", "bufferSize": ">bufferSize"},
+  "solr.ThaiTokenizerFactory": "thai"
+}|
+
+In the similar way, we map the token filters as well, it’s larger
+though. As I mentioned, the customer is using custom analysis quite
+extensively.
+
+
+    Other field attributes
+    /
+
+    / <#other-field-attributes>
+
+The mappings above apply to such field attributes as |analyzer|
+(indexing analyzer), |search_analyzer| (search analyzer), but some
+attributes can just map directly:
+
+|ATTRS_MAP = {
+  "indexed": "index",
+  "stored": "store",
+  "docValues": "doc_values"
+}|
+
+And some, like |multiValued|, do not apply to ES at all.
+
+
+    Special fields
+    /
+
+    / <#special-fields>
+
+Dynamic fields (|dynamicField|) in Solr pretty clearly map to dynamic
+templates (|dynamic_templates|) in Elasticsearch, applying all the same
+attributes as “normal” fields.
+
+Also, |copyField| section from Solr schema can be represented with a
+bunch of |copy_to| attributes on the corresponding fields.
+
+OpenSearch Operations
+*Done Right.*
+Contact Us
+
+Schedule a Meeting
+
+
+    Outcome
+    /
+
+    / <#outcome>
+
+Even though writing a script to get all these pieces together took a
+while, the effort required was way smaller than manually converting it.
+Even if ES and Solr have somewhat different naming schemes here and
+there, the underlying engine is the same, so it is definitely feasible
+to convert Solr schema directly into Elasticsearch / Opensearch mapping.
+
+We have published <https://github.com/BigDataBoutique/solr-schema-to-es>
+the script on GitHub, so feel free to add analyzers and field types not
+covered here.
+
+Looking for help migrating from Solr to Elasticsearch? or maybe
+optimizing your existing cluster? reach out now <https://
+bigdataboutique.com/contact>.
+
+Subscribe to Newsletter
+
+rss <https://bigdataboutique.com/blog/rss.xml>
+Elasticsearch,OpenSearch,Solr <https://bigdataboutique.com/landing/
+elasticsearch-consulting?
+utm_source=blog&utm_medium=banner300x300&utm_campaign=es&utm_content=WCE> Elasticsearch,OpenSearch,Solr <https://bigdataboutique.com/landing/opensearch-consulting?utm_source=blog&utm_medium=banner300x600&utm_campaign=es&utm_content=ete>
+
+
+        More Like This
+
+  *
+    Yesterday
+
+    Solr to OpenSearch Migration Deep Dive: Architecture, Queries, and
+    Data Strategies
+    Solr to OpenSearch Migration Deep Dive: Architecture, Queries, and
+    Data Strategies <https://bigdataboutique.com/blog/solr-to-
+    opensearch-migration-deep-dive>
+  *
+    November 8th, 2022
+
+    Multi-Tenancy with Elasticsearch and OpenSearch
+    Multi-Tenancy with Elasticsearch and OpenSearch <https://
+    bigdataboutique.com/blog/multi-tenancy-with-elasticsearch-and-
+    opensearch-c1047b>
+  *
+    March 7th, 2025
+
+    Apache Solr vs OpenSearch - Comparison and Key Differences
+    Apache Solr vs OpenSearch - Comparison and Key Differences <https://
+    bigdataboutique.com/blog/apache-solr-vs-opensearch-comparison-and-
+    key-differences-d7c790>
+
+
+      Contact Us
+
+Do you want to make your OpenSearch queries run
+*multiple times faster?*
+
+Your Full Name
+
+Email
+
+Phone (optional)
+
+Company (optional)
+
+By clicking the button below you're agreeing to our Privacy Policy
+<https://bigdataboutique.com/privacy>
+Send
+
+
+        Subscribe to Monthly Newsletter
+
+Keep up-to-date with important changes in big data technologies;
+discover new features and tools for your business.
+
+
+      Contact Us
+
+OpenSearch Operations
+*Done Right.*
+Your Full Name
+
+Email
+
+Phone (optional)
+
+Company (optional)
+
+By clicking the button below you're agreeing to our Privacy Policy
+<https://bigdataboutique.com/privacy>
+Send
+
+bigdata boutique <https://bigdataboutique.com/>
+
+Never Miss an Update
+Subscribe to our Newsletter
+
+Subscribe
+
+  *
+
+    Services
+
+  * Big Data Consulting <https://bigdataboutique.com/services>
+  * Elasticsearch Support <https://bigdataboutique.com/elasticsearch-
+    support>
+  * Enterprise OpenSearch Support <https://bigdataboutique.com/
+    opensearch-support>
+  * Elasticsearch Consultants <https://bigdataboutique.com/services/
+    elasticsearch-consulting>
+  * OpenSearch Support & Consulting <https://bigdataboutique.com/
+    services/opensearch-consulting>
+  * Apache Kafka Consulting <https://bigdataboutique.com/services/
+    apache-kafka-consulting>
+  * Apache Flink Consulting <https://bigdataboutique.com/services/
+    apache-flink-consulting>
+  * Apache Spark Consulting <https://bigdataboutique.com/services/
+    apache-spark-consulting>
+  * Databricks Consulting <https://bigdataboutique.com/services/
+    databricks-consulting>
+  * Clickhouse Consulting <https://bigdataboutique.com/services/
+    clickhouse-consulting>
+  * Amazon Bedrock Consulting <https://bigdataboutique.com/amazon-
+    bedrock-genai-consulting>
+  * ES to OpenSearch Migration <https://bigdataboutique.com/services/
+    elasticsearch-to-opensearch-migration>
+  * Kafka Performance Tuning <https://bigdataboutique.com/services/
+    apache-kafka-performance-tuning>
+  * Apache Iceberg Consulting <https://bigdataboutique.com/services/
+    apache-iceberg-consulting>
+
+  *
+
+    Solutions
+
+  * eCommerce Search <https://bigdataboutique.com/solutions/ecommerce-
+    search>
+  * Real-Time Analytics <https://bigdataboutique.com/solutions/real-
+    time-analytics>
+  * Migrate from Splunk <https://bigdataboutique.com/solutions/migrate-
+    from-splunk>
+  * Migrate to ClickHouse <https://bigdataboutique.com/solutions/
+    migrate-to-clickhouse>
+  * Migrate from Hadoop <https://bigdataboutique.com/solutions/migrate-
+    from-hadoop>
+  * Pulse: Elasticsearch Operations Done Right <https://
+    bigdataboutique.com/solutions/pulse>
+  * Elasticsearch Query Analytics <https://bigdataboutique.com/
+    solutions/elasticsearch-query-analytics>
+  * Presto Search <https://bigdataboutique.com/solutions/presto-search>
+  * Eyfo - Hebrew Search Plugin // <https://ey.fo/>
+
+  * Training <https://bigdataboutique.com/training>
+  * Ask Me Anything <https://bigdataboutique.com/ask-me-anything>
+  * Customers <https://bigdataboutique.com/customers>
+  * Partners <https://bigdataboutique.com/partners>
+  *  
+  * Elasticsearch <https://bigdataboutique.com/what-is-elasticsearch>
+  * OpenSearch <https://bigdataboutique.com/what-is-opensearch>
+  * AWS Elasticsearch <https://bigdataboutique.com/what-is-aws-
+    elasticsearch>
+  * Apache Flink <https://bigdataboutique.com/what-is-apache-flink>
+
+  * Blog <https://bigdataboutique.com/blog>
+  * About Us <https://bigdataboutique.com/about-us>
+  * Careers <https://bigdataboutique.com/careers>
+  * Contact <https://bigdataboutique.com/contact>
+  * Privacy Policy <https://bigdataboutique.com/privacy>
+
+Elasticsearch, Kibana, Logstash, and Beats are trademarks of
+Elasticsearch BV, registered in the U.S. and in other countries.
+BigData Boutique, Inc. is not affiliated with Elasticsearch BV.
+
+© 2026 BigData Boutique
+
+/
+
+/ <https://github.com/BigDataBoutique/>
+/
+
+/ <https://www.facebook.com/bigdataboutique/>
+/
+
+/ <https://twitter.com/bigdataboutique>
+/
+
+/ <https://www.linkedin.com/company/bigdata-boutique>
+/
+
+/ <https://www.youtube.com/c/bigdataboutique>
+
+
+        Subscribe to Monthly Newsletter
+
+Keep up-to-date with important changes in big data technologies;
+discover new features and tools for your business.
+
+We use cookies to provide an optimized user experience and understand
+our traffic. To learn more, read our use of cookies <https://
+bigdataboutique.com/privacy>; otherwise, please choose 'Accept Cookies'
+to continue using our website.
+Accept Cookies
+

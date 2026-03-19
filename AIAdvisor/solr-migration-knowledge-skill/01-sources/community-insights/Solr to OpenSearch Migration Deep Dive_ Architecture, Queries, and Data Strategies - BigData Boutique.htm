@@ -1,0 +1,657 @@
+bigdata boutique bigdata boutique <https://bigdataboutique.com/>
+
+<https://bigdataboutique.com/contact>
+
+  * Services
+
+    Services
+
+    <#>
+      o We are World-Class Experts who build, optimize and support
+        production-grade Big Data platforms
+      o
+        Big Data
+        Big Data Consulting <https://bigdataboutique.com/services>
+      o
+
+        Elasticsearch <https://bigdataboutique.com/services/
+        elasticsearch-consulting>
+      o
+
+        OpenSearch <https://bigdataboutique.com/services/opensearch-
+        consulting>
+      o
+
+        Apache Kafka <https://bigdataboutique.com/services/apache-kafka-
+        consulting>
+      o
+        flink
+        Apache Flink <https://bigdataboutique.com/services/apache-flink-
+        consulting>
+      o
+
+        Apache Spark <https://bigdataboutique.com/services/apache-spark-
+        consulting>
+      o
+        Databricks
+        Databricks <https://bigdataboutique.com/services/databricks-
+        consulting>
+      o
+
+        ClickHouse <https://bigdataboutique.com/services/clickhouse-
+        consulting>
+      o
+
+        PostgreSQL <https://bigdataboutique.com/services/postgresql-
+        consulting>
+      o
+
+        ES → OpenSearch <https://bigdataboutique.com/services/
+        elasticsearch-to-opensearch-migration>
+  * Solutions
+
+    Solutions
+
+    <#>
+      o
+
+        Semantic Search
+        Go beyond keyword search, make your search AI and Agentic ready
+        <https://bigdataboutique.com/solutions/semantic-search>
+      o
+
+        Data Platform Modernization
+        Apache Spark, Flink, Kafka, Databricks, ClickHouse and more
+        <https://bigdataboutique.com/solutions/data-platform-modernization>
+      o
+
+        Data to Analytics & AI
+        Make operational databases accessible to analytics and AI workloads
+        <https://bigdataboutique.com/solutions/data-to-analytics-ai>
+      o
+
+        Data Platform Migrations
+        Apache Spark, Flink, Kafka, Databricks, ClickHouse and more
+        <https://bigdataboutique.com/solutions/data-platform-migrations>
+      o
+
+        Build Agentic Workloads
+        From POC to production-ready AI agents on your data
+        <https://bigdataboutique.com/solutions/build-agentic-workloads>
+      o
+
+        eCommerce Search
+        AI-powered product search that converts and engages
+        <https://bigdataboutique.com/solutions/ecommerce-search>
+      o
+
+        Real-Time Analytics
+        Sub-second insights on billions of events with Kafka &amp;
+        ClickHouse
+        <https://bigdataboutique.com/solutions/real-time-analytics>
+      o
+        Hadoop
+        Migrate from Hadoop
+        Move to Databricks, AWS EMR, or Apache Iceberg cloud-native
+        platforms
+        <https://bigdataboutique.com/solutions/migrate-from-hadoop>
+  * Enterprise Support
+
+    Enterprise Support
+
+    <https://bigdataboutique.com/enterprise-support>
+      o
+
+        Elasticsearch Support
+        <https://bigdataboutique.com/enterprise-support/elasticsearch>
+      o
+
+        OpenSearch Support
+        <https://bigdataboutique.com/enterprise-support/opensearch>
+      o
+
+        ClickHouse Support
+        <https://bigdataboutique.com/enterprise-support/clickhouse>
+  * Blog <https://bigdataboutique.com/blog>
+  * Company
+
+    Company
+
+    <#>
+      o
+
+        About Us
+        <https://bigdataboutique.com/about-us>
+      o
+
+        Case Studies
+        <https://bigdataboutique.com/customers>
+      o
+
+        Partners
+        <https://bigdataboutique.com/partners>
+      o
+
+        Careers
+        <https://bigdataboutique.com/careers>
+      o
+
+        Contact Us
+        <https://bigdataboutique.com/contact>
+  *
+
+    <https://bigdataboutique.com/contact>
+
+Yesterday
+
+8 min read
+
+<https://facebook.com/sharer/sharer.php?
+u=https%3A%2F%2Fbigdataboutique.com%2Fblog%2Fsolr-to-opensearch-
+migration-deep-dive>
+
+<https://twitter.com/intent/tweet/?
+text=Solr%20to%20OpenSearch%20Migration%20Deep%20Dive%3A%20Architecture%2C%20Queries%2C%20and%20Data%20Strategies&url=https%3A%2F%2Fbigdataboutique.com%2Fblog%2Fsolr-to-opensearch-migration-deep-dive>
+
+<https://www.linkedin.com/shareArticle?
+mini=true&url=https%3A%2F%2Fbigdataboutique.com%2Fblog%2Fsolr-to-
+opensearch-migration-deep-
+dive&title=Solr%20to%20OpenSearch%20Migration%20Deep%20Dive%3A%20Architecture%2C%20Queries%2C%20and%20Data%20Strategies&summary=Solr%20to%20OpenSearch%20Migration%20Deep%20Dive%3A%20Architecture%2C%20Queries%2C%20and%20Data%20Strategies&source=https%3A%2F%2Fbigdataboutique.com%2Fblog>
+copy url
+
+<javascript:void(0)>
+
+
+  Solr to OpenSearch Migration Deep Dive: Architecture, Queries, and
+  Data Strategies
+
+OpenSearch <https://bigdataboutique.com/blog/tagged/opensearch> Apache
+Solr <https://bigdataboutique.com/blog/tagged/apache%20solr> Amazon
+OpenSearch Service <https://bigdataboutique.com/blog/tagged/
+amazon%20opensearch%20service>
+Rafał Kuć Rafał Kuć
+
+A technical deep dive into the architectural differences between Apache
+Solr and OpenSearch, with practical query translation examples and
+migration strategies for teams planning the switch.
+
+Both Apache Solr and OpenSearch build on Apache Lucene, but once you
+look past that shared foundation, the differences run deep.
+Understanding these architectural gaps is what separates a smooth
+migration from one that stalls on unexpected behavior in production.
+
+This post digs into the technical details that matter when moving from
+Solr to OpenSearch - internal architecture differences, the growing
+vector search gap, practical query translation, and data migration
+strategies that minimize risk. For migration planning and execution
+steps, see our Guide to Migrating from Apache Solr to OpenSearch
+<https://bigdataboutique.com/blog/guide-to-migrating-from-apache-solr-
+to-opensearch-c0e755>. For a feature-level comparison, see Apache Solr
+vs OpenSearch: Comparison and Key Differences <https://
+bigdataboutique.com/blog/apache-solr-vs-opensearch-comparison-and-key-
+differences-d7c790>.
+
+Solr to OpenSearch Migration Deep Dive: Architecture, Queries, and Data
+Strategies <https://i.ytimg.com/vi/jR9wWWc72As/maxresdefault.jpg>
+
+
+    How Solr and OpenSearch Differ Under the Hood
+    /
+
+    / <#how-solr-and-opensearch-differ-under-the-hood>
+
+Both engines are JVM-based and use Lucene. Both divide data into shards
+- physical Lucene indices. The similarities thin out quickly after that.
+
+*Data Organization.* Solr uses collections divided into shards.
+OpenSearch uses indices divided into shards. Functionally similar - both
+are virtual groupings that share configuration and document structure.
+The real differences show up in how those shards are replicated and
+recovered.
+
+*Replica Types.* SolrCloud offers three replica types, and you can mix
+them within a single collection:
+
+  * *NRT (Near Real-Time):* Maintains a transaction log and refreshes
+    continuously. Highest resource cost, lowest indexing-to-search latency.
+  * *TLOG:* Reads from the transaction log on a schedule. Lower resource
+    usage, higher latency.
+  * *PULL:* Physically copies Lucene segments from the leader. Cheapest
+    option but with the most delay - essentially a leader-follower
+    pattern on top of SolrCloud.
+
+OpenSearch takes a different approach with document replication
+(default) and segment replication. It also supports S3-backed remote
+storage <https://opensearch.org/docs/latest/tuning-your-cluster/
+availability-and-recovery/remote-store/index/> for cold data. An open
+shard consumes heap memory regardless of query activity, so offloading
+cold indices to remote storage can significantly reduce cluster costs
+while keeping that data searchable on demand.
+
+*Leader Election.* Solr requires Apache ZooKeeper - a separate JVM-based
+service where you need at least three instances for fault tolerance.
+That's additional infrastructure to provision, monitor, and maintain
+through upgrades. OpenSearch handles cluster coordination internally
+with built-in discovery. No external dependencies.
+
+*Recovery.* Recovery behavior in Solr depends on replica type. NRT
+replicas first attempt to catch up from the transaction log (roughly the
+last 100 entries), then fall back to a full segment copy. TLOG and PULL
+replicas each use their own mechanisms. In OpenSearch, recovery is a
+binary copy of Lucene segments between nodes - you'll see this in
+cluster logs during shard allocation and rebalancing.
+
+Aspect 	Apache Solr 	OpenSearch
+Run modes 	SolrCloud + legacy leader-follower 	Distributed by default
+Replica types 	NRT, TLOG, PULL (mixable per collection) 	Document,
+Segment, Remote (S3)
+Leader election 	External (ZooKeeper, 3+ instances) 	Built-in cluster
+discovery
+Recovery 	Transaction log or segment copy (varies by replica) 	Binary
+segment copy between nodes
+Cold storage 	Limited 	S3-backed remote storage
+
+
+    The Vector Search Gap
+    /
+
+    / <#the-vector-search-gap>
+
+If your migration is partly motivated by AI and semantic search
+capabilities, the gap between Solr and OpenSearch is substantial as of
+early 2026.
+
+OpenSearch supports FAISS and other ANN algorithms <https://
+opensearch.org/docs/latest/search-plugins/knn/approximate-knn/> for
+approximate nearest neighbor search, and added Maximum Marginal
+Relevance (MMR) in version 3.3. MMR diversifies result sets while
+maintaining relevance - OpenSearch documentation reports up to 90%
+relevance retention with 100x search performance improvement <https://
+opensearch.org/blog/opensearch-3-3-performance-innovations-for-ai-
+search-solutions/> over brute-force approaches. Quantization support for
+reducing vector storage costs is built in, which matters when working
+with high-dimensional embeddings.
+
+Solr has basic neural and sparse search support, but vectorization
+during indexing requires an external embedding service. There's no
+built-in equivalent to OpenSearch's integrated semantic search pipeline.
+
+This gap matters because search in 2026 is hybrid. BM25 and keyword
+matching are still strong for exact-match use cases, part numbers, and
+specific terminology. But users and AI agents increasingly expect
+semantic understanding. Agents query search engines using natural
+language, not keyword strings. If your roadmap includes RAG, agentic
+search, or any form of semantic retrieval, OpenSearch provides those
+building blocks natively.
+
+For a deeper look at search modernization, see Beyond Keyword Search:
+Search Modernization With OpenSearch <https://bigdataboutique.com/blog/
+beyond-keyword-search-search-modernization-with-opensearch-8c94c6>.
+
+
+    Translating Queries from Solr to OpenSearch
+    /
+
+    / <#translating-queries-from-solr-to-opensearch>
+
+Query migration is where teams spend the most time. Solr offers a URL-
+based API with query parsers (dismax, edismax) that handle scoring logic
+behind the scenes. OpenSearch uses a JSON Query DSL that's more verbose
+but gives explicit control over every aspect of query execution. For
+additional query translation examples, see the query migration section
+in our migration guide <https://bigdataboutique.com/blog/guide-to-
+migrating-from-apache-solr-to-opensearch-c0e755>.
+
+*DisMax to Multi-Match.* Solr's dismax parser is the workhorse for most
+search applications - pass a query and field list, it handles
+disjunction max scoring:
+
+|q=laptop&defType=dismax&qf=title^2 description|
+
+The closest OpenSearch equivalent is |multi_match| with |best_fields|:
+
+|{
+  "query": {
+    "multi_match": {
+      "query": "laptop",
+      "type": "best_fields",
+      "fields": ["title^2", "description"]
+    }
+  }
+}
+
+|
+
+*Faceting to Aggregations.* One of the bigger conceptual shifts. Solr
+faceting gives you document counts per field value as a side-channel on
+search results:
+
+|facet=true&facet.field=brand&facet.limit=10|
+
+OpenSearch aggregations are structurally different. Each aggregation is
+named, can be nested virtually without limit, and supports domain
+changes - computing aggregations on a different document set than the
+query results:
+
+|{
+  "aggs": {
+    "brands": {
+      "terms": {
+        "field": "brand.keyword",
+        "size": 10
+      }
+    }
+  }
+}
+
+|
+
+Note the |.keyword| sub-field. OpenSearch commonly uses multi-fields
+<https://opensearch.org/docs/latest/field-types/mapping-parameters/
+fields/> where the main field is analyzed for full-text search and a
+|.keyword| sub-field stores the raw value for aggregations and sorting.
+
+*Filter Queries.* Solr's |fq| parameter applies cached filters outside
+the scoring context:
+
+|fq=timestamp:[NOW-7DAYS TO *]|
+
+In OpenSearch, filters go inside a |bool| query's |filter| clause:
+
+|{
+  "query": {
+    "bool": {
+      "filter": [
+        { "range": { "timestamp": { "gte": "now-7d", "lte": "now" } } }
+      ]
+    }
+  }
+}
+
+|
+
+*Common Parameter Mappings:*
+
+Solr Parameter 	OpenSearch Equivalent
+|rows| 	|size|
+|start| 	|from|
+|fl| (field list) 	|_source|
+|fq| (filter query) 	|bool.filter| clause
+|sort| 	|sort|
+|defType=dismax| 	|multi_match| (best_fields)
+|facet.field| 	|terms| aggregation
+
+OpenSearch queries are more verbose. Newcomers from Solr sometimes find
+that frustrating, but people new to search generally find the explicit
+JSON DSL easier to read and debug.
+
+
+    Migration Strategies and Bulk Indexing Tips
+    /
+
+    / <#migration-strategies-and-bulk-indexing-tips>
+
+Two patterns handle most migration scenarios. For the full planning
+checklist - infrastructure sizing, PoC validation, team preparation -
+see the migration guide <https://bigdataboutique.com/blog/guide-to-
+migrating-from-apache-solr-to-opensearch-c0e755>.
+
+*Dual-Write with Historical Catchup.* The preferred approach. Your
+application writes to both Solr and OpenSearch simultaneously while you
+reindex historical data in the background. Once caught up, run AB tests,
+compare results, and gradually shift traffic - 1%, 10%, 50%, then full
+cutover. This may require adding a message queue (Kafka, SQS) before the
+indexing layer to prevent data loss during the transition. More complex
+to set up, but lets you validate everything without downtime and roll
+back instantly if something looks wrong.
+
+*Planned Downtime with Bulk Reindex.* Export from your source of truth,
+bulk index into OpenSearch, switch over. Simpler to execute but requires
+a maintenance window. Whether the business accepts downtime depends on
+your indexing cadence - if you index continuously, this approach may not
+be viable.
+
+
+      Bulk Indexing Performance Tips
+      /
+
+      / <#bulk-indexing-performance-tips>
+
+When loading data into OpenSearch during migration, a few settings make
+a large difference:
+
+ 1. *Batch size matters.* Below 100 documents per bulk request, network
+    overhead dominates (socket handshake, ACK). Above 5,000, memory
+    pressure causes rejected requests. Start around 500-1,000 and tune
+    based on document size.
+ 2. *Set |refresh_interval| to |-1|* during bulk loading. This prevents
+    OpenSearch from rebuilding the searchable view after every write,
+    dramatically improving throughput. Reset it after loading completes.
+ 3. *Use multiple indexing threads.* A single thread won't saturate your
+    cluster. Parallelize across available cores and data sources.
+ 4. *Monitor JVM heap.* Bulk requests consume heap memory. Watch |
+    _nodes/stats/jvm| and reduce concurrency if usage climbs above 75%.
+ 5. *Disable dynamic mapping.* OpenSearch guesses field types for
+    unknown fields by default. In production, this leads to mapping
+    bloat - hit the default 1,000-field limit and indexing starts
+    failing silently. Use index templates <https://opensearch.org/docs/
+    latest/im-plugin/index-templates/> with |"dynamic": "strict"| to
+    enforce your schema.
+
+OpenSearch Operations
+*Done Right.*
+Contact Us
+
+Schedule a Meeting
+
+
+    Key Takeaways
+    /
+
+    / <#key-takeaways>
+
+  * Solr and OpenSearch share a Lucene core but diverge in replication
+    models, cluster management, recovery mechanisms, and vector search
+    capabilities.
+  * OpenSearch's built-in cluster coordination eliminates the ZooKeeper
+    dependency - less infrastructure to manage and fewer failure modes.
+  * The vector search gap is real: OpenSearch offers FAISS, MMR, and
+    integrated semantic search pipelines. Solr requires external services.
+  * Query translation is mechanical but time-consuming. The biggest
+    conceptual shifts are dismax to multi_match and faceting to named,
+    nestable aggregations.
+  * For production migrations, dual-write with gradual traffic shifting
+    is the safest path. Tune bulk indexing settings to avoid bottlenecks
+    during data loading.
+
+For schema conversion tooling, see Schema Migration from Solr to
+Elasticsearch/OpenSearch <https://bigdataboutique.com/blog/schema-
+migration-from-solr-to-elasticsearch-opensearch-a0072b>.
+
+/This post is based on a webinar presented by Rafał Kuć <https://
+www.youtube.com/watch?v=jR9wWWc72As> covering migration benefits and a
+hands-on tutorial for moving from Apache Solr to OpenSearch./
+
+Subscribe to Newsletter
+
+rss <https://bigdataboutique.com/blog/rss.xml>
+OpenSearch,Apache Solr,Amazon OpenSearch Service <https://
+bigdataboutique.com/?
+utm_source=blog&utm_medium=banner300x300&utm_campaign=es&utm_content=WCE> OpenSearch,Apache Solr,Amazon OpenSearch Service <https://bigdataboutique.com/landing/opensearch-consulting?utm_source=blog&utm_medium=banner300x600&utm_campaign=es&utm_content=ete>
+
+
+        More Like This
+
+  *
+    February 22nd, 2026
+
+    Apache Iceberg Architecture Deep Dive
+    Apache Iceberg Architecture Deep Dive <https://bigdataboutique.com/
+    blog/apache-iceberg-architecture-deep-dive>
+  *
+    March 7th, 2025
+
+    Apache Solr vs OpenSearch - Comparison and Key Differences
+    Apache Solr vs OpenSearch - Comparison and Key Differences <https://
+    bigdataboutique.com/blog/apache-solr-vs-opensearch-comparison-and-
+    key-differences-d7c790>
+  *
+    November 4th, 2024
+
+    OpenSearch Data Migration from Elasticsearch - The Guide
+    OpenSearch Data Migration from Elasticsearch - The Guide <https://
+    bigdataboutique.com/blog/opensearch-data-migration-from-
+    elasticsearch-the-guide-720536>
+
+
+      Contact Us
+
+OpenSearch Operations
+*Done Right.*
+
+Your Full Name
+
+Email
+
+Phone (optional)
+
+Company (optional)
+
+By clicking the button below you're agreeing to our Privacy Policy
+<https://bigdataboutique.com/privacy>
+Send
+
+
+        Subscribe to Monthly Newsletter
+
+Keep up-to-date with important changes in big data technologies;
+discover new features and tools for your business.
+
+
+      Contact Us
+
+OpenSearch Operations
+*Done Right.*
+Your Full Name
+
+Email
+
+Phone (optional)
+
+Company (optional)
+
+By clicking the button below you're agreeing to our Privacy Policy
+<https://bigdataboutique.com/privacy>
+Send
+
+bigdata boutique <https://bigdataboutique.com/>
+
+Never Miss an Update
+Subscribe to our Newsletter
+
+Subscribe
+
+  *
+
+    Services
+
+  * Big Data Consulting <https://bigdataboutique.com/services>
+  * Elasticsearch Support <https://bigdataboutique.com/elasticsearch-
+    support>
+  * Enterprise OpenSearch Support <https://bigdataboutique.com/
+    opensearch-support>
+  * Elasticsearch Consultants <https://bigdataboutique.com/services/
+    elasticsearch-consulting>
+  * OpenSearch Support & Consulting <https://bigdataboutique.com/
+    services/opensearch-consulting>
+  * Apache Kafka Consulting <https://bigdataboutique.com/services/
+    apache-kafka-consulting>
+  * Apache Flink Consulting <https://bigdataboutique.com/services/
+    apache-flink-consulting>
+  * Apache Spark Consulting <https://bigdataboutique.com/services/
+    apache-spark-consulting>
+  * Databricks Consulting <https://bigdataboutique.com/services/
+    databricks-consulting>
+  * Clickhouse Consulting <https://bigdataboutique.com/services/
+    clickhouse-consulting>
+  * Amazon Bedrock Consulting <https://bigdataboutique.com/amazon-
+    bedrock-genai-consulting>
+  * ES to OpenSearch Migration <https://bigdataboutique.com/services/
+    elasticsearch-to-opensearch-migration>
+  * Kafka Performance Tuning <https://bigdataboutique.com/services/
+    apache-kafka-performance-tuning>
+  * Apache Iceberg Consulting <https://bigdataboutique.com/services/
+    apache-iceberg-consulting>
+
+  *
+
+    Solutions
+
+  * eCommerce Search <https://bigdataboutique.com/solutions/ecommerce-
+    search>
+  * Real-Time Analytics <https://bigdataboutique.com/solutions/real-
+    time-analytics>
+  * Migrate from Splunk <https://bigdataboutique.com/solutions/migrate-
+    from-splunk>
+  * Migrate to ClickHouse <https://bigdataboutique.com/solutions/
+    migrate-to-clickhouse>
+  * Migrate from Hadoop <https://bigdataboutique.com/solutions/migrate-
+    from-hadoop>
+  * Pulse: Elasticsearch Operations Done Right <https://
+    bigdataboutique.com/solutions/pulse>
+  * Elasticsearch Query Analytics <https://bigdataboutique.com/
+    solutions/elasticsearch-query-analytics>
+  * Presto Search <https://bigdataboutique.com/solutions/presto-search>
+  * Eyfo - Hebrew Search Plugin // <https://ey.fo/>
+
+  * Training <https://bigdataboutique.com/training>
+  * Ask Me Anything <https://bigdataboutique.com/ask-me-anything>
+  * Customers <https://bigdataboutique.com/customers>
+  * Partners <https://bigdataboutique.com/partners>
+  *  
+  * Elasticsearch <https://bigdataboutique.com/what-is-elasticsearch>
+  * OpenSearch <https://bigdataboutique.com/what-is-opensearch>
+  * AWS Elasticsearch <https://bigdataboutique.com/what-is-aws-
+    elasticsearch>
+  * Apache Flink <https://bigdataboutique.com/what-is-apache-flink>
+
+  * Blog <https://bigdataboutique.com/blog>
+  * About Us <https://bigdataboutique.com/about-us>
+  * Careers <https://bigdataboutique.com/careers>
+  * Contact <https://bigdataboutique.com/contact>
+  * Privacy Policy <https://bigdataboutique.com/privacy>
+
+Elasticsearch, Kibana, Logstash, and Beats are trademarks of
+Elasticsearch BV, registered in the U.S. and in other countries.
+BigData Boutique, Inc. is not affiliated with Elasticsearch BV.
+
+© 2026 BigData Boutique
+
+/
+
+/ <https://github.com/BigDataBoutique/>
+/
+
+/ <https://www.facebook.com/bigdataboutique/>
+/
+
+/ <https://twitter.com/bigdataboutique>
+/
+
+/ <https://www.linkedin.com/company/bigdata-boutique>
+/
+
+/ <https://www.youtube.com/c/bigdataboutique>
+
+
+        Subscribe to Monthly Newsletter
+
+Keep up-to-date with important changes in big data technologies;
+discover new features and tools for your business.
+
+We use cookies to provide an optimized user experience and understand
+our traffic. To learn more, read our use of cookies <https://
+bigdataboutique.com/privacy>; otherwise, please choose 'Accept Cookies'
+to continue using our website.
+Accept Cookies
+

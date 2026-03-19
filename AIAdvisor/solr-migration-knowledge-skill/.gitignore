@@ -1,0 +1,8 @@
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~
+# do NOT Keep PPTX and .skill tracked in git
+*.pptx
+*.skill

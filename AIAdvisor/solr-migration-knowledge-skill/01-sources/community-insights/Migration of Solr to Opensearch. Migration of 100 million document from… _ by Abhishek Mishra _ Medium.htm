@@ -1,0 +1,640 @@
+Sitemap <https://innocentcoder.medium.com/sitemap/sitemap.xml>
+Open in app<https://play.google.com/store/apps/details?
+id=com.medium.reader&referrer=utm_source%3DmobileNavBar&source=post_page---top_nav_layout_nav----------------------------------------->
+Sidebar menu
+Medium Logo
+
+<https://medium.com/?source=post_page---
+top_nav_layout_nav----------------------------------------->
+
+Get app
+
+Write
+ <https://medium.com/new-story?source=post_page---
+top_nav_layout_nav----------------------------------------->
+
+Search
+ <https://medium.com/search?source=post_page---
+top_nav_layout_nav----------------------------------------->
+
+Notifications
+3
+ <https://medium.com/me/notifications?source=post_page---
+top_nav_layout_nav----------------------------------------->
+Seanoc
+
+Sidebar menu
+Medium Logo
+
+<https://medium.com/?source=post_page---
+sidebar_menu----------------------------------------->
+
+Home <https://medium.com/?source=post_page---
+sidebar_menu----------------------------------------->
+
+Library <https://medium.com/me/lists?source=post_page---
+sidebar_menu----------------------------------------->
+
+Profile <https://medium.com/@seanoc5?source=post_page---
+sidebar_menu----------------------------------------->
+
+Stories <https://medium.com/me/stories?source=post_page---
+sidebar_menu----------------------------------------->
+
+Stats <https://medium.com/me/stats?source=post_page---
+sidebar_menu----------------------------------------->
+
+Following <https://medium.com/me/following-feed/writers?
+source=post_page---sidebar_menu----------------------------------------->
+
+Find writers and publications to follow.
+
+See suggestions <https://medium.com/me/following/suggestions?
+source=post_page---
+sidebar_menu_following----------------------------------------->
+Your payment method has expired.
+Update to keep your membership <https://medium.com/me/settings/payment/
+update?source=update_payment_method_banner---
+post_top_nav_upsell----------------------------------------->
+
+
+  Migration of Solr to Opensearch
+
+
+    Migration of 100 million document from solr to opensearch
+
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---byline--
+a3b04ce0378f--------------------------------------->
+Abhishek Mishra <https://innocentcoder.medium.com/?source=post_page---
+byline--a3b04ce0378f--------------------------------------->
+Follow
+
+2 min read
+·
+May 5, 2023
+
+17
+
+Listen
+
+Share
+
+More
+
+We used solr for our e-commerce search/feed/autosuggest/personalisation
+use cases.
+
+/Challenges with solr cluster/
+
+  * Managing solr infrastructure (zookeeper , JVM, GC analysis etc.) is
+    a challenge. In general, we need a dedicated developer(SRE/SDE-3)
+    for it.
+  * Upgradation to a newer stable version. Less community support for
+    any critical issues.
+
+Quick Comparison
+Elasticsearch vs Solr
+
+Press enter or click to view image in full size
+
+ELK now comes with elastic premium license. So we opted for opensearch
+as it is opensource. It is based on elasticsearch 7.10 version. It has
+apache license.
+
+
+    Major Challenges
+
+  * Existing code had design problems. Tightly coupled with solr.
+    Microservice architecture and multiple service dependency.
+  * Big cluster size in some regions & country-wise launches.
+
+
+    Solution
+
+ 1. We used terraform for cluster formation of opensearch in all regions.
+ 2. For code we used factory design pattern and Adapter design pattern.
+ 3. Parallel data ingestion in both opensearch & solr.
+ 4. Migration of delta data opensearch & solr by our reindexing service.
+ 5. One by one service launch with the support for both opensearch & solr
+ 6. Once the steps 1 to 5 was ready. We planned country wise launch and
+    monitoring on newRelic.
+
+Approx. architecture
+
+Press enter or click to view image in full size
+
+*Major bottleneck*: It was around the choice of node type c5 AWS
+machine. We fixed it by benchmarking and chose to go with c6g.
+
+
+    Result
+
+We successfully migrated over 100 million documents from solr to
+opensearch with no downtime. Migration involved over 100+ nodes on solr
+and opensearch. We also managed to save approximately 0.8 million USD.
+
+
+    Reference
+
+ 1. Factory design pattern <https://www.tutorialspoint.com/
+    design_pattern/factory_pattern.htm>
+ 2. Terraform <https://www.terraform.io/>
+ 3. Opensearch <https://opensearch.org/docs/latest/>
+ 4. Solr <https://solr.apache.org/resources.html>
+ 5. Adapter design pattern <https://www.tutorialspoint.com/
+    design_pattern/adapter_pattern.htm>
+
+Distributed Systems
+ <https://medium.com/tag/distributed-systems?source=post_page-----
+a3b04ce0378f--------------------------------------->
+Design
+ <https://medium.com/tag/design?source=post_page-----
+a3b04ce0378f--------------------------------------->
+Scalable
+ <https://medium.com/tag/scalable?source=post_page-----
+a3b04ce0378f--------------------------------------->
+Elasticsearch
+ <https://medium.com/tag/elasticsearch?source=post_page-----
+a3b04ce0378f--------------------------------------->
+Solr
+ <https://medium.com/tag/solr?source=post_page-----
+a3b04ce0378f--------------------------------------->
+
+17
+
+17
+
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---post_author_info--
+a3b04ce0378f--------------------------------------->
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---post_author_info--
+a3b04ce0378f--------------------------------------->
+Follow
+
+
+    Written by Abhishek Mishra
+
+<https://innocentcoder.medium.com/?source=post_page---post_author_info--
+a3b04ce0378f--------------------------------------->
+114 followers <https://innocentcoder.medium.com/followers?
+source=post_page---post_author_info--
+a3b04ce0378f--------------------------------------->
+·14 following <https://innocentcoder.medium.com/following?source=post_page---post_author_info--a3b04ce0378f--------------------------------------->
+
+Software Development Engineer 3 @ OLX India, Over 10 years of
+experience. www.linkedin.com/in/abhisheklinux <http://www.linkedin.com/
+in/abhisheklinux> . E-mail mishra.abhishek273@gmail.com
+<mailto:mishra.abhishek273@gmail.com>
+
+Follow
+
+
+    No responses yet
+
+<https://policy.medium.com/medium-rules-30e5502c4eb4?source=post_page---
+post_responses--a3b04ce0378f--------------------------------------->
+Seanoc
+
+Seanoc
+
+What are your thoughts?﻿
+
+Cancel
+Respond
+
+
+    More from Abhishek Mishra
+
+Resiliency on Redis
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----0---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+Abhishek Mishra
+
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----0---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+
+    Resiliency on Redis
+
+
+      Implement a resilient design on Redis for timeout and slow response.
+
+<https://innocentcoder.medium.com/resiliency-on-redis-35a283e6a0a7?
+source=post_page---author_recirc--
+a3b04ce0378f----0---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+May 10, 2023
+A clap icon
+
+6
+A response icon
+
+1
+ <https://innocentcoder.medium.com/resiliency-on-redis-35a283e6a0a7?
+source=post_page---author_recirc--
+a3b04ce0378f----0---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+How HTTP and HTTPS Work?
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----1---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+Abhishek Mishra
+
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----1---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+
+    How HTTP and HTTPS Work?
+
+
+      The very popular question being asked how exactly HTTPS work? A
+      lot of blogs around it are available in detailed form as well as in…
+
+<https://innocentcoder.medium.com/how-http-and-https-work-4c689e1ea369?
+source=post_page---author_recirc--
+a3b04ce0378f----1---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+Oct 24, 2020
+A clap icon
+
+627
+A response icon
+
+4
+ <https://innocentcoder.medium.com/how-http-and-https-work-4c689e1ea369?
+source=post_page---author_recirc--
+a3b04ce0378f----1---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+Rate limiting approach on our services
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----2---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+Abhishek Mishra
+
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----2---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+
+    Rate limiting approach on our services
+
+
+      In my current organization and previous organization, we faced an
+      issue whenever a sudden bump in traffic is there it impacted the…
+
+<https://innocentcoder.medium.com/rate-limiting-approach-on-our-
+services-954cef1af8e2?source=post_page---author_recirc--
+a3b04ce0378f----2---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+Feb 5, 2021
+A clap icon
+
+59
+ <https://innocentcoder.medium.com/rate-limiting-approach-on-our-
+services-954cef1af8e2?source=post_page---author_recirc--
+a3b04ce0378f----2---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+How does the browser work after typing the URL in the address bar?
+Abhishek Mishra
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----3---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+Abhishek Mishra
+
+<https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f----3---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+
+    How does the browser work after typing the URL in the address bar?
+
+
+      This question is very popular that whenever we type URL in browser
+      what happens? The very popular answer is browser will look to resolve…
+
+<https://innocentcoder.medium.com/how-does-the-browser-work-after-
+typing-the-url-in-the-address-bar-2e70b6b1668c?source=post_page---
+author_recirc--
+a3b04ce0378f----3---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+Oct 17, 2020
+A clap icon
+
+128
+ <https://innocentcoder.medium.com/how-does-the-browser-work-after-
+typing-the-url-in-the-address-bar-2e70b6b1668c?source=post_page---
+author_recirc--
+a3b04ce0378f----3---------------------47f939e3_4af2_49e2_b621_72f86522a695-------------->
+
+See all from Abhishek Mishra
+ <https://innocentcoder.medium.com/?source=post_page---author_recirc--
+a3b04ce0378f--------------------------------------->
+
+
+    Recommended from Medium
+
+Stop Memorizing Design Patterns: Use This Decision Tree Instead
+Women in Technology
+<https://medium.com/womenintechnology?source=post_page---
+read_next_recirc--a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+In
+
+Women in Technology
+
+<https://medium.com/womenintechnology?source=post_page---
+read_next_recirc--a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+by
+
+Alina Kovtun✨
+
+<https://medium.com/@akovtun?source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+
+    Stop Memorizing Design Patterns: Use This Decision Tree Instead
+
+
+      Choose design patterns based on pain points: apply the right
+      pattern with minimal over-engineering in any OO language.
+
+<https://medium.com/@akovtun/stop-memorizing-design-patterns-use-this-
+decision-tree-instead-e84f22fca9fa?source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Jan 29
+A clap icon
+
+6.3K
+A response icon
+
+58
+ <https://medium.com/@akovtun/stop-memorizing-design-patterns-use-this-
+decision-tree-instead-e84f22fca9fa?source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+LinkedIn Is Replacing Kafka — Here’s Why the Streaming Giant is Moving On
+Cloud With Azeem
+<https://cloudwithazeem.medium.com/?source=post_page---
+read_next_recirc--a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Cloud With Azeem
+
+<https://cloudwithazeem.medium.com/?source=post_page---
+read_next_recirc--a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+
+    LinkedIn Is Replacing Kafka — Here’s Why the Streaming Giant is
+    Moving On
+
+
+      Inside LinkedIn’s Bold Move to a New Data Pipeline That Could
+      Change the Future of Real-Time Streaming
+
+<https://cloudwithazeem.medium.com/linkedin-kafka-replacement-new-
+streaming-system-76e56073eb97?source=post_page---read_next_recirc--
+a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Jan 2
+A clap icon
+
+1.2K
+A response icon
+
+22
+ <https://cloudwithazeem.medium.com/linkedin-kafka-replacement-new-
+streaming-system-76e56073eb97?source=post_page---read_next_recirc--
+a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Stanford Just Killed Prompt Engineering With 8 Words (And I Can’t
+Believe It Worked)
+Generative AI
+<https://generativeai.pub/?source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+In
+
+Generative AI
+
+<https://generativeai.pub/?source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+by
+
+Adham Khaled
+
+<https://medium.com/@adham__khaled__?source=post_page---
+read_next_recirc--a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+
+    Stanford Just Killed Prompt Engineering With 8 Words (And I Can’t
+    Believe It Worked)
+
+
+      ChatGPT keeps giving you the same boring response? This new
+      technique unlocks 2× more creativity from ANY AI model — no
+      training required…
+
+<https://medium.com/@adham__khaled__/stanford-just-killed-prompt-
+engineering-with-8-words-and-i-cant-believe-it-worked-8349d6524d2b?
+source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Oct 19, 2025
+A clap icon
+
+25K
+A response icon
+
+662
+ <https://medium.com/@adham__khaled__/stanford-just-killed-prompt-
+engineering-with-8-words-and-i-cant-believe-it-worked-8349d6524d2b?
+source=post_page---read_next_recirc--
+a3b04ce0378f----0---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+I Thought I Knew System Design Until I Met a Google L7 Interviewer
+Beyond Localhost
+<https://medium.com/beyond-localhost?source=post_page---
+read_next_recirc--a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+In
+
+Beyond Localhost
+
+<https://medium.com/beyond-localhost?source=post_page---
+read_next_recirc--a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+by
+
+The Speedcraft Lab
+
+<https://medium.com/@speedcraft21?source=post_page---read_next_recirc--
+a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+
+    I Thought I Knew System Design Until I Met a Google L7 Interviewer
+
+
+      A single whiteboard question revealed the gap between knowing
+      patterns and actually designing systems that scale.
+
+<https://medium.com/@speedcraft21/i-thought-i-knew-system-design-until-
+i-met-a-google-l7-interviewer-239385b24881?source=post_page---
+read_next_recirc--a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Dec 21, 2025
+A clap icon
+
+5.6K
+A response icon
+
+102
+ <https://medium.com/@speedcraft21/i-thought-i-knew-system-design-until-
+i-met-a-google-l7-interviewer-239385b24881?source=post_page---
+read_next_recirc--a3b04ce0378f----1---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Resources, Scopes, Permissions & Policies in Keycloak — A Practical
+Guide for Mapping Legacy RBAC
+Ajay Kumar
+<https://medium.com/@trivajay259?source=post_page---read_next_recirc--
+a3b04ce0378f----2---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Ajay Kumar
+
+<https://medium.com/@trivajay259?source=post_page---read_next_recirc--
+a3b04ce0378f----2---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+
+    Resources, Scopes, Permissions & Policies in Keycloak — A Practical
+    Guide for Mapping Legacy RBAC
+
+
+      You’ve got ~250 “capabilities” today (e.g., viewAccount,
+      viewTransaction) granted via user–group membership and the
+      occasional direct…
+
+<https://medium.com/@trivajay259/resources-scopes-permissions-policies-
+in-keycloak-a-practical-guide-for-mapping-legacy-rbac-fd5a60f392bf?
+source=post_page---read_next_recirc--
+a3b04ce0378f----2---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Oct 18, 2025
+A clap icon
+
+2
+ <https://medium.com/@trivajay259/resources-scopes-permissions-policies-
+in-keycloak-a-practical-guide-for-mapping-legacy-rbac-fd5a60f392bf?
+source=post_page---read_next_recirc--
+a3b04ce0378f----2---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Kafka Delivery Guarantees Made Simple: Never Lose or Duplicate a Message
+Again
+Purnima
+<https://medium.com/@dhulipudi.purnima?source=post_page---
+read_next_recirc--a3b04ce0378f----3---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+Purnima
+
+<https://medium.com/@dhulipudi.purnima?source=post_page---
+read_next_recirc--a3b04ce0378f----3---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+
+    Kafka Delivery Guarantees Made Simple: Never Lose or Duplicate a
+    Message Again
+
+
+      Have you ever seen duplicate messages or missing events in Kafka?
+
+<https://medium.com/@dhulipudi.purnima/kafka-delivery-guarantees-made-
+simple-never-lose-or-duplicate-a-message-again-99e35be9dde3?
+source=post_page---read_next_recirc--
+a3b04ce0378f----3---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+Oct 5, 2025
+A clap icon
+
+53
+ <https://medium.com/@dhulipudi.purnima/kafka-delivery-guarantees-made-
+simple-never-lose-or-duplicate-a-message-again-99e35be9dde3?
+source=post_page---read_next_recirc--
+a3b04ce0378f----3---------------------
+e189dde7_b526_4758_92fd_22e9ff8fe684-------------->
+
+See more recommendations
+ <https://medium.com/?source=post_page---read_next_recirc--
+a3b04ce0378f--------------------------------------->
+
+Help
+
+<https://help.medium.com/hc/en-us?source=post_page-----
+a3b04ce0378f--------------------------------------->
+
+Status
+
+<https://status.medium.com/?source=post_page-----
+a3b04ce0378f--------------------------------------->
+
+About
+
+<https://medium.com/about?autoplay=1&source=post_page-----
+a3b04ce0378f--------------------------------------->
+
+Careers
+
+<https://medium.com/jobs-at-medium/work-at-medium-959d1a85284e?
+source=post_page-----a3b04ce0378f--------------------------------------->
+
+Press
+
+<mailto:pressinquiries@medium.com>
+
+Blog
+
+<https://blog.medium.com/?source=post_page-----
+a3b04ce0378f--------------------------------------->
+
+Privacy
+
+<https://policy.medium.com/medium-privacy-policy-f03bf92035c9?
+source=post_page-----a3b04ce0378f--------------------------------------->
+
+Rules
+
+<https://policy.medium.com/medium-rules-30e5502c4eb4?
+source=post_page-----a3b04ce0378f--------------------------------------->
+
+Terms
+
+<https://policy.medium.com/medium-terms-of-service-9db0094a1e0f?
+source=post_page-----a3b04ce0378f--------------------------------------->
+
+Text to speech
+
+<https://speechify.com/medium?source=post_page-----
+a3b04ce0378f--------------------------------------->
