@@ -33,7 +33,7 @@ Foundation: AWS infrastructure, index creation, mapping validation.
 - **Good first issue:** Yes
 
 ### 1.4 Create Index with Mapping
-- [ ] Save mapping JSON from design.md to resources/opensearch-mapping.json
+- [ ] Save mapping JSON from design.md to src/main/resources/opensearch/mapping.json
 - [ ] Implement IndexManager.createIndex() to apply mapping via API
 - [ ] Test: `POST /techproducts` with full mapping
 - [ ] Verify index status: `GET /techproducts` returns GREEN
@@ -45,7 +45,7 @@ Foundation: AWS infrastructure, index creation, mapping validation.
 - [ ] Test text_general_index analyzer: "Hard DRIVE" → ["hard", "drive"]
 - [ ] Test text_general_query analyzer: "hd" → ["hard", "drive"] (synonym expansion)
 - [ ] Test stopword removal: "the quick brown" → ["quick", "brown"]
-- [ ] Verify synonym file is included in resources/synonyms.txt
+- [ ] Verify synonym file is included in src/main/resources/synonyms.txt
 - **Effort:** 0.5 days | **Owner:** Search engineer
 - **Good first issue:** Yes
 

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<config>
+  <luceneMatchVersion>8.11.2</luceneMatchVersion>
+
+  <updateHandler class="solr.DirectUpdateHandler2">
+    <updateLog>
+      <str name="dir">${solr.ulog.dir:}</str>
+    </updateLog>
+    <autoCommit>
+      <maxTime>60000</maxTime>
+      <openSearcher>false</openSearcher>
+    </autoCommit>
+    <autoSoftCommit>
+      <maxTime>5000</maxTime>
+    </autoSoftCommit>
+  </updateHandler>
+
+  <query>
+    <maxBooleanClauses>2048</maxBooleanClauses>
+    <filterCache class="solr.FastLRUCache" size="2048" initialSize="512" autowarmCount="64" />
+    <queryResultCache class="solr.LRUCache" size="1024" initialSize="256" autowarmCount="32" />
+    <documentCache class="solr.LRUCache" size="2048" initialSize="512" autowarmCount="64" />
+    <enableLazyFieldLoading>true</enableLazyFieldLoading>
+    <queryResultWindowSize>50</queryResultWindowSize>
+  </query>
+
+  <requestHandler name="/select" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="defType">edismax</str>
+      <str name="q.op">AND</str>
+      <str name="rows">10</str>
+      <str name="df">score_text</str>
+    </lst>
+  </requestHandler>
+
+  <requestHandler name="/query" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="defType">edismax</str>
+      <str name="echoParams">explicit</str>
+      <str name="rows">10</str>
+    </lst>
+  </requestHandler>
+</config>

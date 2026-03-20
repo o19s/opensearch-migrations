@@ -4,11 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repository Is
 
-This is a **knowledge base and installable AI skill** for guiding Solr-to-OpenSearch migration consulting engagements. It encodes senior O19s consulting expertise — methodology, decision heuristics, war stories — so an AI agent can give expert-quality guidance without a senior consultant in the room.
-
-**Not a codebase** — this repo produces structured markdown, not applications. The outputs are:
-- A `.skill` file installable in Claude Desktop/Cowork
-- Kiro-format spec files (`requirements.md`, `design.md`, `tasks.md`) for client engagements
+This is a knowledge base for guiding Solr-to-OpenSearch migration consulting engagements.
+Most of the repository is structured markdown, but this checkout also includes a small Python
+migration helper and generated sample artifacts at the repo root.
 
 ## Repository Layout
 
@@ -22,7 +20,7 @@ agent99/
 │   ├── solr-reference/             Solr architecture and feature inventory
 │   ├── opensearch-fundamentals/    Core OpenSearch concepts and APIs
 │   └── community-insights/         Real-world migration stories
-├── 02-playbook/         OSC consulting playbook (PPTX) — methodology source of truth
+├── 02-playbook/         OSC consulting methodology in markdown
 ├── 03-specs/            OUTPUT — generated engagement specs
 │   └── techproducts-demo/          Complete worked example
 ├── 04-skills/           The installable skill
@@ -30,7 +28,10 @@ agent99/
 │       ├── SKILL.md                Routing layer (metadata, quick-reference tables)
 │       └── references/             Expert knowledge layer (7 numbered content chunks)
 ├── 05-working/          Coordination: CONTENT-STRUCTURE.md, CONTRIBUTOR-GUIDE.md
-└── solr-to-opensearch-migration.skill   Packaged, installable skill file
+├── VERSION                          Current skill version (semver)
+├── bump-version.sh                  Bump version in VERSION + SKILL.md
+├── solr_to_opensearch.py           Migration helper script
+└── corpusminder_*.json/.md         Generated sample artifacts
 ```
 
 ## Key Files to Understand
@@ -41,7 +42,7 @@ agent99/
 | Content contribution workflow | `05-working/CONTRIBUTOR-GUIDE.md` |
 | Chunk ownership and status | `05-working/CONTENT-STRUCTURE.md` |
 | Worked example of skill output | `03-specs/techproducts-demo/` (9 files) |
-| Methodology source | `02-playbook/OSC Playbook - Search Engine Migration.pptx` |
+| Methodology source | `02-playbook/` markdown files |
 
 ## Building the Skill
 
@@ -67,6 +68,9 @@ The skill uses two layers:
 - `06-operations.md` — AWS ops, monitoring, ISM, DR
 - `07-platform-integration.md` — Spring Boot/Kotlin (and other platforms)
 
+The current committed references are a smaller draft/supporting set; use
+`05-working/CONTENT-STRUCTURE.md` to distinguish planned files from files that already exist.
+
 ## Content Quality Bar
 
 Reference files must have:
@@ -85,12 +89,36 @@ When contributing to skill chunks:
 3. Follow the markdown template in `05-working/CONTRIBUTOR-GUIDE.md`
 4. Update status in `CONTENT-STRUCTURE.md` when done
 
+## Versioning
+
+The skill version lives in two places, kept in sync:
+- `VERSION` (repo root) — single-line semver, source of truth
+- `version:` field in `04-skills/solr-to-opensearch-migration/SKILL.md` frontmatter
+
+**To bump:** `./bump-version.sh 0.3.0`
+
+**Output artifacts must include the version.** When generating specs in `03-specs/`, stamp
+the skill version in the MANIFEST.txt header and README.md frontmatter, e.g.:
+```
+Skill-Version: 0.2.1
+```
+
 ## Creating Client Engagements
 
 1. Create folder: `03-specs/[client-name]/`
 2. Use `03-specs/techproducts-demo/` as template
 3. Customize: `steering/product.md` (scope), `steering/tech.md` (stack), `requirements.md` (client requirements)
 4. Open in Kiro IDE — steering docs + specs drive implementation
+
+## Express Mode
+
+The skill supports an "express" (YOLO) mode that generates a complete migration spec from
+minimal input using expert defaults. See `Express Mode (YOLO)` section in SKILL.md for full
+rules. Key points:
+- Every assumption marked `[ASSUMED: ...]` inline
+- Output banner warns this is assumption-driven
+- Full spec package generated (same structure as `03-specs/techproducts-demo/`)
+- Assumptions summary with risk levels in README.md
 
 ## Domain Context
 

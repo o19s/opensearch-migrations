@@ -35,6 +35,9 @@ If you must proceed with a politically-driven migration, acknowledge it honestly
 
 A migration needs all of these covered. Roles can be doubled up on small teams, but gaps will create problems:
 
+For the compact canonical model, tier guidance, and specialist add-on roles, see
+[`roles-and-escalation-patterns.md`](/opt/work/OSC/agent99/04-skills/solr-to-opensearch-migration/references/roles-and-escalation-patterns.md).
+
 | Role | Owns |
 |------|------|
 | **Stakeholder** | Aligning search improvements with financial/corporate benefit. Without this, migrations lose funding mid-stream. |
@@ -48,6 +51,9 @@ A migration needs all of these covered. Roles can be doubled up on small teams, 
 | **Search Relevance Engineer** | Search engine tuning, measurements, experiments. Executes the hypothesis-driven work. |
 | **Software Engineer** | Implementation of functionality and features. Builds the pipeline, integration layers, product UI. |
 | **Data Analyst** | Analytics access, customer engagement signals, judgment/rating data acquisition. |
+| **Platform Ops / SRE** | Monitoring, HA/DR readiness, capacity planning, operational runbooks, and production support posture. |
+| **Security / Compliance Owner** | Access control, privacy, IAM/SSO review, and enterprise approval path. |
+| **QA / Acceptance Lead** | Regression evidence, user acceptance criteria, and release/cutover validation. |
 
 **Common failure mode:** Not enough people, or people who are under-committed. If the client has the resources but won't assign them, flag this as critical immediately — not after the first milestone slips.
 
@@ -256,6 +262,116 @@ Each of these is months of effort for a mature platform. Introduce them early so
 | **Political migration with no customer benefit** | Acknowledge it, focus on knowledge transfer and infra improvement. Finish cleanly. |
 | **Nobody agrees on what's relevant** | Reveal disagreement with data. Human judgment exercise + reliability analysis. Customer analytics as arbiter. |
 | **Relevance not meeting expectations despite effort** | Document trials, seek external input. Don't iterate in isolation. |
+| **Knowledge holder departing** | See dedicated section below. Capture knowledge and automate manual processes before the person leaves. |
+
+### Knowledge Holder Departure (The "Bus Factor" Pattern)
+
+One of the most common and most underestimated risks in migration engagements: a single person owns a critical process or asset, and they are leaving — or could leave — during the migration window.
+
+**Common manifestations:**
+- One person manually maintains the synonym dictionary (especially part-number cross-references)
+- One person knows the undocumented boost rules or relevance tuning logic
+- One person wrote the indexing pipeline scripts and never documented them
+- One person understands the access-control business rules
+
+**Why migrations surface this:** Migrations force an inventory of everything search depends on. Manual processes that were invisible during steady-state become visible — and fragile — when you try to reproduce them on a new platform.
+
+**Response pattern:**
+1. **Identify during intake.** Ask explicitly: "Are there any processes or knowledge that depend on a single person?" Most clients won't volunteer this — ask about each asset type (synonyms, boosts, pipeline scripts, access rules).
+2. **Prioritize capture over automation.** Get the current state exported and documented *immediately*, even if the format is messy. You can automate later; you can't automate what you've lost.
+3. **Automate as part of migration.** The migration is the natural moment to replace manual processes. A manually maintained synonym file should become a build artifact generated from a source system (ERP, PIM, taxonomy service). A manually applied boost rule should become a configuration-driven relevance policy.
+4. **Don't carry the manual process forward.** Migrating a manual process to a new engine is carrying debt to a new house. If the person leaves, the process dies on both platforms.
+
+**War story (composite):** Client's parts catalog had a 20% dependency on old-to-new part-number rewrites, maintained manually by one person in a text file. That person's departure was announced mid-migration. The team scrambled to export the file, but discovered that ~30% of the entries existed only in the maintainer's "working copy" and had never been committed. Resolution: emergency knowledge-capture session, then automated the mapping by sourcing part supersession data directly from the ERP. Total delay: 2 weeks. If the departure had happened 3 weeks later, the data would have been partially lost.
+
+**Decision heuristic:** If a manual process owner is departing, treat knowledge capture as a P0 task — ahead of schema design, ahead of query translation. You can design a schema without the person; you cannot recreate their undocumented synonym entries.
+
+---
+
+## Session Management
+
+Migrations are multi-session engagements. A single intake conversation rarely captures everything.
+Structure sessions deliberately to build momentum and avoid rework.
+
+### Session Cadence
+
+| Session | Goal | Typical duration |
+|---------|------|-----------------|
+| **Session 1: Foundation intake** | Map content sources, query profile, access control, team roster. Identify major risks. | 60-90 min |
+| **Session 2: Gap fill** | Close open questions from session 1. Review data artifacts received. Begin design-level discussions. | 60 min |
+| **Session 3: Design review** | Walk through proposed mapping, query translations, and task plan. Get client sign-off on approach. | 60-90 min |
+| **Ongoing** | Sprint-level check-ins during build and validation phases. | 30 min |
+
+Not every engagement needs this exact cadence. Adjust based on client availability and complexity.
+The key principle: **each session should have a defined goal and produce a tangible artifact.**
+
+### Snapshot Discipline
+
+After each session, capture state and tag it:
+
+1. **Write the session document** into `03-specs/[client]/intake/session-NN-[topic].md` with structured sections: what was covered, what was answered, what remains open, action items with owners.
+2. **Commit and tag** with `v0.0-intake-session-NN`. This creates an immutable reference point for "what we knew after session N."
+3. **Update the open questions table** — carry unanswered questions forward with their original numbers so they can be referenced across sessions.
+
+**Why tags matter:** Clients often ask "what changed since last time?" The answer is `git diff v0.0-intake-session-01..v0.0-intake-session-02`. This is faster and more accurate than trying to summarize from memory.
+
+### Milestone Tags
+
+| Tag | Meaning |
+|-----|---------|
+| `v0.0-intake-session-NN` | Session notes captured, homework assigned |
+| `v0.1-foundation-lock` | All intake blocks answered or tracked with owners. Ready for design. |
+| `v0.2-design-lock` | Mapping, query translations, and task plan reviewed and accepted by client. |
+| `v0.3-hello-search` | Working demo with sample corpus. Team has seen queries run. |
+| `v0.4-dual-write` | Both engines receiving production data. Shadow comparison active. |
+| `v1.0-cutover` | Production traffic fully on OpenSearch. Solr warm standby begins. |
+
+### Carrying Forward Open Items
+
+Each session document includes an "Open Questions" table with columns: number, question, assigned to, priority, status. Questions keep their original number across sessions — don't renumber. This allows cross-referencing: "Question 16 from session 1 was answered in session 3."
+
+When a question is answered in a later session, update its status but leave it in the table for traceability. The intake is complete when all High-priority questions show status "Answered" or "Accepted as out-of-scope."
+
+---
+
+## Stakeholder Communication Strategy
+
+Migrations involve people at different levels of detail and different levels of concern. Not everyone needs the same information at the same time.
+
+### Audience Segmentation
+
+| Audience | What they care about | What to share | When |
+|----------|---------------------|---------------|------|
+| **Executive sponsor** | Timeline, budget, risk, go/no-go | Risks table, phased timeline, milestone status. No technical detail. | Major milestones + escalations |
+| **Product manager** | Scope, user impact, acceptance criteria | Requirements, design decisions that affect user experience, validation plan | Weekly or per-sprint |
+| **Primary contact (search lead)** | Everything — they are the conduit | Full session documents, open questions, design artifacts | Every session |
+| **Technical team members** | Their specific domain questions and action items | Only their assigned questions and data artifact requests. Don't dump the full doc. | As needed per homework table |
+| **Operations / infrastructure** | Provisioning, monitoring, failback, capacity | Tech steering doc, monitoring plan, cutover plan | When provisioning starts + pre-cutover |
+| **Full team** | Kickoff context, overall approach | Completed foundation document as a "kickoff read" | After intake is complete (foundation-lock) |
+
+### Principles
+
+- **Widen the circle gradually.** Start with the primary contact (and optionally product manager). Add team members as their specific input is needed. Share the full picture with everyone only after the foundation is solid.
+- **Don't share draft with the whole team.** Half-formed plans generate more questions than answers. An incomplete intake doc shared broadly creates confusion. Share it when it's at "foundation-lock" quality.
+- **Assign homework, not documents.** Instead of sending Kilroy the full intake doc and asking him to "check the access control section," send him the 3 specific questions you need answered. People respond to concrete asks, not reading assignments.
+- **Use the session document as the single source of truth.** Don't maintain separate status updates, email summaries, and session notes. One document, one location, git-tracked.
+- **Escalation path is through the sponsor, not around them.** If a team member is unresponsive, escalate through the sponsor (Erin), not by cc'ing their manager directly. The sponsor owns resource allocation.
+
+### Communication Artifacts
+
+| Artifact | Audience | Cadence |
+|----------|----------|---------|
+| Session intake document | Primary contact + PM | Per session |
+| Open questions / homework list | Individual team members (their items only) | As assigned |
+| Risk summary (1-page) | Sponsor | At major milestones or when risks change |
+| Phase completion summary | Full team | At each milestone tag |
+| Design review deck / walkthrough | Technical team | Once, at design-lock |
+
+### Anti-Patterns
+
+- **"Weekly status email to everyone"** — becomes noise. People stop reading. Use milestone-based communication instead.
+- **"Let's get everyone in a room for the intake"** — too many people in intake produces shallow answers. The search lead knows the system; the sponsor knows the politics. Interview them separately.
+- **"I'll just send the whole doc"** — respects nobody's time. Excerpt the relevant section for each person.
 
 ---
 

@@ -33,8 +33,7 @@ import json
 import logging
 import sys
 import time
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -386,7 +385,8 @@ def create_index(client: OpenSearch, config: MigrationConfig, index_def: dict):
 # Bulk Reindex: Solr → OpenSearch
 # ---------------------------------------------------------------------------
 
-def fetch_solr_docs(config: MigrationConfig, start: int, rows: int) -> list[dict]:
+def fetch_solr_docs(config: MigrationConfig, start: int, rows: int,
+                    unique_key: str) -> list[dict]:
     """Fetch a batch of documents from Solr."""
     url = f"{config.solr_url}/{config.collection}/select"
     params = {
@@ -394,10 +394,8 @@ def fetch_solr_docs(config: MigrationConfig, start: int, rows: int) -> list[dict
         "start": start,
         "rows": rows,
         "wt": "json",
-        "sort": f"{pull_solr_schema.__defaults__}",  # we'll fix this
+        "sort": f"{unique_key} asc",
     }
-    # Use the uniqueKey for stable sort during pagination
-    params["sort"] = "id asc"  # safe default; adjust if uniqueKey differs
 
     resp = requests.get(url, params=params, timeout=60)
     resp.raise_for_status()
@@ -433,73 +431,53 @@ def bulk_reindex(client: OpenSearch, config: MigrationConfig, unique_key: str):
     total_indexed = 0
     batch_num = 0
     t0 = time.time()
+    try:
+        while True:
+            docs = fetch_solr_docs(config, start, config.batch_size, unique_key)
+            if not docs:
+                break
 
-    while True:
-        # Fetch batch from Solr
-        url = f"{config.solr_url}/{config.collection}/select"
-        params = {
-            "q": "*:*",
-            "start": start,
-            "rows": config.batch_size,
-            "wt": "json",
-            "sort": f"{unique_key} asc",
-        }
-        resp = requests.get(url, params=params, timeout=60)
-        resp.raise_for_status()
-        data = resp.json().get("response", {})
-        docs = data.get("docs", [])
-        total = data.get("numFound", 0)
+            # Prepare bulk actions
+            actions = []
+            for doc in docs:
+                cleaned = clean_doc_for_opensearch(doc, unique_key)
+                doc_id = cleaned.pop(unique_key, None) if unique_key in cleaned else None
 
-        if not docs:
-            break
+                action = {
+                    "_index": index,
+                    "_source": cleaned,
+                }
+                if doc_id is not None:
+                    action["_id"] = str(doc_id)
+                    # Keep the unique key in _source too
+                    action["_source"][unique_key] = doc_id
 
-        # Prepare bulk actions
-        actions = []
-        for doc in docs:
-            cleaned = clean_doc_for_opensearch(doc, unique_key)
-            doc_id = cleaned.pop(unique_key, None) if unique_key in cleaned else None
+                actions.append(action)
 
-            action = {
-                "_index": index,
-                "_source": cleaned,
-            }
-            if doc_id is not None:
-                action["_id"] = str(doc_id)
-                # Keep the unique key in _source too
-                action["_source"][unique_key] = doc_id
+            # Bulk index
+            success, errors = helpers.bulk(client, actions, raise_on_error=False)
+            total_indexed += success
+            batch_num += 1
 
-            actions.append(action)
+            elapsed = time.time() - t0
+            rate = total_indexed / elapsed if elapsed > 0 else 0
 
-        # Bulk index
-        success, errors = helpers.bulk(client, actions, raise_on_error=False)
-        total_indexed += success
-        batch_num += 1
+            log.info(f"  Batch {batch_num}: indexed {success}/{len(docs)} "
+                     f"(total: {total_indexed:,}, {rate:.0f} docs/sec)")
 
-        elapsed = time.time() - t0
-        rate = total_indexed / elapsed if elapsed > 0 else 0
+            if errors:
+                log.warning(f"  {len(errors)} errors in batch {batch_num}")
+                for err in errors[:3]:  # show first 3 errors
+                    log.warning(f"    {err}")
 
-        log.info(f"  Batch {batch_num}: indexed {success}/{len(docs)} "
-                 f"(total: {total_indexed:,}/{total:,}, {rate:.0f} docs/sec)")
-
-        if errors:
-            log.warning(f"  {len(errors)} errors in batch {batch_num}")
-            for err in errors[:3]:  # show first 3 errors
-                log.warning(f"    {err}")
-
-        start += config.batch_size
-
-        if start >= total:
-            break
-
-    # Re-enable refresh
-    log.info("Restoring refresh_interval to 1s")
-    client.indices.put_settings(
-        index=index,
-        body={"index": {"refresh_interval": "1s"}}
-    )
-
-    # Force refresh to make all docs searchable
-    client.indices.refresh(index=index)
+            start += config.batch_size
+    finally:
+        log.info("Restoring refresh_interval to 1s")
+        client.indices.put_settings(
+            index=index,
+            body={"index": {"refresh_interval": "1s"}}
+        )
+        client.indices.refresh(index=index)
 
     elapsed = time.time() - t0
     log.info(f"Bulk reindex complete: {total_indexed:,} documents in {elapsed:.1f}s "

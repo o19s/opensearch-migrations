@@ -1,0 +1,13 @@
+Northstar Enterprise Demo Spec
+Generated: 2026-03-19
+
+Files:
+- README.md
+- INDEX.md
+- MANIFEST.txt
+- steering/product.md
+- steering/tech.md
+- steering/structure.md
+- requirements.md
+- design.md
+- tasks.md

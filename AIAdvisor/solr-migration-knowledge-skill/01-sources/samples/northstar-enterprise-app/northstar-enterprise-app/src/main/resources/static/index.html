@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar Search Demo</title>
+  <style>
+    :root {
+      --ink: #0f1720;
+      --paper: #f4efe7;
+      --steel: #184a63;
+      --signal: #d35d2f;
+      --mist: #dbe6ea;
+      --card: rgba(255, 255, 255, 0.82);
+      --line: rgba(15, 23, 32, 0.12);
+      --shadow: 0 18px 50px rgba(15, 23, 32, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(211, 93, 47, 0.18), transparent 26%),
+        radial-gradient(circle at right 20%, rgba(24, 74, 99, 0.18), transparent 28%),
+        linear-gradient(180deg, #f8f3ec 0%, #eef4f5 52%, #f8f3ec 100%);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .panel {
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy { padding: 32px; }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(24, 74, 99, 0.08);
+      color: var(--steel);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 4.5rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      max-width: 10ch;
+    }
+
+    .hero-copy p {
+      margin: 0;
+      max-width: 62ch;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: rgba(15, 23, 32, 0.8);
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .stat {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(15, 23, 32, 0.08);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(15, 23, 32, 0.55);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .hero-side {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(160deg, rgba(24, 74, 99, 0.96), rgba(16, 34, 49, 0.94));
+      color: #eff7f9;
+    }
+
+    .hero-side h2 {
+      margin: 0 0 10px;
+      font-size: 1.4rem;
+    }
+
+    .hero-side p {
+      margin: 0 0 14px;
+      line-height: 1.55;
+      color: rgba(239, 247, 249, 0.82);
+    }
+
+    .stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 0.9rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+
+    .search-panel, .notes-panel { padding: 24px; }
+
+    .search-bar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    input, select, button { font: inherit; }
+
+    input, select {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(15, 23, 32, 0.14);
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    button {
+      border: none;
+      padding: 14px 18px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--signal), #e08549);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 12px 24px rgba(211, 93, 47, 0.22);
+    }
+
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .sample-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .sample-actions button {
+      padding: 10px 14px;
+      font-weight: 600;
+      background: rgba(24, 74, 99, 0.08);
+      color: var(--steel);
+      box-shadow: none;
+      border: 1px solid rgba(24, 74, 99, 0.12);
+    }
+
+    .result-card {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(15, 23, 32, 0.08);
+      background: rgba(255, 255, 255, 0.84);
+      margin-bottom: 12px;
+    }
+
+    .result-type {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(211, 93, 47, 0.1);
+      color: var(--signal);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .result-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      color: rgba(15, 23, 32, 0.7);
+      font-size: 0.9rem;
+    }
+
+    .mini-link {
+      color: var(--steel);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .notes-panel ul {
+      margin: 0;
+      padding-left: 18px;
+      line-height: 1.6;
+    }
+
+    .notes-panel li + li { margin-top: 8px; }
+
+    .empty {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(219, 230, 234, 0.46);
+      color: rgba(15, 23, 32, 0.76);
+    }
+
+    @media (max-width: 920px) {
+      .hero, .layout, .filter-row { grid-template-columns: 1fr; }
+      .search-bar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div class="eyebrow">Northstar Enterprise Demo</div>
+        <h1>Search Migration With A Little Signal</h1>
+        <p>
+          This is still a starter app, but it now hints at a more polished enterprise search
+          experience: clearer state, reusable demo scenarios, and a visual layer that feels more
+          deliberate than raw JSON alone.
+        </p>
+        <div class="status-grid">
+          <div class="stat">
+            <div class="stat-label">App</div>
+            <div class="stat-value" id="appName">Loading…</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Sample Docs</div>
+            <div class="stat-value" id="docCount">Loading…</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Target Index</div>
+            <div class="stat-value" id="targetIndex">Loading…</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Dashboards</div>
+            <div class="stat-value"><a class="mini-link" href="http://localhost:5601" target="_blank" rel="noreferrer">Open Dashboards</a></div>
+          </div>
+        </div>
+      </div>
+      <aside class="panel hero-side">
+        <div>
+          <h2>Demo Stack</h2>
+          <p>OpenSearch, Dashboards, a starter Spring Boot API, and a reduced enterprise corpus for Northstar’s Atlas Knowledge Hub.</p>
+        </div>
+        <div class="stack">
+          <span class="chip">OpenSearch 2.x</span>
+          <span class="chip">Dashboards</span>
+          <span class="chip">Spring Boot</span>
+          <span class="chip">Northstar Sample</span>
+        </div>
+      </aside>
+    </section>
+
+    <section class="layout">
+      <div class="panel search-panel">
+        <div class="search-bar">
+          <input id="query" placeholder="Try: NX-4400, SK-2209, overheating fault E41">
+          <button id="runSearch">Search Sample Corpus</button>
+        </div>
+        <div class="filter-row">
+          <select id="region">
+            <option value="">All regions</option>
+            <option value="NA">NA</option>
+            <option value="EMEA">EMEA</option>
+          </select>
+          <select id="docType">
+            <option value="">All document types</option>
+            <option value="product">product</option>
+            <option value="part">part</option>
+            <option value="manual">manual</option>
+            <option value="bulletin">bulletin</option>
+            <option value="case">case</option>
+          </select>
+          <select id="visibilityLevel">
+            <option value="">All visibility levels</option>
+            <option value="dealer">dealer</option>
+            <option value="internal">internal</option>
+          </select>
+        </div>
+        <div class="sample-actions">
+          <button data-query="SK-2209" data-doc-type="part">Part lookup</button>
+          <button data-query="overheating fault E41" data-region="EMEA">Bulletin search</button>
+          <button data-query="maintenance manual" data-visibility="internal">Internal manual</button>
+          <button data-query="pressure drop startup" data-doc-type="case">Support case</button>
+        </div>
+        <div id="results" class="empty">Run a sample query to preview the demo experience.</div>
+      </div>
+
+      <aside class="panel notes-panel">
+        <h2>Demo Notes</h2>
+        <ul>
+          <li>The current search surface hits the bundled sample corpus, not OpenSearch directly.</li>
+          <li>Use <code>scripts/reindex_northstar.py</code> to create <code>atlas-search-v1</code> and bulk-load the same data into OpenSearch.</li>
+          <li>OpenSearch Dashboards is included for live inspection during the demo.</li>
+          <li>Actuator health is available at <a class="mini-link" href="/actuator/health" target="_blank" rel="noreferrer">/actuator/health</a>.</li>
+        </ul>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    const queryInput = document.getElementById("query");
+    const regionSelect = document.getElementById("region");
+    const docTypeSelect = document.getElementById("docType");
+    const visibilitySelect = document.getElementById("visibilityLevel");
+    const results = document.getElementById("results");
+
+    async function loadStatus() {
+      const response = await fetch("/api/admin/status");
+      const status = await response.json();
+      document.getElementById("appName").textContent = status.app;
+      document.getElementById("docCount").textContent = status.sampleDocumentCount;
+      document.getElementById("targetIndex").textContent = status.targetIndexName;
+    }
+
+    function renderResults(data) {
+      if (!data.hits || data.hits.length === 0) {
+        results.className = "empty";
+        results.textContent = "No results matched that query and filter set.";
+        return;
+      }
+
+      results.className = "";
+      results.innerHTML = data.hits.map(hit => `
+        <article class="result-card">
+          <div class="result-type">${hit.doc_type}</div>
+          <h3>${hit.title || "(untitled document)"}</h3>
+          <div>${hit.summary || "No summary available."}</div>
+          <div class="meta">
+            <span>${hit.product_line || "n/a"}</span>
+            <span>${hit.region || "n/a"}</span>
+            <span>${hit.visibility_level || "n/a"}</span>
+            <span>${hit.part_number || hit.model_number || "text-driven result"}</span>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    async function runSearch() {
+      const params = new URLSearchParams();
+      params.set("q", queryInput.value);
+      if (regionSelect.value) params.set("region", regionSelect.value);
+      if (docTypeSelect.value) params.set("docType", docTypeSelect.value);
+      if (visibilitySelect.value) params.set("visibilityLevel", visibilitySelect.value);
+
+      const response = await fetch(`/api/search?${params.toString()}`);
+      const data = await response.json();
+      renderResults(data);
+    }
+
+    document.getElementById("runSearch").addEventListener("click", runSearch);
+    queryInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") runSearch();
+    });
+
+    document.querySelectorAll(".sample-actions button").forEach(button => {
+      button.addEventListener("click", () => {
+        queryInput.value = button.dataset.query || "";
+        regionSelect.value = button.dataset.region || "";
+        docTypeSelect.value = button.dataset.docType || "";
+        visibilitySelect.value = button.dataset.visibility || "";
+        runSearch();
+      });
+    });
+
+    loadStatus();
+  </script>
+</body>
+</html>

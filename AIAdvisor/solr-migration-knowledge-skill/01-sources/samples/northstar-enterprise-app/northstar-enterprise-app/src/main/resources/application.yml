@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: northstar-enterprise-demo
+
+server:
+  port: 8086
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+northstar:
+  opensearch:
+    url: ${NORTHSTAR_OPENSEARCH_URL:http://localhost:9200}
+    index-name: ${NORTHSTAR_INDEX_NAME:atlas-search-v1}
+    read-alias: ${NORTHSTAR_READ_ALIAS:atlas-search-read}
+    write-alias: ${NORTHSTAR_WRITE_ALIAS:atlas-search-write}
+    prefer-live-search: ${NORTHSTAR_PREFER_LIVE_SEARCH:true}

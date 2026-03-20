@@ -1,0 +1,47 @@
+[
+  {
+    "id": "entity:node/1:en",
+    "index_id": "default_node_index",
+    "hash": "abc123hash",
+    "site": "https://example.com",
+    "ss_search_api_id": "entity:node/1:en",
+    "ss_search_api_language": "en",
+    "timestamp": "2024-03-15T10:00:00Z",
+    "tm_X3_en_title": ["Welcome to Our Drupal Shop"],
+    "tm_X3_en_body": ["We sell the finest widgets and gadgets."],
+    "bs_status": true,
+    "is_nid": 1,
+    "sm_vid_tags": ["widget", "gadget", "sale"],
+    "ds_created": "2023-01-01T12:00:00Z"
+  },
+  {
+    "id": "entity:node/2:en",
+    "index_id": "default_node_index",
+    "hash": "def456hash",
+    "site": "https://example.com",
+    "ss_search_api_id": "entity:node/2:en",
+    "ss_search_api_language": "en",
+    "timestamp": "2024-03-16T11:00:00Z",
+    "tm_X3_en_title": ["About Us"],
+    "tm_X3_en_body": ["Our company was founded in 1999."],
+    "bs_status": true,
+    "is_nid": 2,
+    "sm_vid_tags": ["company", "history"],
+    "ds_created": "2023-01-02T12:00:00Z"
+  },
+  {
+    "id": "entity:node/3:es",
+    "index_id": "default_node_index",
+    "hash": "ghi789hash",
+    "site": "https://example.com",
+    "ss_search_api_id": "entity:node/3:es",
+    "ss_search_api_language": "es",
+    "timestamp": "2024-03-17T09:00:00Z",
+    "tm_X3_es_title": ["Bienvenido a nuestra tienda"],
+    "tm_X3_es_body": ["Vendemos los mejores widgets."],
+    "bs_status": true,
+    "is_nid": 3,
+    "sm_vid_tags": ["widget", "venta"],
+    "ds_created": "2023-01-03T12:00:00Z"
+  }
+]

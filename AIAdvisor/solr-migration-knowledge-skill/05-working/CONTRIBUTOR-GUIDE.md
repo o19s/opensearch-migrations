@@ -106,7 +106,7 @@ These exist as AI-generated first drafts. They need expert eyes, not fresh writi
 | `migration-strategy.md` | Check dual-write pattern against real experience; add war stories | — |
 | `solr-concepts-reference.md` | Verify complexity scoring against actual migrations | — |
 | `aws-opensearch-service.md` | Check AWS version numbers and pricing are current | — |
-| `spring-boot-kotlin-integration.md` | Verify dependency versions; test code patterns compile | — |
+| `scenario-drupal.md` | Verify the scenario guidance and decide what should be generalized into the main reference set | — |
 
 Reviewing one of these is a 30-minute task. Writing a new chunk is 2–4 hours.
 

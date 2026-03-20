@@ -102,6 +102,7 @@ Extracted from OSC playbook slide 9. The "Relief" column reflects what the deck 
 - **If the client can't name 5 specific customer information needs → run a query analysis sprint first.** Don't build a migration target state around invented use cases.
 - **If the timeline is under 3 months to production → recommend a phased approach.** Dual-write with traffic percentage cutover is safer than a hard cutover for any timeline under 6 months.
 - **If analytics don't exist → the first OSC deliverable is analytics setup, not migration planning.** Everything downstream depends on it.
+- **If a manual process owner is departing → treat knowledge capture as P0, ahead of schema design.** You can design a schema later; you cannot recreate undocumented synonym entries, boost rules, or pipeline logic after the person leaves. Export first, automate second, migrate third. See "Knowledge Holder Departure" in `consulting-methodology.md` for the full pattern.
 
 ---
 

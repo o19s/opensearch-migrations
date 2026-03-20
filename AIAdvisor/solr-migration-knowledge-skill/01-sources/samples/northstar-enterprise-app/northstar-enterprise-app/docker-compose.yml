@@ -1,0 +1,46 @@
+services:
+  opensearch-demo:
+    image: opensearchproject/opensearch:2.15.0
+    container_name: northstar-opensearch-demo
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - plugins.security.disabled=true
+      - cluster.name=northstar-demo-cluster
+      - node.name=northstar-demo-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "${NORTHSTAR_OPENSEARCH_PORT:-9200}:9200"
+      - "${NORTHSTAR_OPENSEARCH_METRICS_PORT:-9600}:9600"
+    volumes:
+      - northstar-opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  dashboards-demo:
+    image: opensearchproject/opensearch-dashboards:2.15.0
+    container_name: northstar-opensearch-dashboards
+    depends_on:
+      opensearch-demo:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch-demo:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    ports:
+      - "${NORTHSTAR_DASHBOARDS_PORT:-5601}:5601"
+
+volumes:
+  northstar-opensearch-data:

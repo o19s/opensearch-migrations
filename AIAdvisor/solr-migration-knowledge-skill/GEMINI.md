@@ -1,6 +1,7 @@
 # GEMINI.md - Solr → OpenSearch Migration Advisor
 
-This workspace contains the **Solr → OpenSearch Migration Advisor**, a knowledge base and installable AI skill designed to encode senior OSC (OpenSource Connections) consulting expertise into a reusable AI asset.
+This workspace contains the Solr → OpenSearch Migration Advisor, a documentation-first
+knowledge base with skill source, a worked example spec, and a small Python migration helper.
 
 ## Project Overview
 
@@ -8,17 +9,17 @@ This workspace contains the **Solr → OpenSearch Migration Advisor**, a knowled
 *   **Architecture:** A two-layer "Skill" architecture:
     *   **Routing Layer (`SKILL.md`):** Metadata, quick-reference tables, and pointers to reference files.
     *   **Expert Knowledge Layer (`references/`):** 7 numbered content chunks encoding methodology, key judgements, decision heuristics, and war stories.
-*   **Primary Output:** Per-engagement migration specs in **Kiro format** (`requirements.md`, `design.md`, `tasks.md`).
+*   **Primary Output:** Per-engagement migration specs in Kiro format (`requirements.md`, `design.md`, `tasks.md`).
 
 ## Directory Overview
 
 *   `00-project/`: Steering docs, technical decisions, and workspace structure.
 *   `01-sources/`: Raw source material (AWS docs, community posts, Solr/OpenSearch reference).
-*   `02-playbook/`: OSC consulting playbook — the methodology source of truth.
+*   `02-playbook/`: OSC consulting methodology in markdown.
 *   `03-specs/`: Output engagement specs; `techproducts-demo/` is the canonical worked example.
 *   `04-skills/`: The packaged AI skill (`solr-to-opensearch-migration/`).
 *   `05-working/`: Coordination docs, including `CONTRIBUTOR-GUIDE.md` and `CONTENT-STRUCTURE.md`.
-*   `solr-to-opensearch-migration.skill`: The packaged, installable skill file (zip format).
+*   `solr_to_opensearch.py`: Migration helper script for schema extraction, mapping generation, and reindexing.
 
 ## Key Files
 
@@ -27,6 +28,9 @@ This workspace contains the **Solr → OpenSearch Migration Advisor**, a knowled
 *   `05-working/CONTRIBUTOR-GUIDE.md`: Essential rules for content contributors (e.g., "Write from memory first").
 *   `05-working/CONTENT-STRUCTURE.md`: Tracking for the 7 expert content chunks and their current status.
 *   `03-specs/techproducts-demo/README.md`: Explains how to use the worked example to generate new client specs.
+
+Note: the repository may be packaged into a `.skill` file locally, but the built artifact is not
+committed in this checkout.
 
 ## Usage & Development Conventions
 

@@ -10,7 +10,7 @@
 
 > These bullets are a starting scaffold. Add O19s opinion — especially on which roles are hardest to fill at clients and what breaks when they're missing.
 
-- **Under-staffing is the norm, not the exception.** Clients rarely have 10 people who can fill 10 distinct roles. The question is *which roles can be merged without damage* and *which gaps are blockers*. A missing Search Relevance Engineer is a blocker. A missing dedicated Project Manager usually isn't.
+- **Under-staffing is the norm, not the exception.** Clients rarely have one person per role. The question is *which roles can be merged without damage* and *which gaps are blockers*. A missing Search Relevance Engineer is a blocker. A missing dedicated Project Manager usually isn't.
 - **The Search Relevance Strategist and Engineer are the roles clients most consistently undervalue — and the ones most critical to a successful migration.** Without them, "migration" becomes a technical lift-and-shift with no relevance improvement, and stakeholders declare it a failure 6 months later.
 - **The Content Owner is the most commonly forgotten role.** Everyone assumes content acquisition will be easy. It never is. Name this person on Day 1 and put their deliverables on the critical path.
 - **If the Stakeholder can't define success, you don't have a project yet.** No amount of good technical work resolves a missing business goal. Push for a written success definition before the first sprint.
@@ -20,9 +20,9 @@
 
 ---
 
-## The 10 Roles
+## Canonical Core Roles
 
-Defined in the OSC playbook (slides 6–7). Each role should be formally assigned and documented at project kickoff.
+Defined in the OSC playbook and normalized here for current use. Each role should be formally assigned and documented at project kickoff. For the compact canonical version with tier guidance and specialist add-on roles, see [`../04-skills/solr-to-opensearch-migration/references/roles-and-escalation-patterns.md`](/opt/work/OSC/agent99/04-skills/solr-to-opensearch-migration/references/roles-and-escalation-patterns.md).
 
 | Role | Responsibility | Typically Client or OSC? | Risk if Missing |
 |---|---|---|---|
@@ -37,8 +37,11 @@ Defined in the OSC playbook (slides 6–7). Each role should be formally assigne
 | **Search Relevance Engineer** | Search engine tuning; measurements and experiments | OSC | No relevance feedback loop; no way to prove improvement |
 | **Software Engineer** | Feature implementation; application-layer changes | Client | Pipeline, API, and integration work stalls |
 | **Data Analyst** | Analytics access; identifying customer trends; judgement data | Client (often part-time) | No query analytics; judgement set built from intuition not data |
+| **Platform Ops / SRE** | Monitoring, runbooks, capacity, HA/DR, on-call readiness | Client / Platform | Production readiness assumed but unproven |
+| **Security / Compliance Owner** | Access control, IAM/SSO, privacy, auditability, review sign-off | Client / Security | Late enterprise blockers or access-control defects |
+| **QA / Acceptance Lead** | UAT evidence, regression criteria, acceptance sign-off | Client / QA | Final validation becomes anecdotal and political |
 
-*Note: 10 roles doesn't mean 10 people. Small teams commonly merge: Product Owner + Project Manager, Architect + Software Engineer, Strategist + Engineer. Document which person owns which role explicitly — ambiguity is expensive later.*
+*Note: this is a role model, not a headcount requirement. Small teams commonly merge: Product Owner + Project Manager, Architect + Software Engineer, Strategist + Engineer. Document which person owns which role explicitly — ambiguity is expensive later.*
 
 ---
 
@@ -46,7 +49,7 @@ Defined in the OSC playbook (slides 6–7). Each role should be formally assigne
 
 Before the first sprint begins:
 
-- [ ] All 10 roles formally assigned to named individuals (some may share roles)
+- [ ] All core roles formally assigned to named individuals (some may share roles)
 - [ ] Success criteria documented and signed off by Stakeholder
 - [ ] Project scope and timeline proposed and reviewed
 - [ ] Project wiki / shared workspace created
@@ -118,6 +121,6 @@ From the OSC playbook (slide 27). Adapt to the client's existing process — don
 
 ## Open Questions / Evolving Guidance
 
-- Is the 10-role model still the right framing for smaller engagements (2–3 person client teams)? What's the minimum viable role set?
+- Is the canonical core-role model still the right framing for smaller engagements (2–3 person client teams)? What's the minimum viable role set?
 - How do you handle distributed / async teams that can't do daily standups? What communication practices actually work?
 - What's the right OSC-to-client ratio for a healthy engagement? 1 OSC Strategist + 1 OSC Engineer for how large a client team?

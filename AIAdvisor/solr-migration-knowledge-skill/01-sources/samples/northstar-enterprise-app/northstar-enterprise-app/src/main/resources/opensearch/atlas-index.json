@@ -1,0 +1,106 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "refresh_interval": "1s"
+    },
+    "analysis": {
+      "filter": {
+        "english_stop": {
+          "type": "stop",
+          "stopwords": "_english_"
+        },
+        "northstar_synonyms": {
+          "type": "synonym_graph",
+          "synonyms": [
+            "seal kit,gasket kit",
+            "manual,guide",
+            "bulletin,service alert",
+            "part,component"
+          ]
+        }
+      },
+      "analyzer": {
+        "northstar_text_index": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "english_stop"]
+        },
+        "northstar_text_query": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "english_stop", "northstar_synonyms"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "true",
+    "properties": {
+      "id": { "type": "keyword" },
+      "doc_type": { "type": "keyword" },
+      "title": {
+        "type": "text",
+        "analyzer": "northstar_text_index",
+        "search_analyzer": "northstar_text_query",
+        "copy_to": "score_text"
+      },
+      "summary": {
+        "type": "text",
+        "analyzer": "northstar_text_index",
+        "search_analyzer": "northstar_text_query",
+        "copy_to": "score_text"
+      },
+      "body": {
+        "type": "text",
+        "analyzer": "northstar_text_index",
+        "search_analyzer": "northstar_text_query",
+        "copy_to": "score_text"
+      },
+      "score_text": {
+        "type": "text",
+        "analyzer": "northstar_text_index",
+        "search_analyzer": "northstar_text_query"
+      },
+      "part_number": { "type": "keyword" },
+      "model_number": { "type": "keyword" },
+      "product_line": { "type": "keyword" },
+      "region": { "type": "keyword" },
+      "language": { "type": "keyword" },
+      "visibility_level": { "type": "keyword" },
+      "dealer_tier": { "type": "keyword" },
+      "business_unit": { "type": "keyword" },
+      "published_at": { "type": "date" },
+      "updated_at": { "type": "date" }
+    },
+    "dynamic_templates": [
+      {
+        "attr_as_keyword": {
+          "match": "attr_*",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "txt_as_text": {
+          "match": "txt_*",
+          "mapping": {
+            "type": "text",
+            "analyzer": "northstar_text_index",
+            "search_analyzer": "northstar_text_query"
+          }
+        }
+      },
+      {
+        "num_as_double": {
+          "match": "num_*",
+          "mapping": {
+            "type": "double"
+          }
+        }
+      }
+    ]
+  }
+}

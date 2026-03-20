@@ -1,5 +1,6 @@
 ---
 name: solr-to-opensearch-migration
+version: 0.2.1
 description: >
   Expert guidance for migrating Apache Solr (SolrCloud) collections to AWS OpenSearch Service.
   Use this skill whenever someone is working on: Solr-to-OpenSearch or Solr-to-Elasticsearch
@@ -29,7 +30,10 @@ quick-reference tables handle most common questions. For deeper work, load the r
 | Query translation (DisMax → Query DSL, facets → aggs) | `references/query-syntax-mapping.md`* |
 | Schema translation (schema.xml → mappings) | `references/schema-field-type-mapping.md`* |
 | Project process, roles, risks, relevance methodology | `references/consulting-methodology.md` |
+| Team shape, role gaps, escalation triggers | `references/roles-and-escalation-patterns.md` |
 | Business/Discovery concerns, risk inventory | `references/consulting-concerns-inventory.md` |
+| **Drupal migration (Search API Solr → OpenSearch)** | **`references/scenario-drupal.md`** |
+| **Small business / Low resource (the "Daphne" persona)** | **`references/scenario-drupal.md`** |
 
 ---
 
@@ -336,6 +340,101 @@ When leading a migration engagement, the non-negotiables are:
 
 > Full methodology including roles, risk register, common issues playbook, reporting culture:
 > `references/consulting-methodology.md`
+
+---
+
+## Express Mode (YOLO)
+
+### What This Is
+
+Express mode generates a **complete migration specification package** from minimal input — as
+little as a collection name and a schema.xml paste. The skill fills in every gap with its best
+expert judgment rather than stopping to ask clarifying questions.
+
+**Trigger phrases:** "express mode", "YOLO mode", "just do it", "generate a full spec",
+"quick migration spec", "don't ask questions", or any clear signal the user wants output over dialogue.
+
+### Output Banner
+
+Every express-mode artifact **must** open with this banner (adapt the collection name):
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║  ⚡ EXPRESS MODE — GENERATED WITH ASSUMPTIONS ⚡                    ║
+║                                                                      ║
+║  This spec was generated in express ("YOLO") mode. The skill made    ║
+║  its best expert guesses where information was missing. Every        ║
+║  assumption is marked [ASSUMED: ...] for your review.                ║
+║                                                                      ║
+║  DO NOT execute this migration without reviewing assumptions.        ║
+║  Express mode is a starting point, not a greenlight.                 ║
+║                                                                      ║
+║  Skill-Version: {version}                                            ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+### Default Assumptions
+
+When information is missing, use these defaults. **Always** mark each with
+`[ASSUMED: reason]` inline so the user can grep and review.
+
+| Missing info | Default assumption | Risk level |
+|---|---|---|
+| Solr version | 8.x or 9.x (modern, Point fields) | Low |
+| Collection count | Single collection | Low |
+| Document count | 10K–500K (moderate) | Medium |
+| Query patterns | eDisMax with basic facets | Medium |
+| Platform/framework | Spring Boot 3.x / Kotlin | Low |
+| AWS region | us-east-1 | Low |
+| OpenSearch version | Latest AWS-supported (2.x) | Low |
+| Instance type | r6g.large.search (2-node, 2-AZ) | Medium |
+| Auth model | IAM + SigV4 | Low |
+| Relevance requirements | Parity with current Solr behavior | **High** |
+| Custom analyzers | Standard analyzer chain | **High** |
+| Nested/join documents | None (flat documents) | **High** |
+| Streaming expressions | Not in use | Medium |
+| CDCR / replication | Not in use | Medium |
+| Dual-write duration | 2–4 weeks shadow traffic | Medium |
+| Rollback window | 30 days keep-Solr-warm | Low |
+
+### Generation Rules
+
+1. **Generate the full spec package** — README, steering docs (product.md, tech.md,
+   structure.md), requirements.md, design.md, tasks.md, MANIFEST.txt — same structure as
+   `03-specs/techproducts-demo/`.
+
+2. **Mark every assumption** with `[ASSUMED: <what was assumed and why>]`. Place these inline
+   near the affected content, not buried in a footnote.
+
+3. **Include an assumptions summary** at the top of README.md listing all assumptions with
+   their risk levels (Low / Medium / High). High-risk assumptions get a brief explanation of
+   what could go wrong if the assumption is incorrect.
+
+4. **Use real field names** from any schema.xml or config the user provides. Do not invent
+   placeholder fields when real ones are available.
+
+5. **Assign a complexity score** (1–5) based on whatever information is available. State what
+   would change the score.
+
+6. **Flag "must-verify" items** — things that are dangerous to get wrong even in a draft:
+   - Custom similarity (TF-IDF tuning, custom scorers)
+   - Nested/parent-child document structures
+   - Streaming expressions or graph traversal
+   - Multi-collection joins
+   - Custom update processors in the indexing chain
+
+7. **Don't sandbag the output.** The point of express mode is to show the skill's full
+   capability. Generate detailed, concrete, copy-pasteable artifacts — not vague summaries
+   with "TBD" placeholders.
+
+### Post-Generation Guidance
+
+After generating, tell the user:
+
+> **Next steps:** Search this spec for `[ASSUMED:` to find every assumption I made.
+> High-risk assumptions are flagged — review those first. The spec is designed to be
+> edited, not executed blindly. When you're ready to refine, I can walk through any
+> section interactively.
 
 ---
 

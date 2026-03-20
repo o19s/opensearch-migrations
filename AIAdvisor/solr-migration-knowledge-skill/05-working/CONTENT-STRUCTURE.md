@@ -39,8 +39,8 @@ write original content from experience where sources are thin, and follow the ou
     ├── consulting-methodology.md     ← OSC process, roles, risks (done ✓)
     ├── aws-opensearch-service.md     ← AWS service specifics (done ✓)
     ├── migration-strategy.md         ← strategy + dual-write detail (done ✓)
-    ├── solr-concepts-reference.md    ← Solr feature audit map (done ✓)
-    └── spring-boot-kotlin-integration.md  ← Kotlin client patterns (done ✓)
+    ├── scenario-drupal.md            ← Drupal-specific scenario support
+    └── solr-concepts-reference.md    ← Solr feature audit map (done ✓)
 ```
 
 The five "done" files are first drafts generated from training knowledge.
@@ -105,7 +105,7 @@ Deliberately excludes technical how-to (that's Chunks 2–4).
 **Source material to draw from:**
 - `references/consulting-methodology.md` — "When NOT to Migrate" section, goals, prerequisites
 - `01-sources/community-insights/herodevs-should-you-migrate.md`
-- `02-playbook/OSC Playbook - Search Engine Migration.pptx` — Purpose slide, Goals slide, Risk table
+- `02-playbook/pre-migration-assessment.md` — current in-repo source for risk framing and migration prerequisites
 - `01-sources/opensearch-migration/solrcloud-practitioners-guide.md`
 
 **Gaps (needs original expert content):**
@@ -287,7 +287,6 @@ primary focus given O19s current work, but the structure should explicitly accom
 other platforms (Rails, Python, Node) as stub sections to be filled later.
 
 **Source material to draw from:**
-- `references/spring-boot-kotlin-integration.md` — full Kotlin client guide (done ✓)
 - `01-sources/opensearch-fundamentals/spring-boot-kotlin-opensearch-client.md`
 - `01-sources/opensearch-fundamentals/opensearch-query-dsl-kotlin-examples.md`
 - `01-sources/community-insights/client-library-landscape.md`
@@ -301,8 +300,8 @@ other platforms (Rails, Python, Node) as stub sections to be filled later.
 - Stub sections for: Python (opensearch-py), Ruby/Rails (opensearch-ruby), Node.js
 
 **Output spec:** ~300–400 lines. Heavy on code patterns. The Spring Boot/Kotlin section
-can delegate to `spring-boot-kotlin-integration.md` for detail — this file is about
-architecture patterns, not boilerplate.
+should lean on the source material in `01-sources/opensearch-fundamentals/`; this file is
+about architecture patterns, not boilerplate.
 
 **Status:** 🟡 Partial — Kotlin internals covered. Platform abstraction patterns needed.
 
@@ -318,7 +317,7 @@ These files exist as first drafts from AI generation. They need expert review:
 | `references/migration-strategy.md` | Check dual-write pattern against real experience; add war stories |
 | `references/solr-concepts-reference.md` | Verify complexity scoring rubric against actual migrations |
 | `references/aws-opensearch-service.md` | Verify AWS version numbers and pricing are current |
-| `references/spring-boot-kotlin-integration.md` | Verify Gradle dependency versions; test code patterns |
+| `references/scenario-drupal.md` | Verify scenario guidance and decide whether it should stay scenario-specific or be generalized |
 | `00-project/product.md` | Update to reflect actual O19s framing, not generic |
 | `00-project/tech.md` | Update to reflect actual stack decisions |
 | `00-project/structure.md` | Update to reflect actual project structure |
@@ -404,7 +403,7 @@ A chunk is NOT done when:
 | — | `aws-opensearch-service.md` | ✅ Draft exists | — |
 | — | `migration-strategy.md` | ✅ Draft exists | — |
 | — | `solr-concepts-reference.md` | ✅ Draft exists | — |
-| — | `spring-boot-kotlin-integration.md` | ✅ Draft exists | — |
+| — | `scenario-drupal.md` | ✅ Draft exists | — |
 | 1 | `01-strategic-guidance.md` | 🔴 Not started | — |
 | 2 | `02-source-audit.md` | 🟡 Partial coverage | — |
 | 3 | `03-target-design.md` | 🟡 Partial coverage | — |

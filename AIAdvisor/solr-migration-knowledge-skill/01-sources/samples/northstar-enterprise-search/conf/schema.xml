@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="atlas_search" version="1.6">
+  <types>
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
+    <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true" />
+    <fieldType name="pint" class="solr.IntPointField" docValues="true" />
+    <fieldType name="plong" class="solr.LongPointField" docValues="true" />
+    <fieldType name="pdouble" class="solr.DoublePointField" docValues="true" />
+    <fieldType name="pdate" class="solr.DatePointField" docValues="true" />
+
+    <fieldType name="text_en" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.StandardTokenizerFactory" />
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords_en.txt" />
+        <filter class="solr.LowerCaseFilterFactory" />
+        <filter class="solr.EnglishPossessiveFilterFactory" />
+        <filter class="solr.PorterStemFilterFactory" />
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.StandardTokenizerFactory" />
+        <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords_en.txt" />
+        <filter class="solr.LowerCaseFilterFactory" />
+        <filter class="solr.EnglishPossessiveFilterFactory" />
+        <filter class="solr.PorterStemFilterFactory" />
+      </analyzer>
+    </fieldType>
+  </types>
+
+  <fields>
+    <field name="id" type="string" indexed="true" stored="true" required="true" />
+    <field name="doc_type" type="string" indexed="true" stored="true" />
+    <field name="title" type="text_en" indexed="true" stored="true" />
+    <field name="summary" type="text_en" indexed="true" stored="true" />
+    <field name="body" type="text_en" indexed="true" stored="false" />
+    <field name="part_number" type="string" indexed="true" stored="true" />
+    <field name="model_number" type="string" indexed="true" stored="true" />
+    <field name="product_line" type="string" indexed="true" stored="true" docValues="true" />
+    <field name="region" type="string" indexed="true" stored="true" docValues="true" />
+    <field name="language" type="string" indexed="true" stored="true" docValues="true" />
+    <field name="visibility_level" type="string" indexed="true" stored="true" docValues="true" />
+    <field name="dealer_tier" type="string" indexed="true" stored="true" docValues="true" />
+    <field name="business_unit" type="string" indexed="true" stored="true" docValues="true" />
+    <field name="published_at" type="pdate" indexed="true" stored="true" />
+    <field name="updated_at" type="pdate" indexed="true" stored="true" />
+    <field name="score_text" type="text_en" indexed="true" stored="false" multiValued="true" />
+
+    <dynamicField name="attr_*" type="string" indexed="true" stored="true" multiValued="true" />
+    <dynamicField name="num_*" type="pdouble" indexed="true" stored="true" multiValued="false" />
+    <dynamicField name="txt_*" type="text_en" indexed="true" stored="true" multiValued="true" />
+
+    <copyField source="title" dest="score_text" />
+    <copyField source="summary" dest="score_text" />
+    <copyField source="body" dest="score_text" />
+  </fields>
+
+  <uniqueKey>id</uniqueKey>
+</schema>

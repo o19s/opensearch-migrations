@@ -1,0 +1,206 @@
+services:
+
+  # Zookeeper - Single instance (NO FAILOVER!!! just for dev consistency)
+  zookeeper-cm1:
+    image: 'zookeeper:3.9.3'
+    restart: unless-stopped
+    container_name: zookeeper-cm1
+    hostname: zookeeper-cm1
+    ports:
+      - '${ZK_HOST_PORT:-2185}:2181'
+    environment:
+#      - ZOO_MY_ID=1
+#      - ZOO_SERVERS=server.1=zookeeper1:2888:3888;2181
+      - ZOO_4LW_COMMANDS_WHITELIST=mntr, conf, ruok
+#      - ZOO_SERVERS=server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep -q imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - zookeeper-cm1-data:/data
+      - zookeeper-cm1-datalog:/datalog
+
+  # One-shot permissions fix for named volume ownership before Solr starts.
+  solr-perms-cm1:
+    image: busybox:1.36
+    container_name: solr-perms-cm1
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /var/solr/data && chown -R 8983:8983 /var/solr/data"]
+    volumes:
+      - solr-cm1_data:/var/solr/data
+
+  solr-cm1:
+    image: solr:9.10.1
+    container_name: solr-cm1
+    hostname: solr-cm1
+    restart: unless-stopped
+    ports:
+      - '${SOLR_HOST_PORT:-8985}:8983'
+    environment:
+      - ZK_HOST=zookeeper-cm1:2181
+      - SOLR_HEAP=8g
+    volumes:
+      - solr-cm1_data:/var/solr/data
+    depends_on:
+      zookeeper-cm1:
+        condition: service_healthy
+      solr-perms-cm1:
+        condition: service_completed_successfully
+    command: ["solr-foreground"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8983/solr/admin/info/system > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # One-shot Solr bootstrap: uploads configsets and creates collections if missing.
+  # Run with: docker compose --profile solr-init up solr-init-cm1
+  solr-init-cm1:
+    image: solr:9.10.1
+    container_name: solr-init-cm1
+    profiles: ["solr-init"]
+    restart: "no"
+    environment:
+      - ZK_HOST=zookeeper-cm1:2181
+      - SOLR_URL=http://solr-cm1:8983/solr
+    volumes:
+      - ./src/main/resources/solr-config/init-scripts/solr-init.sh:/opt/solr-init/solr-init.sh:ro
+      - ./src/main/resources/solr-config/configsets/corpusminder:/opt/solr/server/solr/configsets/corpusminder/conf:ro
+      - ./src/main/resources/solr-config/configsets/vocabulary/conf:/opt/solr/server/solr/configsets/vocabulary/conf:ro
+    depends_on:
+      solr-cm1:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/opt/solr-init/solr-init.sh"]
+
+  # Optional local OpenSearch demo stack for migration and UI testing.
+  # This is the repo-level alternative to resources/northstar-enterprise-app/docker-compose.yml.
+  # Run with: docker compose --profile opensearch-demo up -d
+  opensearch-demo:
+    image: opensearchproject/opensearch:2.15.0
+    container_name: opensearch-demo
+    profiles: ["opensearch-demo"]
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - plugins.security.disabled=true
+      - cluster.name=agent99-opensearch-demo
+      - node.name=agent99-opensearch-1
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - '${OPENSEARCH_HOST_PORT:-9200}:9200'
+      - '${OPENSEARCH_METRICS_PORT:-9600}:9600'
+    volumes:
+      - opensearch-demo-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  opensearch-dashboards-demo:
+    image: opensearchproject/opensearch-dashboards:2.15.0
+    container_name: opensearch-dashboards-demo
+    profiles: ["opensearch-demo"]
+    restart: unless-stopped
+    depends_on:
+      opensearch-demo:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch-demo:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+      SERVER_NAME: opensearch-dashboards-demo
+    ports:
+      - '${OPENSEARCH_DASHBOARDS_PORT:-5601}:5601'
+
+  # Optional local Elasticsearch demo stack for parity testing and side-by-side validation.
+  # Run with: docker compose --profile elasticsearch-demo up -d
+  elasticsearch-demo:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: elasticsearch-demo
+    profiles: ["elasticsearch-demo"]
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - cluster.name=agent99-elasticsearch-demo
+      - node.name=agent99-elasticsearch-1
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - '${ELASTICSEARCH_HOST_PORT:-9201}:9200'
+    volumes:
+      - elasticsearch-demo-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  kibana-demo:
+    image: docker.elastic.co/kibana/kibana:8.15.3
+    container_name: kibana-demo
+    profiles: ["elasticsearch-demo"]
+    restart: unless-stopped
+    depends_on:
+      elasticsearch-demo:
+        condition: service_healthy
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch-demo:9200"]'
+      SERVER_NAME: kibana-demo
+    ports:
+      - '${KIBANA_HOST_PORT:-5602}:5601'
+
+
+  # comment this out to use local ollama
+#  ollama:
+#    image: 'ollama/ollama:latest'
+#    ports:
+#      - '${OLLAMA_PORT:-11435}:11434'
+#    deploy:
+#      resources:
+#        reservations:
+#          # NOTE: review ollama and docker compose configs for your system, this works in mine (Sean) with my RTX 4070
+#          devices:
+#            - driver: nvidia
+#              count: 1
+#              capabilities: [gpu]
+#    environment:
+#      - NVIDIA_VISIBLE_DEVICES=all
+#      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+#      - OLLAMA_DEBUG=1           # prints GPU discovery lines
+#      - CUDA_VISIBLE_DEVICES=0   # pin to the first (4070) card
+#    runtime: nvidia              # ← Compose v2; for v3 use deploy.resources
+#    volumes:
+#      - ollama-models:/root/.ollama
+
+volumes:
+#  postgres-data:
+  zookeeper-cm1-data:
+  zookeeper-cm1-datalog:
+  solr-cm1_data:
+  opensearch-demo-data:
+  elasticsearch-demo-data:
+#  ollama-models:
