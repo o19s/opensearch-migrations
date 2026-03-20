@@ -1,0 +1,24 @@
+{
+  "name": "solr-to-opensearch-migration",
+  "displayName": "Solr to OpenSearch Migration Advisor",
+  "version": "0.2.1",
+  "description": "Expert guidance for migrating Apache Solr (SolrCloud) collections to AWS OpenSearch Service. Covers query translation, schema mapping, relevance tuning, dual-write strategies, AWS configuration, and consulting methodology.",
+  "author": {
+    "name": "opensearch-search-consulting"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/o19s/opensearch-migrations",
+  "repository": "https://github.com/o19s/opensearch-migrations",
+  "keywords": [
+    "solr",
+    "opensearch",
+    "migration",
+    "solrcloud",
+    "query-dsl",
+    "schema-mapping",
+    "aws-opensearch",
+    "search-migration",
+    "relevance",
+    "bm25"
+  ]
+}
