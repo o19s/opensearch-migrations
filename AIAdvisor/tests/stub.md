@@ -1,0 +1,1 @@
+I *think* this is where integration tests could live, https://github.com/opensearch-project/opensearch-launchpad/tree/main/tests, althoguh looking at launchpad, they appear to be unit tests of individual skills as well..  shouldn't that live at the skill level???
