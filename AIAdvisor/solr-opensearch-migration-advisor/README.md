@@ -4,6 +4,8 @@ An **OpenSearch Agent Skill** that helps migrate from [Apache Solr](https://solr
 
 ## Good example prompts
 
+**I want to use the Solr to OpenSearch skill.**
+
 * "Help me migrate from Solr to OpenSearch."
 * "Convert this Solr schema to OpenSearch mapping: <schema>...</schema>"
 * "Translate this Solr query to OpenSearch: title:opensearch AND price:[10 TO 100]"
@@ -189,17 +191,16 @@ solr-to-opensearch/
 
 ## Example Solr IMDB queries
 
-* q=primaryTitle:Inception
-* q=primaryTitle:Batman AND genres:Action
-* q=titleType:tvSeries
+* q=title:Inception
+* q=title:Batman AND genres:Action
 * q=*:*&fq=startYear:[2010 TO 2020]
 * q=genres:Sci-Fi&sort=startYear desc
 
 ```
 defType=edismax
 &q=Christopher Nolan Sci-Fi
-&qf=primaryTitle^10 originalTitle^5 directors^2 genres^1
-&pf=primaryTitle^20
+&qf=title^10 directors^2 genres^1
+&pf=title^20
 &tie=0.1
 &bq=averageRating:[8 TO 10]^5
 ```
