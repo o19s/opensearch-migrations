@@ -1,7 +1,6 @@
 """Tests for report.py"""
 import sys
 import os
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from report import MigrationReport

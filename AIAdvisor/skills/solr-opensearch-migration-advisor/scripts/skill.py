@@ -20,7 +20,7 @@ import json
 import os
 import urllib.request
 import urllib.error
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from schema_converter import SchemaConverter
 from query_converter import QueryConverter
@@ -157,12 +157,9 @@ class SolrToOpenSearchMigrationSkill:
         if "report" in message_lc:
             response = self.generate_report(session_id)
 
-        elif has_schema_xml or (
-            ("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc)
-            and "<schema" in message
-        ):
+        elif has_schema_xml or (("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc) and "<schema" in message):
             if has_schema_xml:
-                schema_xml = message[schema_start : schema_end + 9]
+                schema_xml = message[schema_start: schema_end + 9]
                 mapping = self.convert_schema_xml(schema_xml)
                 response = (
                     f"I've converted your Solr schema to an OpenSearch mapping:"
@@ -181,7 +178,7 @@ class SolrToOpenSearchMigrationSkill:
             for keyword in ("query:", "query", "translate:"):
                 idx = message_lc.find(keyword)
                 if idx != -1:
-                    q = message[idx + len(keyword) :].strip().lstrip(": ").strip()
+                    q = message[idx + len(keyword):].strip().lstrip(": ").strip()
                     break
             if q:
                 try:
@@ -221,8 +218,7 @@ class SolrToOpenSearchMigrationSkill:
 
             if aws_context:
                 response = (
-                    "Here is accurate information from AWS documentation:\n\n"
-                    + aws_context
+                    "Here is accurate information from AWS documentation:\n\n" + aws_context
                 )
             else:
                 response = (

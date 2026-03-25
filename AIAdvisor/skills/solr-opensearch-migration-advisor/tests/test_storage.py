@@ -1,7 +1,6 @@
 """Tests for storage.py — SessionState, InMemoryStorage, FileStorage."""
 import sys
 import os
-import json
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -208,7 +207,7 @@ def test_file_delete_nonexistent_is_safe(file_storage):
 
 def test_file_creates_directory(tmp_path):
     new_dir = str(tmp_path / "nested" / "sessions")
-    fs = FileStorage(base_path=new_dir)
+    FileStorage(base_path=new_dir)
     assert os.path.exists(new_dir)
 
 
