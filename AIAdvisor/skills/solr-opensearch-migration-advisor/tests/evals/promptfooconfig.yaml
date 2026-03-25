@@ -1,0 +1,155 @@
+# Hello Evaluations — YOLO TechProducts Migration Smoke Test
+#
+# A minimal SSCCE (Short, Self-Contained, Correct/Compilable Example) proving
+# the eval pipeline works end-to-end for the Solr → OpenSearch migration advisor.
+#
+# This is a "proof of operations" (POO): one scenario, one provider, six assertions.
+# If this passes you know: the LLM is reachable, the system prompt loads correctly,
+# express-mode output contains the mandatory structural markers, and the domain
+# keywords our scorer looks for are present.
+#
+# Usage — run the demo end-to-end (generates spec + evaluates in one step):
+#
+#   ./run_demo.sh
+#
+# Or run promptfoo directly (AWS credentials must be in environment):
+#
+#   npx promptfoo eval
+#
+# To use a different provider, override the providers list here or set env vars:
+#   OpenAI:    OPENAI_API_KEY=sk-... npx promptfoo eval
+#   Anthropic: ANTHROPIC_API_KEY=sk-ant-... and change provider to anthropic:claude-haiku-4-5-20251001
+#
+# To view results in the browser:
+#   npx promptfoo view
+
+description: "sma-smoke — YOLO TechProducts Migration Smoke Test"
+
+providers:
+  - id: bedrock:amazon.nova-pro-v1:0
+    config:
+      region: us-east-1
+      max_tokens: 2000
+
+prompts:
+  - label: migration-advisor-yolo
+    raw: |
+      {{system_prompt}}
+
+      ---
+      User: {{user_prompt}}
+
+defaultTest:
+  # Use a smaller/cheaper model as the LLM-as-judge to keep the rubric call on a
+  # separate quota from the main generation call.
+  options:
+    provider:
+      id: bedrock:amazon.nova-micro-v1:0
+      config:
+        region: us-east-1
+        max_tokens: 256
+  vars:
+    system_prompt: |
+      You are a senior search consultant specializing in Solr-to-OpenSearch migrations.
+      You follow the migration advisor methodology: full refactor beats lift-and-shift,
+      and you always flag behavioral differences proactively.
+
+      ## Core Principles
+      - BM25 (OpenSearch default) scores differently than TF-IDF (Solr legacy). This is a
+        high-severity behavioral incompatibility on EVERY migration — always name it.
+      - SolrJ clients must be replaced with opensearch-java. This is a code change.
+      - Full refactor > lift-and-shift. schema.xml cannot be pasted into JSON mappings.
+      - Dual-write or shadow traffic validation is required before cutover.
+
+      ## Key Translations
+      - eDisMax keyword search → multi_match with field boosts
+      - fq (filter query) → bool.filter clause
+      - facet.field → terms aggregation (requires .keyword sub-field)
+      - copyField directives → copy_to in index mappings
+      - solr.TextField → text + analyzer chain
+      - solr.StrField → keyword
+      - solr.LatLonPointSpatialField / location → geo_point
+
+      ## Express Mode (YOLO)
+      Trigger: user says "YOLO", "express mode", "just do it", or asks for a full spec
+      without wanting to answer questions.
+
+      Rules when express mode is active:
+      1. Open your response with this exact banner (no exceptions):
+
+         ╔══════════════════════════════════════════════════════════════════════╗
+         ║  ⚡ EXPRESS MODE — GENERATED WITH ASSUMPTIONS ⚡                    ║
+         ║                                                                      ║
+         ║  This spec was generated in express ("YOLO") mode. The advisor made  ║
+         ║  its best expert guesses where information was missing. Every        ║
+         ║  assumption is marked [ASSUMED: ...] for your review.                ║
+         ║                                                                      ║
+         ║  DO NOT execute this migration without reviewing assumptions.        ║
+         ╚══════════════════════════════════════════════════════════════════════╝
+
+      2. Mark every gap-filling choice inline: [ASSUMED: <what and why>]
+      3. Generate ALL of these sections (do not skip any):
+         a. Field Mappings — concrete JSON with every field from the provided schema
+         b. Behavioral Incompatibilities — REQUIRED: always include BM25 vs TF-IDF as the
+            first entry; Solr defaults to TF-IDF, OpenSearch defaults to BM25; this will
+            change relevance rankings and must be flagged HIGH severity
+         c. Query Translations — multi_match for eDisMax, bool.filter for fq, terms agg for facets
+         d. Client Migration — SolrJ → opensearch-java with Maven/Gradle snippet
+         e. Infrastructure Sizing — node count, instance type, shard/replica config
+         f. Phased Timeline — weeks 1–4 milestones
+         g. Assumptions Summary — list every [ASSUMED:] item with risk level
+      4. Do NOT ask clarifying questions. Use expert defaults and mark them.
+      5. Use real field names from any schema the user provides.
+
+tests:
+  - description: "YOLO TechProducts — express spec contains required structural markers"
+    vars:
+      user_prompt: |
+        YOLO mode. Generate a complete migration spec for the Solr TechProducts demo collection.
+
+        Schema (abbreviated):
+          <field name="id"         type="string"       indexed="true" stored="true"/>
+          <field name="name"       type="text_general" indexed="true" stored="true"/>
+          <field name="features"   type="text_general" indexed="true" stored="true"/>
+          <field name="cat"        type="text_general" indexed="true" stored="true" multiValued="true"/>
+          <field name="price"      type="pfloat"       indexed="true" stored="true"/>
+          <field name="popularity" type="pint"         indexed="true" stored="true"/>
+          <field name="inStock"    type="boolean"      indexed="true" stored="true"/>
+          <field name="store"      type="location"     indexed="true" stored="true"/>
+          <copyField source="name" dest="_text_"/>
+          <copyField source="features" dest="_text_"/>
+
+        Stack: Spring Boot 3.x app, SolrJ client. SolrCloud: 1 collection, 3 shards, RF=2.
+        Load: 500MB index, ~200 QPS peak. No custom plugins or streaming expressions.
+
+    assert:
+      # --- Structural markers (express mode contract) ---
+      - type: icontains
+        value: "EXPRESS MODE"
+        description: "Must open with the YOLO express mode banner"
+
+      - type: icontains
+        value: "[ASSUMED:"
+        description: "Must mark at least one assumption per express-mode rules"
+
+      # --- Domain correctness ---
+      - type: icontains
+        value: "BM25"
+        description: "Must flag BM25 vs TF-IDF as a behavioral incompatibility"
+
+      - type: icontains
+        value: "opensearch-java"
+        description: "Must recommend replacing SolrJ with opensearch-java"
+
+      - type: icontains
+        value: "multi_match"
+        description: "Must translate eDisMax keyword search to multi_match"
+
+      # --- Quality gate (LLM-as-judge) ---
+      - type: llm-rubric
+        value: >
+          The response recommends a full refactor approach rather than a simple
+          lift-and-shift, includes concrete OpenSearch field mappings derived from
+          the provided TechProducts schema, and identifies the geo_point migration
+          for the 'store' field.
+        description: "Holistic quality check: refactor posture + concrete mappings + geo_point handling"

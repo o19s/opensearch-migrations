@@ -1,0 +1,5 @@
+# Generated eval artifacts — do not commit
+*
+# Except committed sample outputs
+!.gitignore
+!yolo-techproducts-spec.md
