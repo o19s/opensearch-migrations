@@ -33,7 +33,7 @@ providers:
   - id: http
     label: solr-health
     config:
-      url: "http://localhost:${SOLR_PORT:-38983}/solr/admin/info/system"
+      url: "http://localhost:{{env.SOLR_PORT | default("38983")}}/solr/admin/info/system"
       method: GET
       transformResponse: >
         JSON.stringify({
@@ -44,7 +44,7 @@ providers:
   - id: http
     label: solr-doc-count
     config:
-      url: "http://localhost:${SOLR_PORT:-38983}/solr/techproducts/select?q=*:*&rows=0&wt=json"
+      url: "http://localhost:{{env.SOLR_PORT | default("38983")}}/solr/techproducts/select?q=*:*&rows=0&wt=json"
       method: GET
       transformResponse: >
         JSON.stringify({ numFound: json.response?.numFound })
@@ -52,7 +52,7 @@ providers:
   - id: http
     label: opensearch-health
     config:
-      url: "http://localhost:${OS_PORT:-39200}/"
+      url: "http://localhost:{{env.OS_PORT | default("39200")}}/"
       method: GET
       transformResponse: >
         JSON.stringify({
@@ -64,7 +64,7 @@ providers:
   - id: http
     label: shim-proxy
     config:
-      url: "http://localhost:${SHIM_PORT:-38080}/solr/techproducts/select?q=*:*&wt=json&rows=1"
+      url: "http://localhost:{{env.SHIM_PORT | default("38080")}}/solr/techproducts/select?q=*:*&wt=json&rows=1"
       method: GET
       transformResponse: >
         JSON.stringify({

@@ -115,8 +115,8 @@ rebuilding or restarting containers:
 After a `--no-teardown` run, you can re-run the promptfoo connectivity eval directly:
 
 ```bash
-# From the connected/ directory
-SOLR_PORT=38983 OS_PORT=39200 SHIM_PORT=38080 npx promptfoo eval
+# From the connected/ directory (ports default to 38983/39200/38080)
+npx promptfoo eval
 
 # View results in browser
 npx promptfoo view
