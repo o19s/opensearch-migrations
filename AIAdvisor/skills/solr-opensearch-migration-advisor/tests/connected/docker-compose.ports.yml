@@ -1,0 +1,85 @@
+# Standalone compose file for connected smoke tests.
+#
+# Runs SolrCloud (1 node + ZooKeeper) and OpenSearch with non-standard host
+# ports (3xxxx) to avoid conflicts with local dev services.
+#
+# The transforms volume is bind-mounted from the SolrTransformations build output.
+services:
+  zookeeper:
+    image: mirror.gcr.io/zookeeper:3.9
+    ports:
+      - "32181:2181"
+    environment:
+      ZOO_MY_ID: 1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/commands/ruok || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  solr:
+    image: mirror.gcr.io/library/solr:8
+    ports:
+      - "38983:8983"
+    environment:
+      ZK_HOST: zookeeper:2181
+    command: ["solr-foreground", "-c"]
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/admin/info/system || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  opensearch:
+    image: mirror.gcr.io/opensearchproject/opensearch:3.3.0
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin_1234!
+    ports:
+      - "39200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Watches TypeScript transform sources and rebuilds JS on change
+  transform-watcher:
+    image: node:20-slim
+    working_dir: /transforms
+    volumes:
+      - ${TRANSFORMS_SRC_DIR:?}:/transforms/src:ro
+      - ${TRANSFORMS_BUILD_DIR:?}/build.mjs:/transforms/build.mjs:ro
+      - ${TRANSFORMS_BUILD_DIR:?}/package.json:/transforms/package.json:ro
+      - ${TRANSFORMS_BUILD_DIR:?}/tsconfig.json:/transforms/tsconfig.json:ro
+      - transform-dist:/transforms/dist
+    command: ["sh", "-c", "npm install && npm run build && npm run watch"]
+
+  transformation-shim:
+    image: migrations/transformation_shim
+    ports:
+      - "38080:8080"
+    volumes:
+      - transform-dist:/transforms:ro
+    command:
+      - --listenPort
+      - "8080"
+      - --target
+      - opensearch=http://opensearch:9200
+      - --primary
+      - opensearch
+      - --targetTransform
+      - opensearch=request:/transforms/solr-to-opensearch-request.js,response:/transforms/solr-to-opensearch-response.js
+      - --watchTransforms
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      transform-watcher:
+        condition: service_started
+
+volumes:
+  transform-dist:
