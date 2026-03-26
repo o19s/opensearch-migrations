@@ -1,0 +1,212 @@
+# Connected Smoke Tests — Promptfoo Eval
+#
+# Two test suites in one config:
+#
+#   1. INFRASTRUCTURE — HTTP connectivity checks against live Docker services
+#      (Solr, OpenSearch, shim proxy). No LLM needed.
+#
+#   2. SKILL — Calls the migration advisor skill (via LLM) to generate a YOLO
+#      migration spec for the TechProducts collection, then scores the output
+#      for structural markers, domain correctness, and quality.
+#
+# Usage:
+#   # Run via the orchestrator (recommended)
+#   ./run_connected_tests.sh
+#
+#   # Or run promptfoo directly (services must be running)
+#   SOLR_PORT=38983 OS_PORT=39200 SHIM_PORT=38080 npx promptfoo eval
+#   npx promptfoo view
+#
+# LLM provider config:
+#   Default: Bedrock (amazon.nova-pro). Override via env vars:
+#   - Anthropic: ANTHROPIC_API_KEY=sk-ant-... (change provider below)
+#   - OpenAI:    OPENAI_API_KEY=sk-...        (change provider below)
+
+description: "connected-smoke — Infrastructure + Skill Migration Assessment"
+
+# ---------------------------------------------------------------------------
+# Providers
+# ---------------------------------------------------------------------------
+providers:
+  # --- Infrastructure: HTTP connectivity checks ---
+
+  - id: http
+    label: solr-health
+    config:
+      url: "http://localhost:${SOLR_PORT:-38983}/solr/admin/info/system"
+      method: GET
+      transformResponse: >
+        JSON.stringify({
+          status: json.responseHeader?.status,
+          lucene: json.lucene?.['solr-spec-version']
+        })
+
+  - id: http
+    label: solr-doc-count
+    config:
+      url: "http://localhost:${SOLR_PORT:-38983}/solr/techproducts/select?q=*:*&rows=0&wt=json"
+      method: GET
+      transformResponse: >
+        JSON.stringify({ numFound: json.response?.numFound })
+
+  - id: http
+    label: opensearch-health
+    config:
+      url: "http://localhost:${OS_PORT:-39200}/"
+      method: GET
+      transformResponse: >
+        JSON.stringify({
+          name: json.name,
+          version: json.version?.number,
+          tagline: json.tagline
+        })
+
+  - id: http
+    label: shim-proxy
+    config:
+      url: "http://localhost:${SHIM_PORT:-38080}/solr/techproducts/select?q=*:*&wt=json&rows=1"
+      method: GET
+      transformResponse: >
+        JSON.stringify({
+          numFound: json.response?.numFound,
+          hasHeader: !!json.responseHeader
+        })
+
+  # --- Skill: LLM-based migration advisor ---
+
+  - id: bedrock:amazon.nova-pro-v1:0
+    label: migration-advisor
+    config:
+      region: us-east-1
+      max_tokens: 2000
+
+# ---------------------------------------------------------------------------
+# Prompts (only used by LLM provider tests)
+# ---------------------------------------------------------------------------
+prompts:
+  - label: migration-advisor-yolo
+    raw: |
+      {{system_prompt}}
+
+      ---
+      User: {{user_prompt}}
+
+  # HTTP provider tests don't use prompts — this placeholder satisfies promptfoo
+  - label: connectivity-check
+    raw: "{{prompt}}"
+
+# ---------------------------------------------------------------------------
+# Default test options
+# ---------------------------------------------------------------------------
+defaultTest:
+  options:
+    provider:
+      # Cheaper model for LLM-as-judge rubric scoring
+      id: bedrock:amazon.nova-micro-v1:0
+      config:
+        region: us-east-1
+        max_tokens: 256
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+tests:
+  # =========================================================================
+  # INFRASTRUCTURE — HTTP connectivity (no LLM)
+  # =========================================================================
+
+  - description: "Solr is reachable and returns system info"
+    providers: [solr-health]
+    vars:
+      prompt: "health-check"
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).status === 0"
+      - type: contains
+        value: "solr-spec-version"
+
+  - description: "Solr has seeded TechProducts documents"
+    providers: [solr-doc-count]
+    vars:
+      prompt: "doc-count"
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).numFound === 5"
+
+  - description: "OpenSearch is reachable and returns cluster info"
+    providers: [opensearch-health]
+    vars:
+      prompt: "health-check"
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).version !== undefined"
+
+  - description: "Shim proxy translates Solr query and returns results"
+    providers: [shim-proxy]
+    vars:
+      prompt: "proxy-check"
+    assert:
+      - type: is-json
+      - type: javascript
+        value: "JSON.parse(output).hasHeader === true"
+
+  # =========================================================================
+  # SKILL — Migration advisor generates YOLO spec (LLM)
+  # =========================================================================
+
+  - description: "YOLO TechProducts — skill generates spec with required structural markers"
+    providers: [migration-advisor]
+    vars:
+      system_prompt: file://skill-system-prompt.txt
+      user_prompt: |
+        YOLO mode. Generate a complete migration spec for the Solr TechProducts demo collection.
+
+        Schema (abbreviated):
+          <field name="id"         type="string"       indexed="true" stored="true"/>
+          <field name="name"       type="text_general" indexed="true" stored="true"/>
+          <field name="features"   type="text_general" indexed="true" stored="true"/>
+          <field name="cat"        type="text_general" indexed="true" stored="true" multiValued="true"/>
+          <field name="price"      type="pfloat"       indexed="true" stored="true"/>
+          <field name="popularity" type="pint"         indexed="true" stored="true"/>
+          <field name="inStock"    type="boolean"      indexed="true" stored="true"/>
+          <field name="store"      type="location"     indexed="true" stored="true"/>
+          <copyField source="name" dest="_text_"/>
+          <copyField source="features" dest="_text_"/>
+
+        Stack: Spring Boot 3.x app, SolrJ client. SolrCloud: 1 collection, 3 shards, RF=2.
+        Load: 500MB index, ~200 QPS peak. No custom plugins or streaming expressions.
+
+    assert:
+      # --- Structural markers (express mode contract) ---
+      - type: icontains
+        value: "EXPRESS MODE"
+        description: "Must open with the YOLO express mode banner"
+
+      - type: icontains
+        value: "[ASSUMED:"
+        description: "Must mark at least one assumption per express-mode rules"
+
+      # --- Domain correctness ---
+      - type: icontains
+        value: "BM25"
+        description: "Must flag BM25 vs TF-IDF as a behavioral incompatibility"
+
+      - type: icontains
+        value: "opensearch-java"
+        description: "Must recommend replacing SolrJ with opensearch-java"
+
+      - type: icontains
+        value: "multi_match"
+        description: "Must translate eDisMax keyword search to multi_match"
+
+      # --- Quality gate (LLM-as-judge) ---
+      - type: llm-rubric
+        value: >
+          The response recommends a full refactor approach rather than a simple
+          lift-and-shift, includes concrete OpenSearch field mappings derived from
+          the provided TechProducts schema, and identifies the geo_point migration
+          for the 'store' field.
+        description: "Holistic quality check: refactor posture + concrete mappings + geo_point handling"

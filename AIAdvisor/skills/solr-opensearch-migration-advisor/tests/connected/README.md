@@ -3,17 +3,56 @@
 Minimal proof-of-operation that data can be migrated from a live Solr instance to
 OpenSearch and queried through the transformation shim. Runs against real Docker containers.
 
+## Two Modes
+
+### Default: Connectivity + skill eval (no migration)
+
+```bash
+./run_connected_tests.sh
+```
+
+Starts Docker services, seeds Solr with TechProducts data, and runs a **promptfoo eval**
+that does two things:
+1. **Infrastructure checks** — verifies Solr, OpenSearch, and shim proxy are reachable via HTTP
+2. **Skill eval** — calls the migration advisor (LLM) with the TechProducts schema in YOLO mode,
+   then scores the generated migration spec for structural markers, domain correctness, and quality
+
+Does NOT run the migration pipeline. This is the safe default for CI and quick checks.
+Reports are saved to `connected/reports/` by default.
+
+### Full migration: `--migrate`
+
+```bash
+./run_connected_tests.sh --migrate
+```
+
+Runs the complete pipeline: seed Solr → export → transform → bulk load into OpenSearch →
+verify with 18 assertions + shim proxy query translation checks.
+
 ## What This Proves
 
-The script runs a complete migration pipeline:
+### Default mode (connectivity + skill eval)
+
+| Check | Type | What it proves |
+|-------|------|----------------|
+| Solr health | HTTP | Solr is running and returns system info |
+| Solr doc count | HTTP | Seeded TechProducts data is queryable |
+| OpenSearch health | HTTP | OpenSearch cluster is reachable |
+| Shim proxy | HTTP | Proxy translates Solr queries to OpenSearch |
+| YOLO TechProducts spec | LLM | Skill generates valid migration spec with structural markers, BM25 flag, opensearch-java, multi_match, and quality rubric |
+
+### Migration mode (`--migrate`)
+
+The full migration pipeline:
 
 ```
-Step 3: Seed Solr ──▶ Step 4a: Export from Solr ──▶ Step 4b: Transform ──▶ Step 4d: Load into OpenSearch
-   (SOURCE)              (curl /select?q=*:*)        (python3: Solr         (POST /_bulk)
-                                                      fields → OS mappings)
+Seed Solr ──▶ Export from Solr ──▶ Transform ──▶ Load into OpenSearch
+ (SOURCE)     (curl /select?q=*:*)  (python3:      (POST /_bulk)
+                                     Solr fields
+                                     → OS mappings)
 ```
 
-Then verifies the result:
+Then verifies:
 
 | Assertion group | Count | What it proves |
 |-----------------|-------|----------------|
@@ -33,14 +72,17 @@ step is logged with the exact `curl` command and a sample of the data flowing th
 
 - Docker & `docker compose`
 - Java 11+ with `JAVA_HOME` set (Gradle builds the shim image)
-- Node.js 18+ (builds the TypeScript transforms)
+- Node.js 18+ (builds the TypeScript transforms + runs promptfoo)
 - `curl`, `python3`
 
 ## Running
 
 ```bash
-# Full run: build → start containers → seed Solr → migrate → test → teardown
+# Connectivity + skill eval (default — reports saved to connected/reports/)
 ./run_connected_tests.sh
+
+# Full migration + verification
+./run_connected_tests.sh --migrate
 
 # Skip the Gradle/npm build (if you've already built recently)
 ./run_connected_tests.sh --skip-build
@@ -48,14 +90,17 @@ step is logged with the exact `curl` command and a sample of the data flowing th
 # Leave containers running after tests (useful for debugging failures)
 ./run_connected_tests.sh --no-teardown
 
-# Save JUnit XML + plain text report to a directory
-./run_connected_tests.sh --output-dir ./reports
+# Custom report directory
+./run_connected_tests.sh --output-dir /tmp/my-reports
+
+# Suppress report files entirely
+./run_connected_tests.sh --no-output
 ```
 
 ### Re-running verification only
 
-After a `--no-teardown` run, you can re-run just the assertions without rebuilding
-or restarting containers:
+After a `--no-teardown` run, you can re-run just the migration assertions without
+rebuilding or restarting containers:
 
 ```bash
 # Against default ports (38983, 39200, 38080)
@@ -65,29 +110,28 @@ or restarting containers:
 ./verify_migration.sh --solr-port 8983 --os-port 9200 --shim-port 8080 --output-dir ./reports
 ```
 
+### Re-running promptfoo eval only
+
+After a `--no-teardown` run, you can re-run the promptfoo connectivity eval directly:
+
+```bash
+# From the connected/ directory
+SOLR_PORT=38983 OS_PORT=39200 SHIM_PORT=38080 npx promptfoo eval
+
+# View results in browser
+npx promptfoo view
+```
+
 ### Test reports
 
-When `--output-dir` is specified, two files are written:
+Reports are saved to `connected/reports/` by default. Override with `--output-dir`
+or suppress with `--no-output`.
 
 | File | Format | Use case |
 |------|--------|----------|
+| `promptfoo-results.json` | Promptfoo JSON | Infrastructure + skill eval results |
 | `results-YYYYMMDD-HHMMSS.xml` | JUnit XML | CI integration (Jenkins, GitHub Actions, etc.) |
 | `results-YYYYMMDD-HHMMSS.txt` | Plain text | Human review, commit artifacts |
-
-Expected output on success:
-
-```
-  Passed: 18 / 18
-  All assertions passed.
-
-  What was proven:
-    1. Solr seeded with TechProducts data (SOURCE)
-    2. Data exported FROM Solr via /select JSON API
-    3. Solr docs transformed → OpenSearch bulk format (field type mapping)
-    4. Data loaded INTO OpenSearch via _bulk API (TARGET)
-    5. Migrated data verified in OpenSearch (count + spot-check)
-    6. Shim proxy translates Solr queries → OpenSearch against migrated data
-```
 
 ## Ports
 
@@ -104,7 +148,7 @@ Port remapping is handled by `docker-compose.ports.yml` (a compose override file
 ## Architecture
 
 ```
-                         MIGRATION (one-time)
+                         MIGRATION (one-time, --migrate only)
   ┌────────────────┐     ┌───────────┐     ┌────────────────────┐
   │ Solr :38983    │────▶│ Transform │────▶│ OpenSearch :39200  │
   │   (export)     │     │ (python3) │     │    (bulk API)      │
@@ -120,10 +164,13 @@ Port remapping is handled by `docker-compose.ports.yml` (a compose override file
 
 ```
 connected/
-├── run_connected_tests.sh      # Full pipeline: build → start → seed → migrate → verify
-├── verify_migration.sh         # Standalone assertions (re-runnable against live containers)
-├── test_helpers.sh             # Shared assertion functions + report generation
+├── run_connected_tests.sh      # Orchestrator: build → start → seed → eval → [migrate] → verify
+├── verify_migration.sh         # Standalone migration assertions (18 checks)
+├── test_helpers.sh             # Shared assertion functions + JUnit/text report generation
+├── promptfooconfig.yaml        # Promptfoo eval: HTTP connectivity + LLM skill assessment
+├── skill-system-prompt.txt     # Migration advisor system prompt (used by promptfoo)
 ├── docker-compose.ports.yml    # Standalone compose (Solr, OpenSearch, shim, ZK)
+├── reports/                    # Default output directory (gitignored)
 └── README.md
 ```
 
@@ -132,7 +179,7 @@ connected/
 ```
 AIAdvisor/skills/solr-opensearch-migration-advisor/tests/
 ├── evals/        ← PR 1: promptfoo eval of the AI advisor's generated specs
-└── connected/    ← PR 2: THIS — live Docker migration + shim proxy verification
+└── connected/    ← PR 2: THIS — live Docker connectivity + migration verification
 ```
 
 - **evals/** tests the *advisor's output quality* (LLM-as-judge on migration specs)

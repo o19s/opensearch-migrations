@@ -5,30 +5,39 @@
 # Proves a minimal migration pipeline works end-to-end against real Docker
 # containers:
 #
-#   1. Seed data into Solr (the SOURCE of truth)
-#   2. Export data FROM Solr via its JSON API
-#   3. Transform Solr docs → OpenSearch bulk format
-#   4. Load into OpenSearch
-#   5. Verify data landed correctly + shim proxy translates queries
+#   1. Build images and transforms
+#   2. Start services (Solr, OpenSearch, shim proxy)
+#   3. Seed Solr with TechProducts data
+#   4. Run promptfoo connectivity eval (Solr + OpenSearch reachability)
+#   5. [--migrate only] Export → Transform → Load into OpenSearch
+#   6. [--migrate only] Verify migration with full assertion suite
+#
+# By default, the script does NOT run the migration. It starts services, seeds
+# Solr, and runs the promptfoo connectivity eval. Use --migrate to run the full
+# export → transform → load pipeline and verification assertions.
 #
 # Uses non-standard host ports (38983, 39200, 38080) to avoid conflicts with
 # local dev services. Container-internal ports are unchanged.
 #
 # Usage:
-#   ./run_connected_tests.sh                          # full build + test + teardown
+#   ./run_connected_tests.sh                          # connectivity + skill eval (default)
+#   ./run_connected_tests.sh --migrate                # + full migration + verification
 #   ./run_connected_tests.sh --skip-build             # skip gradle/npm (already built)
 #   ./run_connected_tests.sh --no-teardown            # leave containers running
-#   ./run_connected_tests.sh --output-dir ./reports   # save JUnit XML + plain text
+#   ./run_connected_tests.sh --output-dir /tmp/out    # custom report directory
+#   ./run_connected_tests.sh --no-output              # suppress report files
+#
+# Reports are saved to connected/reports/ by default.
 #
 # Prerequisites:
 #   - Docker & docker compose
 #   - Java 11+ and JAVA_HOME set (for Gradle)
-#   - Node.js 18+ (for TypeScript transform build)
+#   - Node.js 18+ (for TypeScript transform build + promptfoo)
 #   - curl, python3 (for JSON parsing & transform)
 #
 # Exit codes:
-#   0  All assertions passed
-#   1  One or more assertions failed
+#   0  All checks passed
+#   1  One or more checks failed
 # =============================================================================
 set -euo pipefail
 
@@ -56,12 +65,15 @@ COMPOSE="docker compose -f $COMPOSE_FILE"
 
 SKIP_BUILD=false
 NO_TEARDOWN=false
-OUTPUT_DIR=""
+DO_MIGRATE=false
+OUTPUT_DIR="$SCRIPT_DIR/reports"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skip-build)  SKIP_BUILD=true; shift ;;
-    --no-teardown) NO_TEARDOWN=true; shift ;;
-    --output-dir)  OUTPUT_DIR="$2"; shift 2 ;;
+    --skip-build)   SKIP_BUILD=true; shift ;;
+    --no-teardown)  NO_TEARDOWN=true; shift ;;
+    --migrate)      DO_MIGRATE=true; shift ;;
+    --output-dir)   OUTPUT_DIR="$2"; shift 2 ;;
+    --no-output)    OUTPUT_DIR=""; shift ;;
     *) echo "Unknown argument: $1"; exit 1 ;;
   esac
 done
@@ -106,11 +118,17 @@ fi
 info "Ports ${REQUIRED_PORTS[*]} are free — OK"
 echo ""
 
+if [ "$DO_MIGRATE" = true ]; then
+  TOTAL_STEPS=6
+else
+  TOTAL_STEPS=4
+fi
+
 # =============================================================================
 # 1. BUILD
 # =============================================================================
 if [ "$SKIP_BUILD" = false ]; then
-  banner "Step 1/5: Build"
+  banner "Step 1/${TOTAL_STEPS}: Build"
 
   step "Building Shim Docker image (gradle build + jibDockerBuild)..."
   # The jibDockerBuild task requires build/versionDir to exist (created by
@@ -142,7 +160,7 @@ fi
 # =============================================================================
 # 2. START SERVICES
 # =============================================================================
-banner "Step 2/5: Start Services"
+banner "Step 2/${TOTAL_STEPS}: Start Services"
 
 step "Starting docker-compose (OpenSearch 3.3, Solr 8, Shim proxy)..."
 detail "Using non-standard ports to avoid conflicts with local dev services"
@@ -162,7 +180,7 @@ sleep 5
 # =============================================================================
 # 3. SEED SOLR (SOURCE)
 # =============================================================================
-banner "Step 3/5: Seed Solr (SOURCE)"
+banner "Step 3/${TOTAL_STEPS}: Seed Solr (SOURCE)"
 
 COLLECTION="techproducts"
 
@@ -192,9 +210,69 @@ info "At this point ONLY Solr has data. OpenSearch is empty."
 detail "curl ${OS_URL}/${COLLECTION}/_count → index does not exist yet"
 
 # =============================================================================
-# 4. MIGRATE: Export from Solr → Transform → Load into OpenSearch
+# 4. PROMPTFOO CONNECTIVITY EVAL
 # =============================================================================
-banner "Step 4/5: Migrate Data (Solr → OpenSearch)"
+banner "Step 4/${TOTAL_STEPS}: Promptfoo Connectivity Eval"
+
+step "Running promptfoo eval against live services..."
+info "Config: $SCRIPT_DIR/promptfooconfig.yaml"
+echo ""
+
+# Export ports so promptfoo config can reference them via ${SOLR_PORT} etc.
+export SOLR_PORT OS_PORT SHIM_PORT
+
+PROMPTFOO_EXIT=0
+PROMPTFOO_ARGS=(eval --config "$SCRIPT_DIR/promptfooconfig.yaml" --no-cache)
+if [ -n "$OUTPUT_DIR" ]; then
+  mkdir -p "$OUTPUT_DIR"
+  PROMPTFOO_ARGS+=(--output "$OUTPUT_DIR/promptfoo-results.json")
+fi
+
+if command -v npx >/dev/null 2>&1; then
+  npx promptfoo "${PROMPTFOO_ARGS[@]}" || PROMPTFOO_EXIT=$?
+else
+  warn "npx not found — skipping promptfoo eval"
+  info "Install Node.js 18+ and run: npx promptfoo eval --config $SCRIPT_DIR/promptfooconfig.yaml"
+  PROMPTFOO_EXIT=0
+fi
+
+if [ "$PROMPTFOO_EXIT" -ne 0 ]; then
+  echo -e "${RED}Promptfoo eval failed (exit $PROMPTFOO_EXIT)${RESET}"
+  if [ "$DO_MIGRATE" = false ] && [ "$NO_TEARDOWN" = false ]; then
+    info "Tip: re-run with --no-teardown to inspect containers after failure"
+  fi
+  if [ "$DO_MIGRATE" = false ]; then
+    exit "$PROMPTFOO_EXIT"
+  else
+    warn "Continuing to migration despite promptfoo failure..."
+  fi
+fi
+
+# =============================================================================
+# Without --migrate, we're done
+# =============================================================================
+if [ "$DO_MIGRATE" = false ]; then
+  banner "Results"
+  echo -e "  ${GREEN}Connectivity checks complete.${RESET}"
+  echo ""
+  echo -e "  ${BOLD}What was proven:${RESET}"
+  info "  1. Docker services started (Solr, OpenSearch, shim proxy)"
+  info "  2. Solr seeded with TechProducts data (SOURCE)"
+  info "  3. Promptfoo eval verified service connectivity"
+  echo ""
+  info "To run the full migration pipeline, add --migrate:"
+  detail "./run_connected_tests.sh --migrate"
+  echo ""
+  if [ -n "$OUTPUT_DIR" ]; then
+    info "Promptfoo results: $OUTPUT_DIR/promptfoo-results.json"
+  fi
+  exit "$PROMPTFOO_EXIT"
+fi
+
+# =============================================================================
+# 5. MIGRATE: Export from Solr → Transform → Load into OpenSearch
+# =============================================================================
+banner "Step 5/${TOTAL_STEPS}: Migrate Data (Solr → OpenSearch)"
 
 echo -e "  ${BOLD}Migration pipeline:${RESET}"
 echo -e "  ${CYAN}┌──────────────┐     ┌───────────┐     ┌──────────────────┐${RESET}"
@@ -203,8 +281,8 @@ echo -e "  ${CYAN}│   (export)   │     │ (python3) │     │    (bulk AP
 echo -e "  ${CYAN}└──────────────┘     └───────────┘     └──────────────────┘${RESET}"
 echo ""
 
-# --- 4a. Export all docs from Solr -------------------------------------------
-step "4a. Exporting all documents from Solr..."
+# --- 5a. Export all docs from Solr -------------------------------------------
+step "5a. Exporting all documents from Solr..."
 detail "GET ${SOLR_URL}/solr/${COLLECTION}/select?q=*:*&wt=json&rows=100"
 
 SOLR_EXPORT=$(curl -sf "${SOLR_URL}/solr/${COLLECTION}/select?q=*:*&wt=json&rows=100")
@@ -222,8 +300,8 @@ print(json.dumps(doc, indent=2))
 " | while IFS= read -r line; do info "  $line"; done
 echo ""
 
-# --- 4b. Transform: Solr JSON → OpenSearch index + bulk format ----------------
-step "4b. Transforming Solr docs → OpenSearch mappings + bulk format..."
+# --- 5b. Transform: Solr JSON → OpenSearch index + bulk format ----------------
+step "5b. Transforming Solr docs → OpenSearch mappings + bulk format..."
 info "This is the 'YOLO migration' step: Solr field types → OpenSearch mappings"
 echo ""
 
@@ -259,7 +337,7 @@ curl -sf -X PUT "${OS_URL}/${COLLECTION}" \
 info "OpenSearch index '${COLLECTION}' created with typed mappings"
 
 # Transform Solr export → OpenSearch bulk payload
-step "4c. Converting Solr export to OpenSearch _bulk format..."
+step "5c. Converting Solr export to OpenSearch _bulk format..."
 detail "Stripping Solr-internal fields (_version_) and building NDJSON bulk payload"
 echo ""
 
@@ -298,8 +376,8 @@ info "First action/doc pair:"
 echo "$BULK_BODY" | head -2 | while IFS= read -r line; do info "  $line"; done
 echo ""
 
-# --- 4d. Load into OpenSearch via _bulk API -----------------------------------
-step "4d. Loading into OpenSearch via _bulk API..."
+# --- 5d. Load into OpenSearch via _bulk API -----------------------------------
+step "5d. Loading into OpenSearch via _bulk API..."
 detail "POST ${OS_URL}/_bulk"
 
 BULK_RESP=$(echo "$BULK_BODY" | curl -sf -X POST "${OS_URL}/_bulk" \
@@ -324,9 +402,9 @@ info "Migration complete. Data flow was:"
 detail "Solr (:${SOLR_PORT}) → curl export → python3 transform → _bulk API → OpenSearch (:${OS_PORT})"
 
 # =============================================================================
-# 5. VERIFY — delegate to standalone verification script
+# 6. VERIFY — delegate to standalone verification script
 # =============================================================================
-banner "Step 5/5: Verify Migration"
+banner "Step 6/${TOTAL_STEPS}: Verify Migration"
 
 VERIFY_ARGS=(
   --solr-port "$SOLR_PORT"
