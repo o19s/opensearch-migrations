@@ -79,7 +79,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 cleanup() {
-  if [ "$NO_TEARDOWN" = false ]; then
+  if [ "$SERVICES_REUSED" = true ]; then
+    info "Services were reused — leaving them running"
+  elif [ "$NO_TEARDOWN" = false ]; then
     banner "Teardown"
     step "Stopping services..."
     $COMPOSE down -v --remove-orphans 2>/dev/null || true
@@ -91,11 +93,8 @@ cleanup() {
 trap cleanup EXIT
 
 # =============================================================================
-# 0. PRE-FLIGHT: Clean up any previous run, then check ports
+# 0. PRE-FLIGHT: Detect running services or clean start
 # =============================================================================
-# Tear down containers from a previous run of this script (same compose project)
-$COMPOSE down -v --remove-orphans 2>/dev/null || true
-
 REQUIRED_PORTS=($SOLR_PORT $OS_PORT $SHIM_PORT)
 BUSY_PORTS=()
 for port in "${REQUIRED_PORTS[@]}"; do
@@ -105,17 +104,26 @@ for port in "${REQUIRED_PORTS[@]}"; do
   fi
 done
 
-if [ ${#BUSY_PORTS[@]} -gt 0 ]; then
-  echo -e "${RED}Pre-flight check failed: required ports already in use${RESET}"
+SERVICES_REUSED=false
+if [ ${#BUSY_PORTS[@]} -eq ${#REQUIRED_PORTS[@]} ]; then
+  # All ports busy — reuse existing services (previous --no-teardown run)
+  SERVICES_REUSED=true
+  info "All ports (${REQUIRED_PORTS[*]}) already listening — reusing running services"
+elif [ ${#BUSY_PORTS[@]} -gt 0 ]; then
+  # Some but not all ports busy — conflict
+  echo -e "${RED}Pre-flight check failed: some ports in use but not all${RESET}"
   echo ""
   for port in "${BUSY_PORTS[@]}"; do
-    echo -e "  ${BOLD}$port${RESET}  — stop whatever is listening on this port"
+    echo -e "  ${BOLD}$port${RESET}  — in use"
   done
   echo ""
-  info "These ports are needed by docker-compose. Free them and re-run."
+  info "Either free these ports or start all services with a previous --no-teardown run."
   exit 1
+else
+  # No ports busy — clean start
+  $COMPOSE down -v --remove-orphans 2>/dev/null || true
+  info "Ports ${REQUIRED_PORTS[*]} are free — clean start"
 fi
-info "Ports ${REQUIRED_PORTS[*]} are free — OK"
 echo ""
 
 if [ "$DO_MIGRATE" = true ]; then
@@ -127,6 +135,10 @@ fi
 # =============================================================================
 # 1. BUILD
 # =============================================================================
+if [ "$SERVICES_REUSED" = true ]; then
+  SKIP_BUILD=true
+  info "Skipping build (reusing running services)"
+fi
 if [ "$SKIP_BUILD" = false ]; then
   banner "Step 1/${TOTAL_STEPS}: Build"
 
@@ -160,22 +172,30 @@ fi
 # =============================================================================
 # 2. START SERVICES
 # =============================================================================
-banner "Step 2/${TOTAL_STEPS}: Start Services"
+if [ "$SERVICES_REUSED" = true ]; then
+  banner "Step 2/${TOTAL_STEPS}: Services (reusing)"
+  info "Services already running:"
+  info "  Solr 8          → ${SOLR_URL}   (SOURCE)"
+  info "  OpenSearch 3.3  → ${OS_URL}   (TARGET)"
+  info "  Shim Proxy      → ${SHIM_URL}   (proxy)"
+else
+  banner "Step 2/${TOTAL_STEPS}: Start Services"
 
-step "Starting docker-compose (OpenSearch 3.3, Solr 8, Shim proxy)..."
-detail "Using non-standard ports to avoid conflicts with local dev services"
-$COMPOSE up -d
+  step "Starting docker-compose (OpenSearch 3.3, Solr 8, Shim proxy)..."
+  detail "Using non-standard ports to avoid conflicts with local dev services"
+  $COMPOSE up -d
 
-info "Services:"
-info "  Solr 8          → ${SOLR_URL}   (SOURCE — data lives here first)"
-info "  OpenSearch 3.3  → ${OS_URL}   (TARGET — data migrated here)"
-info "  Shim Proxy      → ${SHIM_URL}   (translates Solr queries → OpenSearch)"
+  info "Services:"
+  info "  Solr 8          → ${SOLR_URL}   (SOURCE — data lives here first)"
+  info "  OpenSearch 3.3  → ${OS_URL}   (TARGET — data migrated here)"
+  info "  Shim Proxy      → ${SHIM_URL}   (translates Solr queries → OpenSearch)"
 
-wait_for "OpenSearch" "${OS_URL}" 120
-wait_for "Solr"       "${SOLR_URL}/solr/admin/info/system" 120
+  wait_for "OpenSearch" "${OS_URL}" 120
+  wait_for "Solr"       "${SOLR_URL}/solr/admin/info/system" 120
 
-# Give the shim time to connect and load transforms
-sleep 5
+  # Give the shim time to connect and load transforms
+  sleep 5
+fi
 
 # =============================================================================
 # 3. SEED SOLR (SOURCE)
@@ -186,8 +206,12 @@ COLLECTION="techproducts"
 
 step "Creating SolrCloud collection '$COLLECTION'..."
 detail "GET ${SOLR_URL}/solr/admin/collections?action=CREATE&name=${COLLECTION}&numShards=1&replicationFactor=1"
-curl -sf "${SOLR_URL}/solr/admin/collections?action=CREATE&name=${COLLECTION}&numShards=1&replicationFactor=1" >/dev/null
-info "SolrCloud collection created (1 shard, RF=1)"
+CREATE_RESP=$(curl -s "${SOLR_URL}/solr/admin/collections?action=CREATE&name=${COLLECTION}&numShards=1&replicationFactor=1")
+if echo "$CREATE_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('responseHeader',{}).get('status')==0 else 1)" 2>/dev/null; then
+  info "SolrCloud collection created (1 shard, RF=1)"
+else
+  info "Collection '$COLLECTION' already exists — reusing"
+fi
 
 step "Indexing 5 TechProducts documents into Solr..."
 detail "POST ${SOLR_URL}/solr/${COLLECTION}/update/json/docs?commit=true"

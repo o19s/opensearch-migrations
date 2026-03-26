@@ -3,7 +3,9 @@
 # Two test suites in one config:
 #
 #   1. INFRASTRUCTURE — HTTP connectivity checks against live Docker services
-#      (Solr, OpenSearch, shim proxy). No LLM needed.
+#      (Solr, OpenSearch). No LLM needed. Shim proxy is tested separately
+#      by verify_migration.sh (requires --migrate, since OpenSearch is empty
+#      until data is migrated).
 #
 #   2. SKILL — Calls the migration advisor skill (via LLM) to generate a YOLO
 #      migration spec for the TechProducts collection, then scores the output
@@ -61,16 +63,9 @@ providers:
           tagline: json.tagline
         })
 
-  - id: http
-    label: shim-proxy
-    config:
-      url: "http://localhost:{{env.SHIM_PORT | default('38080')}}/solr/techproducts/select?q=*:*&wt=json&rows=1"
-      method: GET
-      transformResponse: >
-        JSON.stringify({
-          numFound: json.response?.numFound,
-          hasHeader: !!json.responseHeader
-        })
+  # NOTE: shim-proxy is NOT tested here — it queries OpenSearch via the proxy,
+  # but OpenSearch has no data until migration (--migrate). The shim is tested
+  # in verify_migration.sh instead.
 
   # --- Skill: LLM-based migration advisor ---
 
@@ -114,8 +109,8 @@ tests:
       - type: is-json
       - type: javascript
         value: "JSON.parse(output).status === 0"
-      - type: contains
-        value: "solr-spec-version"
+      - type: javascript
+        value: "JSON.parse(output).lucene !== undefined"
 
   - description: "Solr has seeded TechProducts documents"
     providers: [solr-doc-count]
@@ -135,14 +130,7 @@ tests:
       - type: javascript
         value: "JSON.parse(output).version !== undefined"
 
-  - description: "Shim proxy translates Solr query and returns results"
-    providers: [shim-proxy]
-    vars:
-      prompt: "proxy-check"
-    assert:
-      - type: is-json
-      - type: javascript
-        value: "JSON.parse(output).hasHeader === true"
+  # NOTE: shim-proxy is tested in verify_migration.sh (requires --migrate)
 
   # =========================================================================
   # SKILL — Migration advisor generates YOLO spec (LLM)

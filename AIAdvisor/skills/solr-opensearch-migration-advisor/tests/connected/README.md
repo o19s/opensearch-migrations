@@ -38,8 +38,10 @@ verify with 18 assertions + shim proxy query translation checks.
 | Solr health | HTTP | Solr is running and returns system info |
 | Solr doc count | HTTP | Seeded TechProducts data is queryable |
 | OpenSearch health | HTTP | OpenSearch cluster is reachable |
-| Shim proxy | HTTP | Proxy translates Solr queries to OpenSearch |
 | YOLO TechProducts spec | LLM | Skill generates valid migration spec with structural markers, BM25 flag, opensearch-java, multi_match, and quality rubric |
+
+> **Note:** The shim proxy is not tested in default mode because OpenSearch has no data until
+> migration runs. It is tested in `verify_migration.sh` (via `--migrate`).
 
 ### Migration mode (`--migrate`)
 
