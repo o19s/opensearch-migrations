@@ -14,7 +14,7 @@
 #   ./run_connected_tests.sh
 #
 #   # Or run promptfoo directly (services must be running)
-#   SOLR_PORT=38983 OS_PORT=39200 SHIM_PORT=38080 npx promptfoo eval
+#   npx promptfoo eval
 #   npx promptfoo view
 #
 # LLM provider config:
@@ -33,7 +33,7 @@ providers:
   - id: http
     label: solr-health
     config:
-      url: "http://localhost:{{env.SOLR_PORT | default("38983")}}/solr/admin/info/system"
+      url: "http://localhost:{{env.SOLR_PORT | default('38983')}}/solr/admin/info/system"
       method: GET
       transformResponse: >
         JSON.stringify({
@@ -44,7 +44,7 @@ providers:
   - id: http
     label: solr-doc-count
     config:
-      url: "http://localhost:{{env.SOLR_PORT | default("38983")}}/solr/techproducts/select?q=*:*&rows=0&wt=json"
+      url: "http://localhost:{{env.SOLR_PORT | default('38983')}}/solr/techproducts/select?q=*:*&rows=0&wt=json"
       method: GET
       transformResponse: >
         JSON.stringify({ numFound: json.response?.numFound })
@@ -52,7 +52,7 @@ providers:
   - id: http
     label: opensearch-health
     config:
-      url: "http://localhost:{{env.OS_PORT | default("39200")}}/"
+      url: "http://localhost:{{env.OS_PORT | default('39200')}}/"
       method: GET
       transformResponse: >
         JSON.stringify({
@@ -64,7 +64,7 @@ providers:
   - id: http
     label: shim-proxy
     config:
-      url: "http://localhost:{{env.SHIM_PORT | default("38080")}}/solr/techproducts/select?q=*:*&wt=json&rows=1"
+      url: "http://localhost:{{env.SHIM_PORT | default('38080')}}/solr/techproducts/select?q=*:*&wt=json&rows=1"
       method: GET
       transformResponse: >
         JSON.stringify({
@@ -81,19 +81,10 @@ providers:
       max_tokens: 2000
 
 # ---------------------------------------------------------------------------
-# Prompts (only used by LLM provider tests)
+# Single prompt template — HTTP providers ignore it, LLM provider uses it
 # ---------------------------------------------------------------------------
 prompts:
-  - label: migration-advisor-yolo
-    raw: |
-      {{system_prompt}}
-
-      ---
-      User: {{user_prompt}}
-
-  # HTTP provider tests don't use prompts — this placeholder satisfies promptfoo
-  - label: connectivity-check
-    raw: "{{prompt}}"
+  - "{{prompt}}"
 
 # ---------------------------------------------------------------------------
 # Default test options
@@ -160,6 +151,11 @@ tests:
   - description: "YOLO TechProducts — skill generates spec with required structural markers"
     providers: [migration-advisor]
     vars:
+      prompt: |
+        {{system_prompt}}
+
+        ---
+        User: {{user_prompt}}
       system_prompt: file://skill-system-prompt.txt
       user_prompt: |
         YOLO mode. Generate a complete migration spec for the Solr TechProducts demo collection.
