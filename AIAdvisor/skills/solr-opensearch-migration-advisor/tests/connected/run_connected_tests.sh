@@ -15,9 +15,10 @@
 # local dev services. Container-internal ports are unchanged.
 #
 # Usage:
-#   ./run_connected_tests.sh                # full build + test + teardown
-#   ./run_connected_tests.sh --skip-build   # skip gradle/npm (already built)
-#   ./run_connected_tests.sh --no-teardown  # leave containers running
+#   ./run_connected_tests.sh                          # full build + test + teardown
+#   ./run_connected_tests.sh --skip-build             # skip gradle/npm (already built)
+#   ./run_connected_tests.sh --no-teardown            # leave containers running
+#   ./run_connected_tests.sh --output-dir ./reports   # save JUnit XML + plain text
 #
 # Prerequisites:
 #   - Docker & docker compose
@@ -36,6 +37,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.ports.yml"
 TRANSFORMS_DIR="$REPO_ROOT/TrafficCapture/SolrTransformations/transforms"
 
+source "$SCRIPT_DIR/test_helpers.sh"
+
 # Host ports — offset to avoid clashing with local dev services
 SOLR_PORT=38983
 OS_PORT=39200
@@ -53,83 +56,15 @@ COMPOSE="docker compose -f $COMPOSE_FILE"
 
 SKIP_BUILD=false
 NO_TEARDOWN=false
-for arg in "$@"; do
-  case "$arg" in
-    --skip-build)  SKIP_BUILD=true ;;
-    --no-teardown) NO_TEARDOWN=true ;;
+OUTPUT_DIR=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-build)  SKIP_BUILD=true; shift ;;
+    --no-teardown) NO_TEARDOWN=true; shift ;;
+    --output-dir)  OUTPUT_DIR="$2"; shift 2 ;;
+    *) echo "Unknown argument: $1"; exit 1 ;;
   esac
 done
-
-# --- Colors & helpers --------------------------------------------------------
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[0;33m'
-RED='\033[0;31m'
-DIM='\033[2m'
-RESET='\033[0m'
-
-PASS_COUNT=0
-FAIL_COUNT=0
-
-banner()  { echo -e "\n${BOLD}${CYAN}═══════════════════════════════════════════════════════════${RESET}"; echo -e "${BOLD}${CYAN}  $1${RESET}"; echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════════════${RESET}\n"; }
-step()    { echo -e "${BOLD}${GREEN}▶ $1${RESET}"; }
-info()    { echo -e "${DIM}  $1${RESET}"; }
-warn()    { echo -e "${YELLOW}⚠ $1${RESET}"; }
-detail()  { echo -e "  ${CYAN}→${RESET} $1"; }
-
-assert_eq() {
-  local desc="$1" expected="$2" actual="$3"
-  if [ "$expected" = "$actual" ]; then
-    echo -e "  ${GREEN}✓ PASS${RESET}  $desc"
-    PASS_COUNT=$((PASS_COUNT + 1))
-  else
-    echo -e "  ${RED}✗ FAIL${RESET}  $desc"
-    echo -e "         expected: ${BOLD}$expected${RESET}"
-    echo -e "         actual:   ${BOLD}$actual${RESET}"
-    FAIL_COUNT=$((FAIL_COUNT + 1))
-  fi
-}
-
-assert_contains() {
-  local desc="$1" needle="$2" haystack="$3"
-  if echo "$haystack" | grep -qi "$needle"; then
-    echo -e "  ${GREEN}✓ PASS${RESET}  $desc"
-    PASS_COUNT=$((PASS_COUNT + 1))
-  else
-    echo -e "  ${RED}✗ FAIL${RESET}  $desc"
-    echo -e "         expected to contain: ${BOLD}$needle${RESET}"
-    echo -e "         response (first 200 chars): ${DIM}${haystack:0:200}${RESET}"
-    FAIL_COUNT=$((FAIL_COUNT + 1))
-  fi
-}
-
-assert_http_ok() {
-  local desc="$1" url="$2"
-  local status
-  status=$(curl -sf -o /dev/null -w "%{http_code}" "$url" 2>/dev/null) || status="000"
-  if [ "$status" = "200" ]; then
-    echo -e "  ${GREEN}✓ PASS${RESET}  $desc"
-    PASS_COUNT=$((PASS_COUNT + 1))
-  else
-    echo -e "  ${RED}✗ FAIL${RESET}  $desc"
-    echo -e "         expected HTTP 200, got: ${BOLD}$status${RESET}"
-    FAIL_COUNT=$((FAIL_COUNT + 1))
-  fi
-}
-
-wait_for() {
-  local name="$1" url="$2" max_wait="${3:-120}"
-  info "Waiting for $name at $url ..."
-  local elapsed=0
-  while ! curl -sf "$url" >/dev/null 2>&1; do
-    sleep 2; elapsed=$((elapsed + 2))
-    if [ "$elapsed" -ge "$max_wait" ]; then
-      echo -e "${RED}✗ $name did not become healthy after ${max_wait}s${RESET}"; exit 1
-    fi
-  done
-  info "$name is ready (${elapsed}s)"
-}
 
 cleanup() {
   if [ "$NO_TEARDOWN" = false ]; then
@@ -389,109 +324,24 @@ info "Migration complete. Data flow was:"
 detail "Solr (:${SOLR_PORT}) → curl export → python3 transform → _bulk API → OpenSearch (:${OS_PORT})"
 
 # =============================================================================
-# 5. RUN ASSERTIONS
+# 5. VERIFY — delegate to standalone verification script
 # =============================================================================
 banner "Step 5/5: Verify Migration"
 
-# --- Health checks ---
-step "Health checks"
-assert_http_ok "Solr is reachable (port ${SOLR_PORT})" \
-  "${SOLR_URL}/solr/admin/info/system"
-assert_http_ok "OpenSearch is reachable (port ${OS_PORT})" \
-  "${OS_URL}"
-assert_http_ok "Shim proxy is reachable (port ${SHIM_PORT})" \
-  "${SHIM_URL}"
-echo ""
-
-# --- Source verification: Solr still has the data ---
-step "Source verification: Solr (SOURCE) doc count"
-detail "GET ${SOLR_URL}/solr/${COLLECTION}/select?q=*:*&rows=0"
-SOLR_RESP=$(curl -sf "${SOLR_URL}/solr/${COLLECTION}/select?q=*:*&wt=json&rows=0")
-SOLR_COUNT=$(echo "$SOLR_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['response']['numFound'])")
-assert_eq "Solr (SOURCE) still has 5 documents" "5" "$SOLR_COUNT"
-echo ""
-
-# --- Target verification: OpenSearch received the data ---
-step "Target verification: OpenSearch (TARGET) doc count"
-detail "GET ${OS_URL}/${COLLECTION}/_count"
-OS_RESP=$(curl -sf "${OS_URL}/${COLLECTION}/_count")
-OS_COUNT=$(echo "$OS_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])")
-assert_eq "OpenSearch (TARGET) has 5 migrated documents" "5" "$OS_COUNT"
-echo ""
-
-# --- Target verification: spot-check a specific document ---
-step "Target verification: spot-check migrated document TP-002"
-detail "GET ${OS_URL}/${COLLECTION}/_doc/TP-002"
-DOC_RESP=$(curl -sf "${OS_URL}/${COLLECTION}/_doc/TP-002")
-assert_contains "Doc TP-002 exists in OpenSearch" '"found":true' "$DOC_RESP"
-assert_contains "Doc TP-002 has correct name" "OpenSearch Migration Guide" "$DOC_RESP"
-assert_contains "Doc TP-002 has correct category" '"cat"' "$DOC_RESP"
-assert_contains "Doc TP-002 category is 'migration'" 'migration' "$DOC_RESP"
-echo ""
-
-# --- Shim proxy: match-all query ---
-step "Shim proxy: Solr-format query → OpenSearch (via proxy)"
-detail "GET ${SHIM_URL}/solr/${COLLECTION}/select?q=*:*&wt=json"
-info "This sends a Solr query to the proxy, which translates it to OpenSearch Query DSL"
-PROXY_RESP=$(curl -sf "${SHIM_URL}/solr/${COLLECTION}/select?q=*:*&wt=json")
-assert_contains "Proxy response has Solr 'responseHeader'" "responseHeader" "$PROXY_RESP"
-assert_contains "Proxy response has Solr 'response' wrapper" '"response"' "$PROXY_RESP"
-assert_contains "Proxy response has 'numFound'" "numFound" "$PROXY_RESP"
-
-PROXY_COUNT=$(echo "$PROXY_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['response']['numFound'])" 2>/dev/null || echo "PARSE_ERROR")
-assert_eq "Proxy returns all 5 migrated docs" "5" "$PROXY_COUNT"
-echo ""
-
-# --- Shim proxy: keyword query ---
-step "Shim proxy: keyword search through proxy"
-detail "GET ${SHIM_URL}/solr/${COLLECTION}/select?q=OpenSearch&wt=json"
-info "Tests that Solr q= parameter is translated to OpenSearch query_string"
-KEYWORD_RESP=$(curl -sf "${SHIM_URL}/solr/${COLLECTION}/select?q=OpenSearch&wt=json")
-assert_contains "Keyword query returns results" "numFound" "$KEYWORD_RESP"
-assert_contains "Keyword 'OpenSearch' finds doc TP-002" "TP-002" "$KEYWORD_RESP"
-echo ""
-
-# --- Shim proxy: field list ---
-step "Shim proxy: field list (fl) parameter"
-detail "GET ${SHIM_URL}/solr/${COLLECTION}/select?q=*:*&fl=id,name&rows=1"
-FL_RESP=$(curl -sf "${SHIM_URL}/solr/${COLLECTION}/select?q=*:*&wt=json&fl=id,name&rows=1")
-assert_contains "fl=id,name returns id field" '"id"' "$FL_RESP"
-assert_contains "fl=id,name returns name field" '"name"' "$FL_RESP"
-echo ""
-
-# --- Shim proxy: rows parameter ---
-step "Shim proxy: rows parameter limits results"
-detail "GET ${SHIM_URL}/solr/${COLLECTION}/select?q=*:*&rows=2"
-ROWS_RESP=$(curl -sf "${SHIM_URL}/solr/${COLLECTION}/select?q=*:*&wt=json&rows=2")
-ROWS_COUNT=$(echo "$ROWS_RESP" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['response']['docs']))" 2>/dev/null || echo "PARSE_ERROR")
-assert_eq "rows=2 returns exactly 2 docs" "2" "$ROWS_COUNT"
-echo ""
-
-# =============================================================================
-# SUMMARY
-# =============================================================================
-banner "Results"
-
-TOTAL=$((PASS_COUNT + FAIL_COUNT))
-echo -e "  ${BOLD}Passed: ${GREEN}${PASS_COUNT}${RESET}${BOLD} / ${TOTAL}${RESET}"
-
-if [ "$FAIL_COUNT" -gt 0 ]; then
-  echo -e "  ${BOLD}Failed: ${RED}${FAIL_COUNT}${RESET}"
-  echo ""
-  if [ "$NO_TEARDOWN" = false ]; then
-    info "Tip: re-run with --no-teardown to inspect containers after failure"
-  fi
-  exit 1
-else
-  echo -e "  ${GREEN}All assertions passed.${RESET}"
-  echo ""
-  echo -e "  ${BOLD}What was proven:${RESET}"
-  info "  1. Solr seeded with TechProducts data (SOURCE)"
-  info "  2. Data exported FROM Solr via /select JSON API"
-  info "  3. Solr docs transformed → OpenSearch bulk format (field type mapping)"
-  info "  4. Data loaded INTO OpenSearch via _bulk API (TARGET)"
-  info "  5. Migrated data verified in OpenSearch (count + spot-check)"
-  info "  6. Shim proxy translates Solr queries → OpenSearch against migrated data"
-  echo ""
-  exit 0
+VERIFY_ARGS=(
+  --solr-port "$SOLR_PORT"
+  --os-port "$OS_PORT"
+  --shim-port "$SHIM_PORT"
+)
+if [ -n "$OUTPUT_DIR" ]; then
+  VERIFY_ARGS+=(--output-dir "$OUTPUT_DIR")
 fi
+
+# Run verify_migration.sh; capture its exit code so the cleanup trap still fires
+VERIFY_EXIT=0
+"$SCRIPT_DIR/verify_migration.sh" "${VERIFY_ARGS[@]}" || VERIFY_EXIT=$?
+
+if [ "$VERIFY_EXIT" -ne 0 ] && [ "$NO_TEARDOWN" = false ]; then
+  info "Tip: re-run with --no-teardown to inspect containers after failure"
+fi
+exit "$VERIFY_EXIT"

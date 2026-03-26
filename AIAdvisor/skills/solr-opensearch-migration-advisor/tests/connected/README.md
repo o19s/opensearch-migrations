@@ -47,7 +47,32 @@ step is logged with the exact `curl` command and a sample of the data flowing th
 
 # Leave containers running after tests (useful for debugging failures)
 ./run_connected_tests.sh --no-teardown
+
+# Save JUnit XML + plain text report to a directory
+./run_connected_tests.sh --output-dir ./reports
 ```
+
+### Re-running verification only
+
+After a `--no-teardown` run, you can re-run just the assertions without rebuilding
+or restarting containers:
+
+```bash
+# Against default ports (38983, 39200, 38080)
+./verify_migration.sh
+
+# With custom ports and report output
+./verify_migration.sh --solr-port 8983 --os-port 9200 --shim-port 8080 --output-dir ./reports
+```
+
+### Test reports
+
+When `--output-dir` is specified, two files are written:
+
+| File | Format | Use case |
+|------|--------|----------|
+| `results-YYYYMMDD-HHMMSS.xml` | JUnit XML | CI integration (Jenkins, GitHub Actions, etc.) |
+| `results-YYYYMMDD-HHMMSS.txt` | Plain text | Human review, commit artifacts |
 
 Expected output on success:
 
@@ -89,6 +114,17 @@ Port remapping is handled by `docker-compose.ports.yml` (a compose override file
   Solr Client  ──▶  Shim Proxy (:38080)  ──▶  OpenSearch (:39200)
                           │                         ▲
                      request.transform.ts    response.transform.ts
+```
+
+## File Structure
+
+```
+connected/
+├── run_connected_tests.sh      # Full pipeline: build → start → seed → migrate → verify
+├── verify_migration.sh         # Standalone assertions (re-runnable against live containers)
+├── test_helpers.sh             # Shared assertion functions + report generation
+├── docker-compose.ports.yml    # Standalone compose (Solr, OpenSearch, shim, ZK)
+└── README.md
 ```
 
 ## Relationship to Other Tests
