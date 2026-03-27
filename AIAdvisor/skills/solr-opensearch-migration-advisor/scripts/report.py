@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from storage import Incompatibility, ClientIntegration

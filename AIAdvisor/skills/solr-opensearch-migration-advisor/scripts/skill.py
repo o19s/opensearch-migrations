@@ -157,7 +157,9 @@ class SolrToOpenSearchMigrationSkill:
         if "report" in message_lc:
             response = self.generate_report(session_id)
 
-        elif has_schema_xml or (("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc) and "<schema" in message):
+        elif (has_schema_xml or
+              (("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc) and
+               "<schema" in message)):
             if has_schema_xml:
                 schema_xml = message[schema_start: schema_end + 9]
                 mapping = self.convert_schema_xml(schema_xml)
