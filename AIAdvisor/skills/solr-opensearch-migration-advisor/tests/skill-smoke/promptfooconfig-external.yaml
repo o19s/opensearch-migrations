@@ -1,15 +1,63 @@
-# Step 4: Promptfoo with EXTERNAL prompt (file:// reference)
+# =============================================================================
+# Step 4: Promptfoo with EXTERNAL prompt (loaded from a file via file://)
+# =============================================================================
 #
-# The system prompt is read from skill-assembled.txt — generated at runtime
-# by run_smoke.sh --step 4 by concatenating all 3 nuggets.
-# Proves: all 3 assertions now pass (3/3).
+# PURPOSE
+# -------
+# Shows the production pattern: prompt content lives in its own file, not
+# inside the YAML. The YAML just says "load it from here" using file://.
 #
-# Run (after run_smoke.sh --step 4 generates skill-assembled.txt):
-#   npx promptfoo eval --config promptfooconfig-external.yaml
+# WHAT'S LOADED
+# -------------
+# All 3 nuggets, concatenated into skill-assembled.txt.
+# That file is GENERATED at runtime by run_smoke.sh --step 4 (or manually):
+#
+#   cat nuggets/nugget-01-express-mode.txt \
+#       nuggets/nugget-02-bm25.txt \
+#       nuggets/nugget-03-translations.txt > skill-assembled.txt
+#
+# The file MUST EXIST before running this config. If it doesn't, promptfoo
+# will fail with "Error reading file skill-assembled.txt".
+#
+# EXPECTED RESULTS
+# ----------------
+#   Test 1 (EXPRESS MODE banner)  → PASS  (nugget 1 is in the file)
+#   Test 2 (BM25 vs TF-IDF)      → PASS  (nugget 2 is in the file)
+#   Test 3 (opensearch-java)      → PASS  (nugget 3 is in the file)
+#
+# COMPARE WITH
+# ------------
+# promptfooconfig-inline.yaml — same 3 assertions, but the prompt is pasted
+# directly into the YAML with only nugget 1, so only 1/3 tests pass.
+# This file includes all 3 nuggets via file://, so all 3 pass.
+#
+# THE KEY DIFFERENCE
+# ------------------
+# Inline (step 3):   vars.prompt = "You are a migration advisor...\n..."
+# External (step 4): vars.system_prompt = "file://skill-assembled.txt"
+#
+# The "file://" prefix is a promptfoo feature. It reads the file contents
+# at eval time and substitutes them into the {{system_prompt}} variable.
+# The path is relative to this YAML file's directory.
+#
+# HOW TO RUN
+# ----------
+#   # Generate the assembled file first (or let run_smoke.sh do it)
+#   cat nuggets/nugget-*.txt > skill-assembled.txt
+#
+#   npx promptfoo eval --config promptfooconfig-external.yaml --no-cache
 #   npx promptfoo view
+#
+# Or via the orchestrator:
+#   ./run_smoke.sh --step 4
+#
+# =============================================================================
 
-description: "skill-smoke step 4 — promptfoo external (all 3 nuggets assembled)"
+description: "skill-smoke step 4 — promptfoo external (all 3 nuggets from file://)"
 
+# ---------------------------------------------------------------------------
+# Provider: which LLM to call (same as inline config)
+# ---------------------------------------------------------------------------
 providers:
   - id: "bedrock:{{env.SMOKE_MODEL | default('amazon.nova-micro-v1:0')}}"
     label: migration-advisor-external
@@ -17,24 +65,48 @@ providers:
       region: "{{env.AWS_DEFAULT_REGION | default('us-east-1')}}"
       max_tokens: 500
 
+# ---------------------------------------------------------------------------
+# Prompt template
+# ---------------------------------------------------------------------------
+# Same as inline config. The {{prompt}} variable is built from
+# {{system_prompt}} + {{user_prompt}} in each test's vars.
 prompts:
   - "{{prompt}}"
 
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+# All 3 tests share the same vars (system_prompt loaded from file,
+# same user question). Only the assertion differs.
+#
+# NOTE: Unlike the inline config, ALL 3 assertions should PASS here
+# because the file includes all 3 nuggets.
+# ---------------------------------------------------------------------------
+
 tests:
+  # --- Test 1/3: EXPRESS MODE banner ---
   - description: "1/3: EXPRESS MODE banner"
     vars:
+      # prompt is assembled from two sub-variables:
+      #   {{system_prompt}} — loaded from disk via file://
+      #   {{user_prompt}} — the user's question (literal string)
       prompt: |
         {{system_prompt}}
 
         ---
         User: {{user_prompt}}
+
+      # file:// tells promptfoo: "read this file and use its contents as
+      # the value of this variable." The path is relative to this YAML file.
       system_prompt: "file://skill-assembled.txt"
+
       user_prompt: "YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch."
     assert:
       - type: icontains
         value: "EXPRESS MODE"
         description: "Nugget 1: express mode banner present"
 
+  # --- Test 2/3: BM25 vs TF-IDF incompatibility ---
   - description: "2/3: BM25 vs TF-IDF incompatibility"
     vars:
       prompt: |
@@ -49,6 +121,7 @@ tests:
         value: "BM25 vs TF-IDF"
         description: "Nugget 2: BM25 incompatibility explicitly named"
 
+  # --- Test 3/3: opensearch-java client translation ---
   - description: "3/3: opensearch-java client translation"
     vars:
       prompt: |

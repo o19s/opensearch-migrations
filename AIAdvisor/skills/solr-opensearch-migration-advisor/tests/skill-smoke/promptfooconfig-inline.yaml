@@ -1,15 +1,48 @@
-# Step 3: Promptfoo with INLINE prompt
+# =============================================================================
+# Step 3: Promptfoo with INLINE prompt (all content lives in THIS file)
+# =============================================================================
 #
-# The entire system prompt (1 nugget) is hardcoded here — no external file.
-# Proves: promptfoo can call the LLM and evaluate the output.
-# Passes: Test 1 only (1/3).  Tests 2 and 3 require nuggets not yet loaded.
+# PURPOSE
+# -------
+# Demonstrates the simplest way to use promptfoo: paste the entire system
+# prompt directly into the YAML. No external files, no generation step.
 #
-# Run:
-#   npx promptfoo eval --config promptfooconfig-inline.yaml
-#   npx promptfoo view
+# WHAT'S LOADED
+# -------------
+# Only nugget 1 (Express Mode rules) is pasted into the prompt below.
+# Nuggets 2 and 3 are NOT included. This is deliberate — it proves that
+# missing skill content causes the corresponding assertions to fail.
+#
+# EXPECTED RESULTS
+# ----------------
+#   Test 1 (EXPRESS MODE banner)  → PASS  (nugget 1 is loaded)
+#   Test 2 (BM25 vs TF-IDF)      → FAIL  (nugget 2 NOT loaded)
+#   Test 3 (opensearch-java)      → FAIL  (nugget 3 NOT loaded)
+#
+# COMPARE WITH
+# ------------
+# promptfooconfig-external.yaml — same 3 assertions, but the prompt is loaded
+# from an external file (file://skill-assembled.txt) that includes ALL 3
+# nuggets, so all 3 tests pass.  See README.md § "Why two promptfoo config
+# files?" and PROMPTFOO.md for a full explanation.
+#
+# HOW TO RUN
+# ----------
+#   npx promptfoo eval --config promptfooconfig-inline.yaml --no-cache
+#   npx promptfoo view    # interactive results browser
+#
+# Or via the orchestrator:
+#   ./run_smoke.sh --step 3
+#
+# =============================================================================
 
 description: "skill-smoke step 3 — promptfoo inline (1 nugget hardcoded)"
 
+# ---------------------------------------------------------------------------
+# Provider: which LLM to call
+# ---------------------------------------------------------------------------
+# We use Amazon Bedrock's Nova Micro (cheapest model) by default.
+# Override at runtime:  SMOKE_MODEL=amazon.nova-pro-v1:0 npx promptfoo eval ...
 providers:
   - id: "bedrock:{{env.SMOKE_MODEL | default('amazon.nova-micro-v1:0')}}"
     label: migration-advisor-inline
@@ -17,11 +50,29 @@ providers:
       region: "{{env.AWS_DEFAULT_REGION | default('us-east-1')}}"
       max_tokens: 500
 
+# ---------------------------------------------------------------------------
+# Prompt template
+# ---------------------------------------------------------------------------
+# {{prompt}} is replaced with the value of vars.prompt from each test below.
+# This indirection lets each test provide its own prompt content.
 prompts:
   - "{{prompt}}"
 
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+# All 3 tests send the SAME user question. The only difference is which
+# assertions they check. The prompt includes only nugget 1 (Express Mode),
+# so only the first assertion should pass.
+#
+# NOTE: promptfoo will exit with code 1 when assertions fail. That's expected.
+# run_smoke.sh --step 3 handles this gracefully.
+# ---------------------------------------------------------------------------
+
 tests:
-  - description: "1/3: EXPRESS MODE banner present (nugget 1 inline)"
+  # --- Test 1/3: EXPRESS MODE banner ---
+  # This SHOULD PASS because nugget 1 is pasted inline below.
+  - description: "1/3: EXPRESS MODE banner present (nugget 1 is loaded inline)"
     vars:
       prompt: |
         You are a Solr-to-OpenSearch migration advisor.
@@ -40,9 +91,14 @@ tests:
     assert:
       - type: icontains
         value: "EXPRESS MODE"
-        description: "Nugget 1 in play: model uses the express mode banner"
+        description: "Nugget 1 is in play → model uses the express mode banner"
 
-  - description: "2/3: BM25 incompatibility (nugget 2 NOT loaded — expected FAIL)"
+  # --- Test 2/3: BM25 incompatibility ---
+  # This SHOULD FAIL because nugget 2 is NOT loaded.
+  # The LLM has no specific instruction to call out "BM25 vs TF-IDF".
+  # It might mention BM25 from general training knowledge, but it won't
+  # reliably use the exact phrase "BM25 vs TF-IDF" without the nugget.
+  - description: "2/3: BM25 incompatibility (nugget 2 NOT loaded — expect FAIL)"
     vars:
       prompt: |
         You are a Solr-to-OpenSearch migration advisor.
@@ -56,9 +112,11 @@ tests:
     assert:
       - type: icontains
         value: "BM25 vs TF-IDF"
-        description: "Nugget 2 NOT loaded — this assertion should FAIL (proves skill is needed)"
+        description: "Nugget 2 NOT loaded → expect FAIL (proves the skill is needed)"
 
-  - description: "3/3: opensearch-java client migration (nugget 3 NOT loaded — expected FAIL)"
+  # --- Test 3/3: opensearch-java client migration ---
+  # This SHOULD FAIL because nugget 3 is NOT loaded.
+  - description: "3/3: opensearch-java client migration (nugget 3 NOT loaded — expect FAIL)"
     vars:
       prompt: |
         You are a Solr-to-OpenSearch migration advisor.
@@ -72,4 +130,4 @@ tests:
     assert:
       - type: icontains
         value: "opensearch-java"
-        description: "Nugget 3 NOT loaded — this assertion should FAIL (proves skill is needed)"
+        description: "Nugget 3 NOT loaded → expect FAIL (proves the skill is needed)"

@@ -73,6 +73,8 @@ fi
 # ---------------------------------------------------------------------------
 # Colors & output helpers
 # ---------------------------------------------------------------------------
+# (These are only used for terminal display — safe to pipe/redirect)
+# ---------------------------------------------------------------------------
 BOLD='\033[1m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'
 YELLOW='\033[0;33m'; RED='\033[0;31m'; DIM='\033[2m'; RESET='\033[0m'
 
@@ -574,6 +576,47 @@ echo -e "${BOLD}Skill Smoke Test${RESET}"
 echo -e "  Steps:  ${STEPS_TO_RUN[*]}"
 echo -e "  Model:  $MODEL_ID"
 echo -e "  Region: $REGION"
+echo ""
+
+# ---------------------------------------------------------------------------
+# Pre-flight: check that minimum required tools are available
+# ---------------------------------------------------------------------------
+PREFLIGHT_OK=true
+
+if ! command -v jq &>/dev/null; then
+  warn "MISSING: jq (required for all steps)"
+  info "  Install: sudo apt install jq  OR  brew install jq"
+  PREFLIGHT_OK=false
+fi
+
+# AWS CLI is needed for steps 1, 2, 5 (bare-metal Bedrock calls)
+NEED_AWS=false
+for s in "${STEPS_TO_RUN[@]}"; do
+  [[ "$s" == "1" || "$s" == "2" || "$s" == "5" ]] && NEED_AWS=true
+done
+if [[ "$NEED_AWS" == true ]] && ! command -v aws &>/dev/null; then
+  warn "MISSING: aws CLI v2 (required for steps 1, 2, 5)"
+  info "  Install: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+  PREFLIGHT_OK=false
+fi
+
+# Node.js / npx is needed for steps 3, 4 (promptfoo)
+NEED_NPX=false
+for s in "${STEPS_TO_RUN[@]}"; do
+  [[ "$s" == "3" || "$s" == "4" ]] && NEED_NPX=true
+done
+if [[ "$NEED_NPX" == true ]] && ! command -v npx &>/dev/null; then
+  warn "MISSING: npx / Node.js 18+ (required for steps 3, 4)"
+  info "  Install: https://nodejs.org/ or: nvm install 18"
+  PREFLIGHT_OK=false
+fi
+
+if [[ "$PREFLIGHT_OK" == false ]]; then
+  echo ""
+  warn "Some tools are missing. Steps that need them will be skipped."
+  info "See README.md → Prerequisites for install instructions."
+fi
+echo ""
 
 should_run 1 && step1_bare_metal
 should_run 2 && step2_nuggets
