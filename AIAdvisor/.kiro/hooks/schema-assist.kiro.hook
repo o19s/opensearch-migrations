@@ -1,0 +1,13 @@
+{
+  "name": "Schema Migration Assist",
+  "description": "When a Solr schema.xml or managed-schema file is added or edited, automatically invoke the migration advisor to produce an OpenSearch mapping draft.",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": ["**/schema.xml", "**/managed-schema", "**/schema*.json"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Solr schema file was just added to the project. Use the solr-to-opensearch skill to: 1) Parse the schema and identify all fields, field types, and copy-field directives. 2) Produce an equivalent OpenSearch index mapping as JSON. 3) Flag any incompatibilities or features that require manual review. Present the mapping and a short summary of what was translated and what needs attention."
+  }
+}

@@ -2,6 +2,11 @@
 coverage.xml
 .idea
 .kiro
+# Un-ignore the AIAdvisor Kiro packaging (committed project config, not local IDE state)
+!AIAdvisor/.kiro
+!AIAdvisor/.kiro/**
+# But keep local Kiro settings ignored (contains machine-specific paths)
+AIAdvisor/.kiro/settings/
 .DS_Store
 .gradle/
 .venv
