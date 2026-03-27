@@ -1,7 +1,7 @@
 # Connected Smoke Tests — Solr → OpenSearch Migration E2E
 
 Minimal proof-of-operation that data can be migrated from a live Solr instance to
-OpenSearch and queried through the transformation shim. Runs against real Docker containers.
+OpenSearch. Runs against real Docker containers.
 
 ## Two Modes
 
@@ -13,7 +13,7 @@ OpenSearch and queried through the transformation shim. Runs against real Docker
 
 Starts Docker services, seeds Solr with TechProducts data, and runs a **promptfoo eval**
 that does two things:
-1. **Infrastructure checks** — verifies Solr, OpenSearch, and shim proxy are reachable via HTTP
+1. **Infrastructure checks** — verifies Solr and OpenSearch are reachable via HTTP
 2. **Skill eval** — calls the migration advisor (LLM) with the TechProducts schema in YOLO mode,
    then scores the generated migration spec for structural markers, domain correctness, and quality
 
@@ -40,9 +40,6 @@ verify with 18 assertions + shim proxy query translation checks.
 | OpenSearch health | HTTP | OpenSearch cluster is reachable |
 | YOLO TechProducts spec | LLM | Skill generates valid migration spec with structural markers, BM25 flag, opensearch-java, multi_match, and quality rubric |
 
-> **Note:** The shim proxy is not tested in default mode because OpenSearch has no data until
-> migration runs. It is tested in `verify_migration.sh` (via `--migrate`).
-
 ### Migration mode (`--migrate`)
 
 The full migration pipeline:
@@ -58,13 +55,9 @@ Then verifies:
 
 | Assertion group | Count | What it proves |
 |-----------------|-------|----------------|
-| Health checks | 3 | Solr, OpenSearch, and shim proxy are all reachable |
+| Health checks | 2 | Solr and OpenSearch are reachable |
 | Source verification | 1 | Solr (SOURCE) still has all 5 documents |
 | Target verification | 5 | OpenSearch (TARGET) received all 5 docs, spot-check on fields |
-| Proxy match-all | 4 | Shim returns Solr-format JSON backed by migrated OpenSearch data |
-| Proxy keyword query | 2 | Query translation works against migrated data |
-| Proxy field list | 2 | `fl` parameter passes through the transform |
-| Proxy rows limit | 1 | Pagination parameter passes through the transform |
 
 **Key point**: Data is seeded ONLY into Solr. OpenSearch starts empty. The migration
 step exports from Solr, transforms field types, and bulk-loads into OpenSearch. Every
@@ -73,8 +66,7 @@ step is logged with the exact `curl` command and a sample of the data flowing th
 ## Prerequisites
 
 - Docker & `docker compose`
-- Java 11+ with `JAVA_HOME` set (Gradle builds the shim image)
-- Node.js 18+ (builds the TypeScript transforms + runs promptfoo)
+- Node.js 18+ (runs promptfoo)
 - `curl`, `python3`
 
 ## Running
@@ -143,7 +135,6 @@ The test uses non-standard host ports to avoid conflicts with local dev services
 |---------|-----------|----------------|
 | Solr | 38983 | 8983 |
 | OpenSearch | 39200 | 9200 |
-| Shim proxy | 38080 | 8080 |
 
 Port remapping is handled by `docker-compose.ports.yml` (a compose override file).
 
@@ -155,11 +146,6 @@ Port remapping is handled by `docker-compose.ports.yml` (a compose override file
   │ Solr :38983    │────▶│ Transform │────▶│ OpenSearch :39200  │
   │   (export)     │     │ (python3) │     │    (bulk API)      │
   └────────────────┘     └───────────┘     └────────────────────┘
-
-                     QUERY PATH (ongoing)
-  Solr Client  ──▶  Shim Proxy (:38080)  ──▶  OpenSearch (:39200)
-                          │                         ▲
-                     request.transform.ts    response.transform.ts
 ```
 
 ## File Structure

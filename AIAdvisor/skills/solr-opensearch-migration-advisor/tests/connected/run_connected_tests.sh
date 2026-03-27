@@ -5,24 +5,22 @@
 # Proves a minimal migration pipeline works end-to-end against real Docker
 # containers:
 #
-#   1. Build images and transforms
-#   2. Start services (Solr, OpenSearch, shim proxy)
-#   3. Seed Solr with TechProducts data
-#   4. Run promptfoo connectivity eval (Solr + OpenSearch reachability)
-#   5. [--migrate only] Export → Transform → Load into OpenSearch
-#   6. [--migrate only] Verify migration with full assertion suite
+#   1. Start services (Solr, OpenSearch)
+#   2. Seed Solr with TechProducts data
+#   3. Run promptfoo connectivity eval (Solr + OpenSearch reachability)
+#   4. [--migrate only] Export → Transform → Load into OpenSearch
+#   5. [--migrate only] Verify migration with full assertion suite
 #
 # By default, the script does NOT run the migration. It starts services, seeds
 # Solr, and runs the promptfoo connectivity eval. Use --migrate to run the full
 # export → transform → load pipeline and verification assertions.
 #
-# Uses non-standard host ports (38983, 39200, 38080) to avoid conflicts with
+# Uses non-standard host ports (38983, 39200) to avoid conflicts with
 # local dev services. Container-internal ports are unchanged.
 #
 # Usage:
 #   ./run_connected_tests.sh                          # connectivity + skill eval (default)
 #   ./run_connected_tests.sh --migrate                # + full migration + verification
-#   ./run_connected_tests.sh --skip-build             # skip gradle/npm (already built)
 #   ./run_connected_tests.sh --no-teardown            # leave containers running
 #   ./run_connected_tests.sh --output-dir /tmp/out    # custom report directory
 #   ./run_connected_tests.sh --no-output              # suppress report files
@@ -31,8 +29,7 @@
 #
 # Prerequisites:
 #   - Docker & docker compose
-#   - Java 11+ and JAVA_HOME set (for Gradle)
-#   - Node.js 18+ (for TypeScript transform build + promptfoo)
+#   - Node.js 18+ (for promptfoo)
 #   - curl, python3 (for JSON parsing & transform)
 #
 # Exit codes:
@@ -42,34 +39,24 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.ports.yml"
-TRANSFORMS_DIR="$REPO_ROOT/TrafficCapture/SolrTransformations/transforms"
 
 source "$SCRIPT_DIR/test_helpers.sh"
 
 # Host ports — offset to avoid clashing with local dev services
 SOLR_PORT=38983
 OS_PORT=39200
-SHIM_PORT=38080
 
 SOLR_URL="http://localhost:${SOLR_PORT}"
 OS_URL="http://localhost:${OS_PORT}"
-SHIM_URL="http://localhost:${SHIM_PORT}"
-
-# Export paths needed by docker-compose.ports.yml for volume mounts
-export TRANSFORMS_SRC_DIR="$TRANSFORMS_DIR/src"
-export TRANSFORMS_BUILD_DIR="$TRANSFORMS_DIR"
 
 COMPOSE="docker compose -f $COMPOSE_FILE"
 
-SKIP_BUILD=false
 NO_TEARDOWN=false
 DO_MIGRATE=false
 OUTPUT_DIR="$SCRIPT_DIR/reports"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skip-build)   SKIP_BUILD=true; shift ;;
     --no-teardown)  NO_TEARDOWN=true; shift ;;
     --migrate)      DO_MIGRATE=true; shift ;;
     --output-dir)   OUTPUT_DIR="$2"; shift 2 ;;
@@ -95,7 +82,7 @@ trap cleanup EXIT
 # =============================================================================
 # 0. PRE-FLIGHT: Detect running services or clean start
 # =============================================================================
-REQUIRED_PORTS=($SOLR_PORT $OS_PORT $SHIM_PORT)
+REQUIRED_PORTS=($SOLR_PORT $OS_PORT)
 BUSY_PORTS=()
 for port in "${REQUIRED_PORTS[@]}"; do
   if ss -tlnH "sport = :$port" 2>/dev/null | grep -q . || \
@@ -127,80 +114,41 @@ fi
 echo ""
 
 if [ "$DO_MIGRATE" = true ]; then
-  TOTAL_STEPS=6
+  TOTAL_STEPS=5
 else
-  TOTAL_STEPS=4
+  TOTAL_STEPS=3
 fi
 
 # =============================================================================
-# 1. BUILD
+# 1. START SERVICES
+# =============================================================================
+# =============================================================================
+# 1. START SERVICES
 # =============================================================================
 if [ "$SERVICES_REUSED" = true ]; then
-  SKIP_BUILD=true
-  info "Skipping build (reusing running services)"
-fi
-if [ "$SKIP_BUILD" = false ]; then
-  banner "Step 1/${TOTAL_STEPS}: Build"
-
-  step "Building Shim Docker image (gradle build + jibDockerBuild)..."
-  # The jibDockerBuild task requires build/versionDir to exist (created by
-  # syncVersionFile), but doesn't declare a proper task dependency on it.
-  # Running :build first ensures the directory is created before Jib reads
-  # its extraDirectories config.
-  (cd "$REPO_ROOT" && ./gradlew :TrafficCapture:transformationShim:build :TrafficCapture:transformationShim:jibDockerBuild)
-
-  # Jib may tag the image with a registry prefix (e.g. localhost:5001/...) that
-  # doesn't match the bare name in docker-compose.yml. Ensure the expected tag exists.
-  if ! docker image inspect migrations/transformation_shim:latest >/dev/null 2>&1; then
-    JIB_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'transformation_shim' | head -1)
-    if [ -n "$JIB_IMAGE" ]; then
-      step "Tagging $JIB_IMAGE → migrations/transformation_shim:latest"
-      docker tag "$JIB_IMAGE" migrations/transformation_shim:latest
-    else
-      echo -e "${RED}Could not find transformation_shim image after build${RESET}"; exit 1
-    fi
-  fi
-  info "Image: migrations/transformation_shim"
-
-  step "Building TypeScript transforms (npm install + build)..."
-  (cd "$TRANSFORMS_DIR" && npm install --silent && npm run build --silent)
-  info "Output: $TRANSFORMS_DIR/dist/"
-else
-  warn "Skipping build (--skip-build). Ensure image and transforms are already built."
-fi
-
-# =============================================================================
-# 2. START SERVICES
-# =============================================================================
-if [ "$SERVICES_REUSED" = true ]; then
-  banner "Step 2/${TOTAL_STEPS}: Services (reusing)"
+  banner "Step 1/${TOTAL_STEPS}: Services (reusing)"
   info "Services already running:"
   info "  Solr 8          → ${SOLR_URL}   (SOURCE)"
   info "  OpenSearch 3.3  → ${OS_URL}   (TARGET)"
-  info "  Shim Proxy      → ${SHIM_URL}   (proxy)"
 else
-  banner "Step 2/${TOTAL_STEPS}: Start Services"
+  banner "Step 1/${TOTAL_STEPS}: Start Services"
 
-  step "Starting docker-compose (OpenSearch 3.3, Solr 8, Shim proxy)..."
+  step "Starting docker-compose (OpenSearch 3.3, Solr 8)..."
   detail "Using non-standard ports to avoid conflicts with local dev services"
   $COMPOSE up -d
 
   info "Services:"
   info "  Solr 8          → ${SOLR_URL}   (SOURCE — data lives here first)"
   info "  OpenSearch 3.3  → ${OS_URL}   (TARGET — data migrated here)"
-  info "  Shim Proxy      → ${SHIM_URL}   (translates Solr queries → OpenSearch)"
 
   wait_for "OpenSearch" "${OS_URL}" 120
   wait_for "Solr"       "${SOLR_URL}/solr/admin/info/system" 120
-
-  # Give the shim time to connect and load transforms
-  sleep 5
 fi
 
 # =============================================================================
-# 3. SEED SOLR (SOURCE)
+# 2. SEED SOLR (SOURCE)
 # =============================================================================
-banner "Step 3/${TOTAL_STEPS}: Seed Solr (SOURCE)"
+banner "Step 2/${TOTAL_STEPS}: Seed Solr (SOURCE)"
 
 COLLECTION="techproducts"
 
@@ -234,16 +182,16 @@ info "At this point ONLY Solr has data. OpenSearch is empty."
 detail "curl ${OS_URL}/${COLLECTION}/_count → index does not exist yet"
 
 # =============================================================================
-# 4. PROMPTFOO CONNECTIVITY EVAL
+# 3. PROMPTFOO CONNECTIVITY EVAL
 # =============================================================================
-banner "Step 4/${TOTAL_STEPS}: Promptfoo Connectivity Eval"
+banner "Step 3/${TOTAL_STEPS}: Promptfoo Connectivity Eval"
 
 step "Running promptfoo eval against live services..."
 info "Config: $SCRIPT_DIR/promptfooconfig.yaml"
 echo ""
 
 # Export ports so promptfoo config can reference them via ${SOLR_PORT} etc.
-export SOLR_PORT OS_PORT SHIM_PORT
+export SOLR_PORT OS_PORT
 
 PROMPTFOO_EXIT=0
 PROMPTFOO_ARGS=(eval --config "$SCRIPT_DIR/promptfooconfig.yaml" --no-cache)
@@ -280,7 +228,7 @@ if [ "$DO_MIGRATE" = false ]; then
   echo -e "  ${GREEN}Connectivity checks complete.${RESET}"
   echo ""
   echo -e "  ${BOLD}What was proven:${RESET}"
-  info "  1. Docker services started (Solr, OpenSearch, shim proxy)"
+  info "  1. Docker services started (Solr, OpenSearch)"
   info "  2. Solr seeded with TechProducts data (SOURCE)"
   info "  3. Promptfoo eval verified service connectivity"
   echo ""
@@ -294,13 +242,13 @@ if [ "$DO_MIGRATE" = false ]; then
 fi
 
 # =============================================================================
-# 5. MIGRATE: Export from Solr → Transform → Load into OpenSearch
+# 4. MIGRATE: Export from Solr → Transform → Load into OpenSearch
 # =============================================================================
-banner "Step 5/${TOTAL_STEPS}: Migrate Data (Solr → OpenSearch)"
+banner "Step 4/${TOTAL_STEPS}: Migrate Data (Solr → OpenSearch)"
 
 echo -e "  ${BOLD}Migration pipeline:${RESET}"
 echo -e "  ${CYAN}┌──────────────┐     ┌───────────┐     ┌──────────────────┐${RESET}"
-echo -e "  ${CYAN}│ Solr :${SOLR_PORT} │────▶│ Transform │────▶│ OpenSearch :${OS_PORT} │${RESET}"
+echo -e "  ${CYAN}│  Solr :${SOLR_PORT}  │────▶│ Transform │────▶│ OpenSearch :${OS_PORT}  │${RESET}"
 echo -e "  ${CYAN}│   (export)   │     │ (python3) │     │    (bulk API)    │${RESET}"
 echo -e "  ${CYAN}└──────────────┘     └───────────┘     └──────────────────┘${RESET}"
 echo ""
@@ -426,14 +374,13 @@ info "Migration complete. Data flow was:"
 detail "Solr (:${SOLR_PORT}) → curl export → python3 transform → _bulk API → OpenSearch (:${OS_PORT})"
 
 # =============================================================================
-# 6. VERIFY — delegate to standalone verification script
+# 5. VERIFY — delegate to standalone verification script
 # =============================================================================
-banner "Step 6/${TOTAL_STEPS}: Verify Migration"
+banner "Step 5/${TOTAL_STEPS}: Verify Migration"
 
 VERIFY_ARGS=(
   --solr-port "$SOLR_PORT"
   --os-port "$OS_PORT"
-  --shim-port "$SHIM_PORT"
 )
 if [ -n "$OUTPUT_DIR" ]; then
   VERIFY_ARGS+=(--output-dir "$OUTPUT_DIR")
