@@ -58,12 +58,14 @@ description: "skill-smoke step 4 — promptfoo external (all 3 nuggets from file
 # ---------------------------------------------------------------------------
 # Provider: which LLM to call (same as inline config)
 # ---------------------------------------------------------------------------
+# SMOKE_PROVIDER is set by run_smoke.sh (auto-detects Ollama vs Bedrock).
+# See promptfooconfig-inline.yaml header for manual override examples.
 providers:
-  - id: "bedrock:{{env.SMOKE_MODEL | default('amazon.nova-micro-v1:0')}}"
+  - id: "{{env.SMOKE_PROVIDER | default('ollama:chat:qwen3:14b')}}"
     label: migration-advisor-external
     config:
+      # Bedrock-specific (ignored by Ollama provider)
       region: "{{env.AWS_DEFAULT_REGION | default('us-east-1')}}"
-      max_tokens: 500
 
 # ---------------------------------------------------------------------------
 # Prompt template

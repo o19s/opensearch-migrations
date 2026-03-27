@@ -6,9 +6,9 @@ the full [connected tests](../connected/).
 
 ## The point of this test
 
-We have an LLM (Amazon Bedrock) and a "skill" — a system prompt that tells the
-LLM how to advise on Solr-to-OpenSearch migrations. This test answers three
-questions in order:
+We have an LLM (local via Ollama or cloud via Amazon Bedrock) and a "skill" —
+a system prompt that tells the LLM how to advise on Solr-to-OpenSearch
+migrations. This test answers three questions in order:
 
 1. **Can we talk to the LLM at all?** (bare-metal API call, no skill loaded)
 2. **Does loading skill content change the LLM's behavior?** (add skill pieces
@@ -16,37 +16,74 @@ questions in order:
 3. **Can we automate this with promptfoo?** (move from hand-rolled bash to a
    proper eval framework)
 
-## Prerequisites
+## LLM provider: Ollama (local) vs Bedrock (cloud)
 
-| Tool | Required for | Install |
-|------|-------------|---------|
-| **AWS CLI v2** | Steps 1, 2, 5 (Bedrock API calls) | [Install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
-| **jq** | All steps (JSON parsing) | `sudo apt install jq` / `brew install jq` |
-| **Node.js 18+** | Steps 3, 4 (promptfoo) | [nodejs.org](https://nodejs.org/) or `nvm install 18` |
-| **curl** | Step 5 (Solr queries) | Usually pre-installed |
-| **Docker** | Step 5 with `--start-docker` only | [docker.com](https://docs.docker.com/get-docker/) |
+The script auto-detects which LLM to use. **You don't have to configure
+anything** if you have Ollama running locally — it just works.
 
-### AWS credentials
+### Detection priority
 
-You need Bedrock access in `us-east-1` (or set `AWS_DEFAULT_REGION`).
-Any of these work:
+| Priority | Condition | Provider used |
+|----------|-----------|---------------|
+| 1 | `--provider ollama` or `--provider bedrock` flag | What you said |
+| 2 | `AWS_ACCESS_KEY_ID` or `AWS_PROFILE` is set in env | **Bedrock** (you set up cloud creds) |
+| 3 | Ollama is running on `localhost:11434` | **Ollama** (free, fast, no cloud needed) |
+| 4 | None of the above | Bedrock (tries instance profile) |
+
+**The practical default:** if you have Ollama running and haven't exported AWS
+credentials in your current shell, the script uses Ollama. If you `export
+AWS_ACCESS_KEY_ID=...`, it switches to Bedrock. A loud colored banner at the
+top of every run tells you which provider was chosen and why.
+
+### Ollama setup (recommended for local dev)
 
 ```bash
-# Option A: environment variables (e.g. from a vault or CI secret)
+# Install (if not already)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull the default model — qwen2.5:7b fits in 12 GB VRAM with room to spare
+ollama pull qwen2.5:7b
+
+# Verify it works
+ollama run qwen2.5:7b "Say hello"
+```
+
+**Model recommendations for 12 GB VRAM:**
+
+| Model | Size | Notes |
+|-------|------|-------|
+| **qwen2.5:7b** (default) | ~5 GB | Best instruction-following at this size. Our default. |
+| llama3.1:8b | ~5 GB | Solid general-purpose, Meta |
+| gemma2:9b | ~6 GB | Good quality, Google |
+| mistral:7b | ~4 GB | Fast, Mistral AI |
+| qwen2.5:14b | ~9 GB | Better quality, tight fit at 12 GB |
+
+Override the model:
+```bash
+OLLAMA_MODEL=llama3.1:8b ./run_smoke.sh
+```
+
+### Bedrock setup (for CI / cloud)
+
+```bash
+# Option A: environment variables
 export AWS_ACCESS_KEY_ID=AKIA...
 export AWS_SECRET_ACCESS_KEY=...
 export AWS_SESSION_TOKEN=...        # if using temporary credentials
 export AWS_DEFAULT_REGION=us-east-1
 
-# Option B: SSO login (interactive)
+# Option B: SSO login
 aws sso login --profile your-profile
 
-# Option C: IAM instance profile (automatic on EC2/ECS/Lambda)
-# Nothing to do — the SDK finds credentials automatically.
+# Option C: IAM instance profile (EC2/ECS/Lambda — automatic)
 ```
 
-**Quick sanity check** — if this works, you're ready:
+Override the model:
+```bash
+BEDROCK_MODEL=amazon.nova-pro-v1:0 ./run_smoke.sh --provider bedrock
+```
 
+**Quick sanity check** (Bedrock):
 ```bash
 aws bedrock-runtime converse \
   --model-id amazon.nova-micro-v1:0 \
@@ -54,6 +91,17 @@ aws bedrock-runtime converse \
   --messages '[{"role":"user","content":[{"text":"Say hello"}]}]' \
   | jq -r '.output.message.content[0].text'
 ```
+
+## Prerequisites
+
+| Tool | Required for | Install |
+|------|-------------|---------|
+| **jq** | All steps (JSON parsing) | `sudo apt install jq` / `brew install jq` |
+| **curl** | All steps (Ollama + Solr) | Usually pre-installed |
+| **Ollama** | Steps 1, 2, 5 if using local provider | [ollama.com](https://ollama.com/) |
+| **AWS CLI v2** | Steps 1, 2, 5 if using Bedrock provider | [Install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
+| **Node.js 18+** | Steps 3, 4 (promptfoo) | [nodejs.org](https://nodejs.org/) or `nvm install 18` |
+| **Docker** | Step 5 with `--start-docker` only | [docker.com](https://docs.docker.com/get-docker/) |
 
 ### Node.js / promptfoo (Steps 3–4 only)
 
@@ -75,7 +123,7 @@ npm install -g promptfoo    # global install (optional)
 ```bash
 cd skills/solr-opensearch-migration-advisor/tests/skill-smoke
 
-# Run everything (steps 1–4; step 5 auto-skips if no Solr is running)
+# Run everything — auto-detects Ollama or Bedrock
 ./run_smoke.sh
 
 # Run a single step
@@ -84,12 +132,17 @@ cd skills/solr-opensearch-migration-advisor/tests/skill-smoke
 # Run specific steps
 ./run_smoke.sh --steps 1,2
 
+# Force a specific provider
+./run_smoke.sh --provider ollama               # local Ollama
+./run_smoke.sh --provider bedrock              # cloud Bedrock
+
+# Override the model
+OLLAMA_MODEL=llama3.1:8b ./run_smoke.sh                      # local
+BEDROCK_MODEL=amazon.nova-pro-v1:0 ./run_smoke.sh --provider bedrock  # cloud
+
 # Step 5 with live Solr (pick one)
 ./run_smoke.sh --step 5 --start-docker         # spin up Docker for you
 ./run_smoke.sh --step 5 --solr-url http://localhost:8983   # existing Solr
-
-# Use a different model (default: amazon.nova-micro-v1:0)
-SMOKE_MODEL=amazon.nova-pro-v1:0 ./run_smoke.sh
 ```
 
 ## What each step does
@@ -282,6 +335,22 @@ skill-smoke/
 
 ## Troubleshooting
 
+### "Ollama call failed — is Ollama running?"
+
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags | jq .
+
+# Start it
+ollama serve
+
+# Pull the model (if not already)
+ollama pull qwen2.5:7b
+
+# Verify
+ollama run qwen2.5:7b "Say hello"
+```
+
 ### "Bedrock call failed — check AWS credentials and region"
 
 ```bash
@@ -296,6 +365,21 @@ aws bedrock list-foundation-models --region us-east-1 \
 
 If the model ID comes back empty, you need to enable model access in the
 [Bedrock console](https://console.aws.amazon.com/bedrock/home#/modelaccess).
+
+### Script is using Bedrock but I want Ollama (or vice versa)
+
+The provider banner at the top of every run tells you which was chosen and why.
+Common cause: you have `AWS_ACCESS_KEY_ID` exported in your shell profile, so
+the script picks Bedrock even though Ollama is running.
+
+```bash
+# Force Ollama regardless of AWS env vars
+./run_smoke.sh --provider ollama
+
+# Or unset the AWS vars for this session
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+./run_smoke.sh
+```
 
 ### "npx not found — skipping step 3"
 

@@ -41,14 +41,19 @@ description: "skill-smoke step 3 — promptfoo inline (1 nugget hardcoded)"
 # ---------------------------------------------------------------------------
 # Provider: which LLM to call
 # ---------------------------------------------------------------------------
-# We use Amazon Bedrock's Nova Micro (cheapest model) by default.
-# Override at runtime:  SMOKE_MODEL=amazon.nova-pro-v1:0 npx promptfoo eval ...
+# SMOKE_PROVIDER is set automatically by run_smoke.sh based on what's
+# available (Ollama local → Bedrock cloud). See run_smoke.sh header for
+# the detection priority.
+#
+# If running promptfoo directly (not via run_smoke.sh), set SMOKE_PROVIDER:
+#   SMOKE_PROVIDER=ollama:chat:qwen2.5:7b npx promptfoo eval --config ...
+#   SMOKE_PROVIDER=bedrock:amazon.nova-micro-v1:0 npx promptfoo eval --config ...
 providers:
-  - id: "bedrock:{{env.SMOKE_MODEL | default('amazon.nova-micro-v1:0')}}"
+  - id: "{{env.SMOKE_PROVIDER | default('ollama:chat:qwen3:14b')}}"
     label: migration-advisor-inline
     config:
+      # Bedrock-specific (ignored by Ollama provider)
       region: "{{env.AWS_DEFAULT_REGION | default('us-east-1')}}"
-      max_tokens: 500
 
 # ---------------------------------------------------------------------------
 # Prompt template
