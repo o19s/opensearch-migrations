@@ -27,7 +27,7 @@ Reports are saved to `connected/reports/` by default.
 ```
 
 Runs the complete pipeline: seed Solr → export → transform → bulk load into OpenSearch →
-verify with 18 assertions + shim proxy query translation checks.
+verify with 8 assertions.
 
 ## What This Proves
 
@@ -68,6 +68,43 @@ step is logged with the exact `curl` command and a sample of the data flowing th
 - Docker & `docker compose`
 - Node.js 18+ (runs promptfoo)
 - `curl`, `python3`
+- AWS credentials with Bedrock access (for the LLM skill eval — see below)
+
+## AWS Credentials
+
+The promptfoo skill eval calls **Amazon Bedrock** (`amazon.nova-pro-v1:0` in `us-east-1`).
+The AWS SDK picks up credentials in the standard order:
+
+**Option 1 — Environment variables (quickest for local runs)**
+
+```bash
+export AWS_ACCESS_KEY_ID=AKIA...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_SESSION_TOKEN=...        # if using short-lived/SSO credentials
+export AWS_DEFAULT_REGION=us-east-1
+```
+
+**Option 2 — AWS CLI profile**
+
+```bash
+aws configure                       # sets ~/.aws/credentials + config
+# or, for SSO:
+aws sso login --profile my-profile
+export AWS_PROFILE=my-profile
+```
+
+**Option 3 — IAM role / instance profile** (CI / EC2 / ECS)
+
+No configuration needed — the SDK picks up the role automatically.
+
+**Verify access before running:**
+
+```bash
+aws bedrock list-foundation-models --region us-east-1 --query 'modelSummaries[?modelId==`amazon.nova-pro-v1:0`]'
+```
+
+> The skill eval is the only step that needs AWS credentials. The infrastructure
+> checks (Solr/OpenSearch health) and the `--migrate` pipeline are credential-free.
 
 ## Running
 
@@ -77,9 +114,6 @@ step is logged with the exact `curl` command and a sample of the data flowing th
 
 # Full migration + verification
 ./run_connected_tests.sh --migrate
-
-# Skip the Gradle/npm build (if you've already built recently)
-./run_connected_tests.sh --skip-build
 
 # Leave containers running after tests (useful for debugging failures)
 ./run_connected_tests.sh --no-teardown
@@ -97,11 +131,11 @@ After a `--no-teardown` run, you can re-run just the migration assertions withou
 rebuilding or restarting containers:
 
 ```bash
-# Against default ports (38983, 39200, 38080)
+# Against default ports (38983, 39200)
 ./verify_migration.sh
 
 # With custom ports and report output
-./verify_migration.sh --solr-port 8983 --os-port 9200 --shim-port 8080 --output-dir ./reports
+./verify_migration.sh --solr-port 8983 --os-port 9200 --output-dir ./reports
 ```
 
 ### Re-running promptfoo eval only
@@ -109,7 +143,7 @@ rebuilding or restarting containers:
 After a `--no-teardown` run, you can re-run the promptfoo connectivity eval directly:
 
 ```bash
-# From the connected/ directory (ports default to 38983/39200/38080)
+# From the connected/ directory (ports default to 38983/39200)
 npx promptfoo eval
 
 # View results in browser
@@ -153,11 +187,11 @@ Port remapping is handled by `docker-compose.ports.yml` (a compose override file
 ```
 connected/
 ├── run_connected_tests.sh      # Orchestrator: build → start → seed → eval → [migrate] → verify
-├── verify_migration.sh         # Standalone migration assertions (18 checks)
+├── verify_migration.sh         # Standalone migration assertions (8 checks)
 ├── test_helpers.sh             # Shared assertion functions + JUnit/text report generation
 ├── promptfooconfig.yaml        # Promptfoo eval: HTTP connectivity + LLM skill assessment
 ├── skill-system-prompt.txt     # Migration advisor system prompt (used by promptfoo)
-├── docker-compose.ports.yml    # Standalone compose (Solr, OpenSearch, shim, ZK)
+├── docker-compose.ports.yml    # Standalone compose (Solr + ZK, OpenSearch)
 ├── reports/                    # Default output directory (gitignored)
 └── README.md
 ```
