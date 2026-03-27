@@ -1,0 +1,64 @@
+# Step 4: Promptfoo with EXTERNAL prompt (file:// reference)
+#
+# The system prompt is read from skill-assembled.txt — generated at runtime
+# by run_smoke.sh --step 4 by concatenating all 3 nuggets.
+# Proves: all 3 assertions now pass (3/3).
+#
+# Run (after run_smoke.sh --step 4 generates skill-assembled.txt):
+#   npx promptfoo eval --config promptfooconfig-external.yaml
+#   npx promptfoo view
+
+description: "skill-smoke step 4 — promptfoo external (all 3 nuggets assembled)"
+
+providers:
+  - id: "bedrock:{{env.SMOKE_MODEL | default('amazon.nova-micro-v1:0')}}"
+    label: migration-advisor-external
+    config:
+      region: "{{env.AWS_DEFAULT_REGION | default('us-east-1')}}"
+      max_tokens: 500
+
+prompts:
+  - "{{prompt}}"
+
+tests:
+  - description: "1/3: EXPRESS MODE banner"
+    vars:
+      prompt: |
+        {{system_prompt}}
+
+        ---
+        User: {{user_prompt}}
+      system_prompt: "file://skill-assembled.txt"
+      user_prompt: "YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch."
+    assert:
+      - type: icontains
+        value: "EXPRESS MODE"
+        description: "Nugget 1: express mode banner present"
+
+  - description: "2/3: BM25 vs TF-IDF incompatibility"
+    vars:
+      prompt: |
+        {{system_prompt}}
+
+        ---
+        User: {{user_prompt}}
+      system_prompt: "file://skill-assembled.txt"
+      user_prompt: "YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch."
+    assert:
+      - type: icontains
+        value: "BM25 vs TF-IDF"
+        description: "Nugget 2: BM25 incompatibility explicitly named"
+
+  - description: "3/3: opensearch-java client translation"
+    vars:
+      prompt: |
+        {{system_prompt}}
+
+        ---
+        User: {{user_prompt}}
+      system_prompt: "file://skill-assembled.txt"
+      user_prompt: "YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch."
+    assert:
+      - type: icontains
+        value: "opensearch-java"
+        description: "Nugget 3: client library translation mentioned"

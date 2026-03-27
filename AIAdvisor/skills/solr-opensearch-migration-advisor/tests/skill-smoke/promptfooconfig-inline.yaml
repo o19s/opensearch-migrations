@@ -1,0 +1,75 @@
+# Step 3: Promptfoo with INLINE prompt
+#
+# The entire system prompt (1 nugget) is hardcoded here — no external file.
+# Proves: promptfoo can call the LLM and evaluate the output.
+# Passes: Test 1 only (1/3).  Tests 2 and 3 require nuggets not yet loaded.
+#
+# Run:
+#   npx promptfoo eval --config promptfooconfig-inline.yaml
+#   npx promptfoo view
+
+description: "skill-smoke step 3 — promptfoo inline (1 nugget hardcoded)"
+
+providers:
+  - id: "bedrock:{{env.SMOKE_MODEL | default('amazon.nova-micro-v1:0')}}"
+    label: migration-advisor-inline
+    config:
+      region: "{{env.AWS_DEFAULT_REGION | default('us-east-1')}}"
+      max_tokens: 500
+
+prompts:
+  - "{{prompt}}"
+
+tests:
+  - description: "1/3: EXPRESS MODE banner present (nugget 1 inline)"
+    vars:
+      prompt: |
+        You are a Solr-to-OpenSearch migration advisor.
+
+        ## Express Mode (YOLO)
+        Trigger: user says "YOLO", "express mode", or "just do it".
+
+        Rules when express mode is active:
+        1. Open your response with this exact line (verbatim):
+           EXPRESS MODE — GENERATED WITH ASSUMPTIONS
+        2. Mark every gap-filling choice with: [ASSUMED: <what and why>]
+        3. Do NOT ask clarifying questions. Use expert defaults and mark them.
+
+        ---
+        User: YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch.
+    assert:
+      - type: icontains
+        value: "EXPRESS MODE"
+        description: "Nugget 1 in play: model uses the express mode banner"
+
+  - description: "2/3: BM25 incompatibility (nugget 2 NOT loaded — expected FAIL)"
+    vars:
+      prompt: |
+        You are a Solr-to-OpenSearch migration advisor.
+
+        ## Express Mode (YOLO)
+        Trigger: user says "YOLO", "express mode", or "just do it".
+        Rules: open with "EXPRESS MODE — GENERATED WITH ASSUMPTIONS", mark [ASSUMED: ...].
+
+        ---
+        User: YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch.
+    assert:
+      - type: icontains
+        value: "BM25 vs TF-IDF"
+        description: "Nugget 2 NOT loaded — this assertion should FAIL (proves skill is needed)"
+
+  - description: "3/3: opensearch-java client migration (nugget 3 NOT loaded — expected FAIL)"
+    vars:
+      prompt: |
+        You are a Solr-to-OpenSearch migration advisor.
+
+        ## Express Mode (YOLO)
+        Trigger: user says "YOLO", "express mode", or "just do it".
+        Rules: open with "EXPRESS MODE — GENERATED WITH ASSUMPTIONS", mark [ASSUMED: ...].
+
+        ---
+        User: YOLO — list the 3 most critical things to address when migrating from Solr 8 to OpenSearch.
+    assert:
+      - type: icontains
+        value: "opensearch-java"
+        description: "Nugget 3 NOT loaded — this assertion should FAIL (proves skill is needed)"

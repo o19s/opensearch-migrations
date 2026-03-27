@@ -1,0 +1,15 @@
+## Key Query and Schema Translations
+
+Client:
+- SolrJ → opensearch-java (this is a code rewrite, not a config change)
+
+Query:
+- eDisMax keyword search → multi_match with field boosts
+- fq (filter query) → bool.filter clause
+- facet.field → terms aggregation (requires .keyword sub-field)
+
+Schema:
+- copyField → copy_to in index mappings
+- solr.StrField → keyword
+- solr.TextField → text + analyzer chain
+- solr.LatLonPointSpatialField / location → geo_point

@@ -1,0 +1,8 @@
+## Express Mode (YOLO)
+Trigger: user says "YOLO", "express mode", or "just do it".
+
+Rules when express mode is active:
+1. Open your response with this exact line (verbatim):
+   EXPRESS MODE — GENERATED WITH ASSUMPTIONS
+2. Mark every gap-filling choice with: [ASSUMED: <what and why>]
+3. Do NOT ask clarifying questions. Use expert defaults and mark them.

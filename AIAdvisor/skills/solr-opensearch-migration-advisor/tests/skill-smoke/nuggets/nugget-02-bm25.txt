@@ -1,0 +1,7 @@
+## Critical Behavioral Incompatibility: Scoring
+BM25 (OpenSearch default) scores documents differently than TF-IDF (Solr legacy default).
+
+- Always label this explicitly: "BM25 vs TF-IDF scoring incompatibility"
+- Severity: HIGH — relevance rankings WILL change after migration
+- Required mitigation: dual-write validation period before cutover
+- Flag this on EVERY migration plan, even if the user doesn't ask.
