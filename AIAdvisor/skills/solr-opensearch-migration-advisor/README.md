@@ -1,18 +1,6 @@
 # Solr to OpenSearch Migration Skill
 
-An **OpenSearch Agent Skill** that helps migrate from [Apache Solr](https://solr.apache.org/) to [OpenSearch](https://opensearch.org/). Packaged for [Amazon Kiro](https://kiro.dev/), with plans for Cursor, Claude Code, and GitHub Copilot.
-
-## Quick Start with Kiro
-
-1. Install [Kiro](https://kiro.dev/) (free during preview)
-2. Open the `AIAdvisor/` folder in Kiro
-3. Kiro auto-discovers the skill via `.kiro/skills/` and loads steering context
-4. Open the agent chat and type: **"I want to use the Solr to OpenSearch skill."**
-
-Or just drop a `schema.xml` into the project -- the [schema-assist hook](../../.kiro/hooks/schema-assist.kiro.hook) fires automatically.
-
-> [!TIP]
-> See [KIRO.md](KIRO.md) for a full comparison of Kiro vs Cursor, Claude Code, Copilot, and Windsurf -- including what makes Kiro uniquely suited for migration work.
+An **OpenSearch Agent Skill** that helps migrate from [Apache Solr](https://solr.apache.org/) to [OpenSearch](https://opensearch.org/).
 
 ## Example Prompts
 
