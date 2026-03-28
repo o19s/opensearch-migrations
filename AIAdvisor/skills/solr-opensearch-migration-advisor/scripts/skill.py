@@ -146,92 +146,106 @@ class SolrToOpenSearchMigrationSkill:
             A string response from the advisor.
         """
         state = self._load_session(session_id)
-        message_lc = message.lower()
-        response = ""
-
-        # Detect embedded schema XML
-        schema_start = message.find("<schema")
-        schema_end = message.find("</schema>")
-        has_schema_xml = schema_start != -1 and schema_end != -1
-
-        if "report" in message_lc:
-            response = self.generate_report(session_id)
-
-        elif (has_schema_xml or
-              (("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc) and
-               "<schema" in message)):
-            if has_schema_xml:
-                schema_xml = message[schema_start: schema_end + 9]
-                mapping = self.convert_schema_xml(schema_xml)
-                response = (
-                    f"I've converted your Solr schema to an OpenSearch mapping:"
-                    f"\n\n```json\n{mapping}\n```"
-                )
-                state.set_fact("schema_migrated", True)
-                state.advance_progress(1)
-            else:
-                response = (
-                    "I detected you want to convert a schema, but I couldn't find "
-                    "the XML content. Please paste your full `schema.xml` content."
-                )
-
-        elif "query" in message_lc or "translate" in message_lc:
-            q = ""
-            for keyword in ("query:", "query", "translate:"):
-                idx = message_lc.find(keyword)
-                if idx != -1:
-                    q = message[idx + len(keyword):].strip().lstrip(": ").strip()
-                    break
-            if q:
-                try:
-                    dsl = self.convert_query(q)
-                    response = (
-                        f"The OpenSearch equivalent of your query is:"
-                        f"\n\n```json\n{dsl}\n```"
-                    )
-                    state.advance_progress(3)
-                except ValueError:
-                    response = (
-                        "I couldn't parse that query. Please provide a valid Solr "
-                        "query string (e.g. `title:opensearch AND year:[2020 TO *]`)."
-                    )
-            else:
-                response = "What query would you like me to translate?"
-
-        elif "checklist" in message_lc:
-            response = self.get_migration_checklist()
-
-        elif "field type" in message_lc or "type mapping" in message_lc:
-            response = self.get_field_type_mapping_reference()
-
-        else:
-            # For general OpenSearch questions, enrich the response with
-            # accurate information from the AWS Knowledge MCP Server.
-            aws_context = ""
-            opensearch_keywords = (
-                "opensearch", "index", "shard", "replica", "mapping",
-                "cluster", "node", "query dsl", "aggregation", "analyzer",
-                "aws", "service", "region", "pricing", "instance",
-            )
-            if any(kw in message_lc for kw in opensearch_keywords):
-                aws_context = self._query_aws_knowledge(
-                    message, topic="general"
-                )
-
-            if aws_context:
-                response = (
-                    "Here is accurate information from AWS documentation:\n\n" + aws_context
-                )
-            else:
-                response = (
-                    "I'm your Solr to OpenSearch migration advisor. How can I help you "
-                    "today? I can convert schemas, translate queries, or generate a "
-                    "migration report."
-                )
-
+        response = self._dispatch(message, state, session_id)
         state.append_turn(message, response)
         self._save_session(state)
         return response
+
+    def _dispatch(self, message: str, state: SessionState, session_id: str) -> str:
+        """Route *message* to the appropriate handler."""
+        message_lc = message.lower()
+
+        if "report" in message_lc:
+            return self.generate_report(session_id)
+
+        if self._looks_like_schema(message, message_lc):
+            return self._handle_schema(message, state)
+
+        if "query" in message_lc or "translate" in message_lc:
+            return self._handle_query(message, message_lc, state)
+
+        if "checklist" in message_lc:
+            return self.get_migration_checklist()
+
+        if "field type" in message_lc or "type mapping" in message_lc:
+            return self.get_field_type_mapping_reference()
+
+        return self._handle_general(message, message_lc)
+
+    # ------------------------------------------------------------------
+    # Message handlers (one per intent)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _looks_like_schema(message: str, message_lc: str) -> bool:
+        """Return True if *message* appears to contain or request a schema conversion."""
+        if "<schema" in message and "</schema>" in message:
+            return True
+        schema_keywords = ("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc)
+        return schema_keywords and "<schema" in message
+
+    def _handle_schema(self, message: str, state: SessionState) -> str:
+        """Handle a schema conversion request."""
+        schema_start = message.find("<schema")
+        schema_end = message.find("</schema>")
+        if schema_start == -1 or schema_end == -1:
+            return (
+                "I detected you want to convert a schema, but I couldn't find "
+                "the XML content. Please paste your full `schema.xml` content."
+            )
+        schema_xml = message[schema_start: schema_end + 9]
+        mapping = self.convert_schema_xml(schema_xml)
+        state.set_fact("schema_migrated", True)
+        state.advance_progress(1)
+        return (
+            f"I've converted your Solr schema to an OpenSearch mapping:"
+            f"\n\n```json\n{mapping}\n```"
+        )
+
+    def _handle_query(self, message: str, message_lc: str, state: SessionState) -> str:
+        """Handle a query translation request."""
+        q = self._extract_query_text(message, message_lc)
+        if not q:
+            return "What query would you like me to translate?"
+        try:
+            dsl = self.convert_query(q)
+        except ValueError:
+            return (
+                "I couldn't parse that query. Please provide a valid Solr "
+                "query string (e.g. `title:opensearch AND year:[2020 TO *]`)."
+            )
+        state.advance_progress(3)
+        return (
+            f"The OpenSearch equivalent of your query is:"
+            f"\n\n```json\n{dsl}\n```"
+        )
+
+    @staticmethod
+    def _extract_query_text(message: str, message_lc: str) -> str:
+        """Pull the raw Solr query string out of the user's message."""
+        for keyword in ("query:", "query", "translate:"):
+            idx = message_lc.find(keyword)
+            if idx != -1:
+                return message[idx + len(keyword):].strip().lstrip(": ").strip()
+        return ""
+
+    _OPENSEARCH_KEYWORDS = (
+        "opensearch", "index", "shard", "replica", "mapping",
+        "cluster", "node", "query dsl", "aggregation", "analyzer",
+        "aws", "service", "region", "pricing", "instance",
+    )
+
+    def _handle_general(self, message: str, message_lc: str) -> str:
+        """Fallback handler: try AWS Knowledge enrichment, else greet."""
+        if any(kw in message_lc for kw in self._OPENSEARCH_KEYWORDS):
+            aws_context = self._query_aws_knowledge(message, topic="general")
+            if aws_context:
+                return "Here is accurate information from AWS documentation:\n\n" + aws_context
+        return (
+            "I'm your Solr to OpenSearch migration advisor. How can I help you "
+            "today? I can convert schemas, translate queries, or generate a "
+            "migration report."
+        )
 
     # ------------------------------------------------------------------
     # Report generation
