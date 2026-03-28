@@ -231,18 +231,21 @@ class QueryConverter:
         # Remove wrapping parentheses if they span the whole expression.
         query = _unwrap_parens(query)
 
-        # Top-level AND
+        # Top-level AND/OR
         result = _split_boolean(query)
         if result:
             operator, parts = result
-            if operator == "AND":
-                clauses = [self.convert(p)["query"] for p in parts]
-                return {"query": {"bool": {"must": clauses}}}
-            else:  # OR
-                clauses = [self.convert(p)["query"] for p in parts]
-                return {"query": {"bool": {"should": clauses, "minimum_should_match": 1}}}
+            return self._handle_boolean_operator(operator, parts)
 
         return {"query": _convert_simple(query)}
+
+    def _handle_boolean_operator(self, operator: str, parts: list[str]) -> dict[str, Any]:
+        """Handle boolean AND/OR operators by building the appropriate bool query."""
+        clauses = [self.convert(p)["query"] for p in parts]
+        if operator == "AND":
+            return {"query": {"bool": {"must": clauses}}}
+        # OR
+        return {"query": {"bool": {"should": clauses, "minimum_should_match": 1}}}
 
 
 def _unwrap_parens(query: str) -> str:
