@@ -104,6 +104,15 @@ class TestMcpConfig:
         server = mcp_config["mcpServers"]["solr-to-opensearch"]
         assert "command" in server, "solr-to-opensearch server missing 'command'"
 
+    def test_mcp_script_path_exists(self, mcp_config):
+        """Guard against stale paths after directory restructures."""
+        server = mcp_config["mcpServers"]["solr-to-opensearch"]
+        script_path = server["args"][0]
+        # Kiro resolves relative paths from the project root (ADVISOR_ROOT)
+        resolved = ADVISOR_ROOT / script_path
+        assert resolved.is_file(), \
+            f"MCP server script not found at {resolved} (from mcp.json args: {script_path})"
+
 
 class TestKiroHook:
     """Verify the schema-assist hook is valid."""

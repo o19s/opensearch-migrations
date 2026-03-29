@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "solr-to-opensearch": {
+      "command": "python3",
+      "args": [
+        "skills/solr-opensearch-migration-advisor/scripts/mcp_server.py"
+      ]
+    },
+    "aws-knowledge-mcp-server": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http",
+      "disabled": false
+    }
+  }
+}
