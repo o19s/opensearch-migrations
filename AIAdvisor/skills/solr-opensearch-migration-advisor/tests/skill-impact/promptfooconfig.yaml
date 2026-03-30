@@ -1,0 +1,98 @@
+# Unified Migration Advisor — Report Quality Eval
+#
+# Two providers, same assertions:
+#   (a) Deterministic: MCP stdio bridge → real skill code, no LLM
+#   (b) LLM + skill: Claude Code CLI with MCP tools available
+#
+# Usage:
+#   bash run_eval.sh              # both providers
+#   bash run_eval.sh --mcp-only   # section (a) only (free, no API key)
+
+description: "Migration Advisor — Report Quality Eval"
+
+prompts:
+  - id: migration-report
+    label: "Full migration report request"
+    raw: "{{query}}"
+
+providers:
+  - id: "exec:python3 mcp_provider.py"
+    label: "Deterministic (MCP stdio)"
+  - id: "exec:python3 claude_provider.py"
+    label: "LLM + Skill (Claude Code CLI)"
+
+tests:
+  - description: "Schema + queries → complete migration report with stage plan"
+    vars:
+      query: |
+        I am a Search Engineer migrating from Solr to OpenSearch.
+
+        Here is my Solr schema:
+        <schema name="ecommerce" version="1.6">
+          <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+          <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+          <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+            <analyzer type="index">
+              <tokenizer class="solr.StandardTokenizerFactory"/>
+              <filter class="solr.LowerCaseFilterFactory"/>
+            </analyzer>
+          </fieldType>
+          <fieldType name="location" class="solr.LatLonPointSpatialField" docValues="true"/>
+          <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+
+          <field name="id" type="string" indexed="true" stored="true" required="true"/>
+          <field name="title" type="text_general" indexed="true" stored="true"/>
+          <field name="price" type="pint" indexed="true" stored="true"/>
+          <field name="location" type="location" indexed="true" stored="true"/>
+          <field name="created_at" type="pdate" indexed="true" stored="true"/>
+          <copyField source="title" dest="title_sort"/>
+        </schema>
+
+        Here are my representative queries:
+        - title:opensearch AND price:[10 TO 100]
+
+        I use SolrJ as my client library.
+
+        Please convert the schema, translate the queries, and generate
+        a complete migration report including the stage plan.
+    assert:
+      # --- Schema mapping correctness ---
+      - type: contains
+        value: "geo_point"
+        metric: spatial_mapping
+      - type: contains
+        value: "keyword"
+        metric: string_mapping
+      - type: icontains
+        value: "integer"
+        metric: int_mapping
+      - type: contains
+        value: "date"
+        metric: date_mapping
+
+      # --- Report structure ---
+      - type: contains
+        value: "Migration Report"
+        metric: report_present
+      - type: icontains
+        value: "incompatibilities"
+        metric: has_incompatibilities_section
+      - type: icontains
+        value: "stage plan"
+        metric: has_stage_plan
+
+      # --- Stage plan quality ---
+      - type: icontains
+        value: "target validation"
+        metric: stage_plan_has_target_validation
+      - type: icontains
+        value: "success criteria"
+        metric: stage_plan_has_criteria
+      - type: icontains
+        value: "stop conditions"
+        metric: stage_plan_has_stop_conditions
+
+      # --- Incompatibility detection ---
+      - type: icontains
+        value: "copy_to"
+        metric: copyfield_flagged

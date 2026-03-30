@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""
+Promptfoo exec provider that calls Claude Code CLI with MCP tools.
+
+Claude Code discovers the migration advisor MCP server via --mcp-config
+and uses the real skill tools (convert_schema_xml, generate_report, etc.)
+to produce a migration report.
+
+Returns "SKIPPED" if the claude CLI is not installed.
+
+Usage in promptfooconfig.yaml:
+  providers:
+    - "exec:python3 claude_provider.py"
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MCP_SERVER = os.path.abspath(
+    os.path.join(SCRIPT_DIR, "..", "..", "scripts", "mcp_server.py")
+)
+
+
+def main():
+    # Promptfoo exec provider passes the rendered prompt as argv[1]
+    prompt = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PROMPT", "")
+    if not prompt:
+        print(json.dumps({"output": "ERROR: No prompt received"}))
+        return
+
+    claude_path = shutil.which("claude")
+    if not claude_path:
+        print(json.dumps({"output": "SKIPPED: claude CLI not found"}))
+        return
+
+    # Build MCP config for the skill server
+    mcp_config = {
+        "mcpServers": {
+            "solr-to-opensearch": {
+                "command": sys.executable,
+                "args": [MCP_SERVER],
+                "env": {"SKILL_STORAGE_DIR": ""},
+            }
+        }
+    }
+
+    # Write MCP config to a temp file (--mcp-config accepts file paths)
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False
+    ) as f:
+        json.dump(mcp_config, f)
+        mcp_config_path = f.name
+
+    try:
+        result = subprocess.run(
+            [
+                claude_path, "-p",
+                "--output-format", "text",
+                "--max-turns", "1",
+                "--mcp-config", mcp_config_path,
+                "--dangerously-skip-permissions",
+                prompt,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        output = result.stdout.strip()
+        if not output and result.stderr:
+            output = f"ERROR: {result.stderr.strip()}"
+    except subprocess.TimeoutExpired:
+        output = "ERROR: claude CLI timed out after 120s"
+    except Exception as e:
+        output = f"ERROR: {e}"
+    finally:
+        os.unlink(mcp_config_path)
+
+    print(json.dumps({"output": output}))
+
+
+if __name__ == "__main__":
+    main()
