@@ -50,6 +50,19 @@ This is the closest to real-world usage without manually opening an IDE.
 bash run_tier3_claude.sh
 ```
 
+## Bedrock Setup
+
+Tiers 1 and 3 require AWS credentials with Bedrock model access:
+
+1. Configure credentials: `aws configure` or set `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+2. Set your region: `export AWS_DEFAULT_REGION=us-east-1`
+3. Enable the model in [Bedrock Model Access](https://console.aws.amazon.com/bedrock/home#/modelaccess) — request access to `Amazon Nova Lite` (used by tier 1)
+4. Verify: `aws bedrock list-foundation-models --query "modelSummaries[?modelId=='amazon.nova-lite-v1:0'].modelId" --output text`
+
+If you see `ResourceNotFoundException: Model use case details have not been submitted`, you need step 3.
+
+See [AWS Bedrock Getting Started](https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started.html) for full details.
+
 ## What to look for
 
 Across all three tiers, the pattern should be consistent:
