@@ -1,7 +1,7 @@
 from typing import List, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from storage import Incompatibility, ClientIntegration
+    from storage import Incompatibility, ClientIntegration, MigrationStage
 
 
 class MigrationReport:
@@ -15,6 +15,7 @@ class MigrationReport:
         cost_estimates: Dict[str, str] = None,
         incompatibilities: List["Incompatibility"] = None,
         client_integrations: List["ClientIntegration"] = None,
+        stage_plan: List["MigrationStage"] = None,
     ):
         self.milestones = milestones or []
         self.blockers = blockers or []
@@ -22,6 +23,7 @@ class MigrationReport:
         self.cost_estimates = cost_estimates or {}
         self.incompatibilities = incompatibilities or []
         self.client_integrations = client_integrations or []
+        self.stage_plan = stage_plan or []
 
     def generate(self) -> str:
         report = []
@@ -85,6 +87,9 @@ class MigrationReport:
             report.append("- No client or front-end integrations recorded.")
         report.append("")
 
+        # --- Stage Plan ---
+        self._render_stage_plan(report)
+
         # --- Milestones ---
         report.append("## Major Milestones")
         for i, m in enumerate(self.milestones, 1):
@@ -113,3 +118,26 @@ class MigrationReport:
             report.append("- TBD based on further infra analysis.")
 
         return "\n".join(report)
+
+    def _render_stage_plan(self, report: List[str]) -> None:
+        report.append("## Stage Plan")
+        if not self.stage_plan:
+            report.append("- No stage plan defined.")
+            report.append("")
+            return
+        for i, stage in enumerate(self.stage_plan, 1):
+            report.append(f"\n### Stage {i}: {stage.name}")
+            report.append(f"**Objective:** {stage.objective}")
+            report.append("**Prerequisites:**")
+            for p in stage.prerequisites:
+                report.append(f"- {p}")
+            report.append("**Actions:**")
+            for a in stage.actions:
+                report.append(f"- {a}")
+            report.append("**Success criteria:**")
+            for sc in stage.success_criteria:
+                report.append(f"- {sc}")
+            report.append("**Stop conditions:**")
+            for sc in stage.stop_conditions:
+                report.append(f"- {sc}")
+        report.append("")

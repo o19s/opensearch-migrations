@@ -73,6 +73,31 @@ class ClientIntegration:
 
 
 @dataclass
+class MigrationStage:
+    """One stage in a staged migration execution plan."""
+    name: str                    # e.g. "Target Validation"
+    objective: str               # one sentence
+    prerequisites: List[str]     # what must be true before starting
+    actions: List[str]           # what to do
+    success_criteria: List[str]  # how to know it worked
+    stop_conditions: List[str]   # when to halt
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "MigrationStage":
+        return cls(
+            name=d.get("name", ""),
+            objective=d.get("objective", ""),
+            prerequisites=d.get("prerequisites", []),
+            actions=d.get("actions", []),
+            success_criteria=d.get("success_criteria", []),
+            stop_conditions=d.get("stop_conditions", []),
+        )
+
+
+@dataclass
 class SessionState:
     """Complete, resumable state for one migration session.
 

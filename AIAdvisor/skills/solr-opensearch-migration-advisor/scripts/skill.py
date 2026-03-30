@@ -24,7 +24,7 @@ from typing import Dict, Optional
 
 from schema_converter import SchemaConverter
 from query_converter import QueryConverter
-from storage import StorageBackend, FileStorage, SessionState
+from storage import StorageBackend, FileStorage, SessionState, MigrationStage
 from report import MigrationReport
 
 
@@ -288,6 +288,8 @@ class SolrToOpenSearchMigrationSkill:
             "Effort": "Moderate (2-4 weeks for typical mid-sized workload).",
         }
 
+        stages = self._build_stage_plan(state)
+
         report = MigrationReport(
             milestones=milestones,
             blockers=blockers,
@@ -295,8 +297,135 @@ class SolrToOpenSearchMigrationSkill:
             cost_estimates=costs,
             incompatibilities=state.incompatibilities,
             client_integrations=state.client_integrations,
+            stage_plan=stages,
         )
         return report.generate()
+
+    def _build_stage_plan(self, state: SessionState) -> list[MigrationStage]:
+        """Build a default stage plan from session state."""
+        breaking = [
+            i for i in state.incompatibilities
+            if i.severity in ("Breaking", "Unsupported")
+        ]
+        client_names = [c.name for c in state.client_integrations]
+
+        target_prereqs = ["Schema conversion reviewed and agreed"]
+        if breaking:
+            target_prereqs.append(
+                "Resolve all Breaking/Unsupported incompatibilities: "
+                + "; ".join(i.description for i in breaking)
+            )
+
+        app_actions = [
+            "Validate application queries against OpenSearch",
+            "Update endpoint URLs from /solr/<collection>/select to /<index>/_search",
+        ]
+        if client_names:
+            app_actions.append(
+                "Migrate client integrations: " + ", ".join(client_names)
+            )
+
+        return [
+            MigrationStage(
+                name="Target Validation",
+                objective="Confirm mappings and query translations work against sample data",
+                prerequisites=target_prereqs,
+                actions=[
+                    "Create OpenSearch index with converted mapping",
+                    "Load a representative data sample (e.g. 250k documents)",
+                    "Run smoke queries and inspect results",
+                ],
+                success_criteria=[
+                    "No index creation errors or unexpected dynamic mappings",
+                    "Smoke queries return expected results",
+                ],
+                stop_conditions=[
+                    "Mappings require redesign",
+                    "Critical query class cannot be translated",
+                ],
+            ),
+            MigrationStage(
+                name="Sample Backfill",
+                objective="Exercise indexing on enough real data to find failures early",
+                prerequisites=[
+                    "Target Validation stage completed successfully",
+                ],
+                actions=[
+                    "Index a meaningful subset of production data",
+                    "Validate document counts and spot-check field values",
+                    "Profile indexing throughput and identify bottlenecks",
+                ],
+                success_criteria=[
+                    "No indexing errors or rejected documents",
+                    "Document counts match expected subset size",
+                ],
+                stop_conditions=[
+                    "Systematic indexing failures on a field type or document class",
+                    "Throughput is insufficient for the full backfill timeline",
+                ],
+            ),
+            MigrationStage(
+                name="Full Backfill",
+                objective="Populate the target index at safe throughput",
+                prerequisites=[
+                    "Sample Backfill stage completed successfully",
+                    "Sufficient cluster capacity provisioned",
+                ],
+                actions=[
+                    "Run full data migration from source to OpenSearch",
+                    "Monitor indexing throughput, bulk rejections, and merge pressure",
+                    "Validate total document count and freshness",
+                ],
+                success_criteria=[
+                    "Document count matches source",
+                    "No unresolved indexing errors",
+                    "Index freshness within acceptable window",
+                ],
+                stop_conditions=[
+                    "Sustained bulk rejection rate above threshold",
+                    "Storage or memory pressure exceeds safe limits",
+                ],
+            ),
+            MigrationStage(
+                name="Application Integration Validation",
+                objective="Prove applications can query OpenSearch correctly",
+                prerequisites=[
+                    "Full Backfill stage completed successfully",
+                ],
+                actions=app_actions,
+                success_criteria=[
+                    "All application smoke tests pass against OpenSearch",
+                    "Query latency within acceptable thresholds",
+                ],
+                stop_conditions=[
+                    "Application-level errors that cannot be resolved by query changes",
+                    "Unacceptable latency regression",
+                ],
+            ),
+            MigrationStage(
+                name="Staged Cutover",
+                objective="Move production traffic to OpenSearch in controlled increments",
+                prerequisites=[
+                    "Application Integration Validation stage completed",
+                    "Rollback procedure tested and documented",
+                    "Monitoring dashboards and alerts in place",
+                ],
+                actions=[
+                    "Route 5% of traffic to OpenSearch and monitor",
+                    "Increase to 25%, 50%, 100% with monitoring at each step",
+                    "Confirm rollback capability at each increment",
+                ],
+                success_criteria=[
+                    "No increase in error rates or latency at any traffic level",
+                    "Relevance metrics stable or improved",
+                    "Rollback successfully tested at least once",
+                ],
+                stop_conditions=[
+                    "Error rate or latency exceeds pre-defined thresholds",
+                    "Unresolved relevance regressions on critical queries",
+                ],
+            ),
+        ]
 
     # ------------------------------------------------------------------
     # Schema conversion

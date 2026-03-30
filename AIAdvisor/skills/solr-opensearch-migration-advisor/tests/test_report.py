@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from report import MigrationReport
-from storage import Incompatibility, ClientIntegration
+from storage import Incompatibility, ClientIntegration, MigrationStage
 
 
 def test_generate_contains_header():
@@ -179,3 +179,84 @@ def test_client_section_ordering_library_before_ui():
     ]
     output = MigrationReport(client_integrations=clients).generate()
     assert output.index("Client Libraries") < output.index("Front-end / UI")
+
+
+# ---------------------------------------------------------------------------
+# Stage Plan section
+# ---------------------------------------------------------------------------
+
+def _sample_stages():
+    return [
+        MigrationStage(
+            name="Target Validation",
+            objective="Confirm mappings work against sample data",
+            prerequisites=["Schema conversion reviewed"],
+            actions=["Create index", "Load sample data", "Run smoke queries"],
+            success_criteria=["No index creation errors"],
+            stop_conditions=["Mappings require redesign"],
+        ),
+        MigrationStage(
+            name="Sample Backfill",
+            objective="Exercise indexing on real data to find failures early",
+            prerequisites=["Target Validation completed"],
+            actions=["Index a subset of production data"],
+            success_criteria=["No indexing errors"],
+            stop_conditions=["Systematic indexing failures"],
+        ),
+    ]
+
+
+def test_stage_plan_section_present():
+    output = MigrationReport(stage_plan=_sample_stages()).generate()
+    assert "## Stage Plan" in output
+
+
+def test_stage_plan_empty():
+    output = MigrationReport().generate()
+    assert "No stage plan defined." in output
+
+
+def test_stage_plan_ordering():
+    output = MigrationReport(stage_plan=_sample_stages()).generate()
+    assert output.index("Stage 1: Target Validation") < output.index("Stage 2: Sample Backfill")
+
+
+def test_stage_plan_fields_present():
+    output = MigrationReport(stage_plan=_sample_stages()).generate()
+    assert "**Objective:**" in output
+    assert "**Prerequisites:**" in output
+    assert "**Actions:**" in output
+    assert "**Success criteria:**" in output
+    assert "**Stop conditions:**" in output
+
+
+def test_stage_plan_content_rendered():
+    output = MigrationReport(stage_plan=_sample_stages()).generate()
+    assert "Confirm mappings work against sample data" in output
+    assert "- Schema conversion reviewed" in output
+    assert "- Create index" in output
+    assert "- No index creation errors" in output
+    assert "- Mappings require redesign" in output
+
+
+def test_stage_plan_stop_conditions_rendered():
+    """Stop conditions prove the report is not just a checklist."""
+    output = MigrationReport(stage_plan=_sample_stages()).generate()
+    assert "Systematic indexing failures" in output
+
+
+def test_stage_plan_section_between_client_impact_and_milestones():
+    output = MigrationReport(
+        stage_plan=_sample_stages(),
+        milestones=["Milestone 1"],
+    ).generate()
+    assert output.index("## Stage Plan") < output.index("## Major Milestones")
+    assert output.index("## Client & Front-end Impact") < output.index("## Stage Plan")
+
+
+def test_generate_all_sections_includes_stage_plan():
+    output = MigrationReport(stage_plan=_sample_stages()).generate()
+    assert "## Stage Plan" in output
+    assert "## Incompatibilities" in output
+    assert "## Client & Front-end Impact" in output
+    assert "## Major Milestones" in output

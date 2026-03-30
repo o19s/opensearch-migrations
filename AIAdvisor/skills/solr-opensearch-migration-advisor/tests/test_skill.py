@@ -242,3 +242,48 @@ def test_generate_report_includes_client_integrations(skill):
 def test_generate_report_client_section_present(skill):
     report = skill.generate_report("section-check")
     assert "## Client & Front-end Impact" in report
+
+
+# ---------------------------------------------------------------------------
+# Stage Plan in report
+# ---------------------------------------------------------------------------
+
+def test_generate_report_includes_stage_plan(skill):
+    report = skill.generate_report("stage-plan-check")
+    assert "## Stage Plan" in report
+    assert "Stage 1:" in report
+    assert "Stage 2:" in report
+    assert "Stage 3:" in report
+
+
+def test_generate_report_stage_plan_has_five_stages(skill):
+    report = skill.generate_report("stage-count")
+    assert "Stage 5:" in report
+    assert "Stage 6:" not in report
+
+
+def test_generate_report_stage_plan_references_breaking_incompatibility(skill):
+    storage = skill._storage
+    state = storage.load_or_new("breaking-stages")
+    state.add_incompatibility(
+        "schema", "Breaking",
+        "copyField not supported", "Use copy_to",
+    )
+    storage.save(state)
+    report = skill.generate_report("breaking-stages")
+    assert "copyField not supported" in report
+    # Should appear in stage prerequisites, not just the incompatibilities section
+    stage_plan_section = report.split("## Stage Plan")[1].split("## Major Milestones")[0]
+    assert "copyField not supported" in stage_plan_section
+
+
+def test_generate_report_stage_plan_references_client_integrations(skill):
+    storage = skill._storage
+    state = storage.load_or_new("client-stages")
+    state.add_client_integration(
+        "SolrJ", "library", "Java client", "Replace with opensearch-java",
+    )
+    storage.save(state)
+    report = skill.generate_report("client-stages")
+    stage_plan_section = report.split("## Stage Plan")[1].split("## Major Milestones")[0]
+    assert "SolrJ" in stage_plan_section
