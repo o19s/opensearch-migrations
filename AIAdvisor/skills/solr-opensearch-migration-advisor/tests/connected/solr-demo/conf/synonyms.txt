@@ -1,0 +1,19 @@
+# E-commerce product synonyms
+laptop, notebook, portable computer
+phone, mobile, cell phone, smartphone
+tv, television, flat screen
+headphones, earphones, earbuds
+tablet, pad, slate
+camera, cam, dslr
+speaker, bluetooth speaker, wireless speaker
+charger, power adapter, charging cable
+mouse, pointing device
+keyboard, kb, keypad
+monitor, display, screen
+printer, inkjet, laser printer
+router, wifi router, wireless router
+ssd, solid state drive
+hdd, hard drive, hard disk
+ram, memory, ddr
+gpu, graphics card, video card
+cpu, processor, chip
