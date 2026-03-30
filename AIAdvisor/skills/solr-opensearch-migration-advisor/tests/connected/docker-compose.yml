@@ -1,0 +1,19 @@
+# Standalone Solr demo for migration advisor integration tests.
+#
+# Usage:
+#   docker compose up -d
+#   # Wait for healthcheck, then run tests:
+#   python -m pytest tests/connected/test_solr_inspector.py -v
+#   docker compose down
+
+services:
+  solr:
+    image: solr:8
+    ports:
+      - "${SOLR_PORT:-38983}:8983"
+    command: solr-demo
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8983/solr/admin/info/system"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

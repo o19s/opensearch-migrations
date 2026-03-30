@@ -26,6 +26,7 @@ from schema_converter import SchemaConverter
 from query_converter import QueryConverter
 from storage import StorageBackend, FileStorage, SessionState, MigrationStage
 from report import MigrationReport
+from solr_inspector import SolrInspector
 
 
 class SolrToOpenSearchMigrationSkill:
@@ -426,6 +427,72 @@ class SolrToOpenSearchMigrationSkill:
                 ],
             ),
         ]
+
+    # ------------------------------------------------------------------
+    # Live Solr inspection
+    # ------------------------------------------------------------------
+
+    def inspect_solr(
+        self, solr_url: str, collection: str, session_id: str
+    ) -> str:
+        """Inspect a running Solr instance and store findings in the session.
+
+        Calls the Schema, Metrics, Luke, and System Info APIs, stores
+        key facts in session state, and auto-converts the live schema
+        to an OpenSearch mapping.
+
+        Args:
+            solr_url:   Base URL of the Solr instance.
+            collection: Name of the Solr collection to inspect.
+            session_id: Session identifier for storing results.
+
+        Returns:
+            A summary string with document count and Solr version.
+        """
+        inspector = SolrInspector(solr_url)
+        state = self._load_session(session_id)
+
+        system = inspector.get_system_info()
+        schema = inspector.get_schema(collection)
+        luke = inspector.get_luke(collection)
+
+        solr_version = (
+            system.get("lucene", {}).get("solr-spec-version", "unknown")
+        )
+        num_docs = luke.get("index", {}).get("numDocs", 0)
+
+        state.set_fact("solr_url", solr_url)
+        state.set_fact("solr_collection", collection)
+        state.set_fact("solr_version", solr_version)
+        state.set_fact("solr_num_docs", num_docs)
+        state.set_fact("solr_schema_raw", schema)
+        state.set_fact("solr_luke", luke.get("index", {}))
+        state.set_fact("solr_system", {
+            "jvm_version": system.get("jvm", {}).get("version", ""),
+            "heap_max": system.get("jvm", {}).get("memory", {}).get(
+                "raw", {}
+            ).get("max", 0),
+            "processors": system.get("system", {}).get(
+                "availableProcessors", 0
+            ),
+        })
+
+        # Auto-convert the live schema to an OpenSearch mapping
+        try:
+            mapping = self._schema_converter.convert_json(
+                json.dumps(schema)
+            )
+            state.set_fact("opensearch_mapping", mapping)
+            state.set_fact("schema_migrated", True)
+        except (ValueError, KeyError):
+            state.set_fact("schema_migrated", False)
+
+        self._save_session(state)
+
+        return (
+            f"Inspected Solr at {solr_url}/{collection}: "
+            f"{num_docs} docs, Solr {solr_version}"
+        )
 
     # ------------------------------------------------------------------
     # Schema conversion
