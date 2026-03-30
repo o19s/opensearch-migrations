@@ -1,37 +1,69 @@
-# Skill Impact Demo
+# Skill Impact Demo — Three Tiers
 
-Proves that the migration advisor's skill content (SKILL.md + steering documents)
-measurably changes LLM output quality.
+Proves that the migration advisor skill adds measurable value, tested through
+three increasingly realistic execution paths.
 
-## What it does
+## Tiers
 
-Runs the same domain-specific questions through an LLM twice:
-1. **WITHOUT** skill context — the bare LLM answers from general knowledge
-2. **WITH** skill context — SKILL.md + steering files injected as system prompt
+### Tier 1: Prompt Stuffing (does the content help?)
 
-Promptfoo assertions check for specific domain terms the skill teaches
-(e.g., `geo_point`, `copy_to`, `multi_match`, `BM25`). The "without" variant
-should fail these assertions; the "with" variant should pass.
+Concatenates SKILL.md + steering files into a system prompt and sends the same
+question to an LLM with and without that context. Proves the skill's *content*
+changes LLM output.
 
-## Prerequisites
-
-- `promptfoo` installed (`npm install -g promptfoo`)
-- AWS credentials configured for Bedrock (required)
-- Or Ollama running locally (optional alternative)
-
-## Usage
+- No skill code involved — just text injected into the prompt
+- Requires: Bedrock (or `--ollama` for local)
+- Fast, cheap (~10K tokens)
 
 ```bash
-# Default: Amazon Bedrock
 export AWS_DEFAULT_REGION=us-east-1
-bash run_impact_demo.sh
+bash run_tier1_stuffing.sh
+```
 
-# Alternative: Ollama
-bash run_impact_demo.sh --ollama
+### Tier 2: Skill Code Provider (does the skill code work?)
+
+Uses promptfoo's exec provider to call `skill.handle_message()` directly —
+the same Python code path that Kiro/Claude Code would invoke via MCP. No LLM
+involved; tests the deterministic converters.
+
+- Real skill engagement: schema conversion, query translation, report generation
+- Requires: Python 3.11+ with skill dependencies
+- Instant, zero cost
+
+```bash
+bash run_tier2_skill.sh
+```
+
+### Tier 3: Claude Code CLI (does it work in a real IDE?)
+
+Runs the same question through Claude Code's CLI in two modes:
+1. `--bare` (no CLAUDE.md, no skill context) — baseline
+2. Default mode from `AIAdvisor/` (auto-discovers CLAUDE.md + skill) — enhanced
+
+This is the closest to real-world usage without manually opening an IDE.
+
+- Real IDE integration path
+- Requires: `claude` CLI installed and authenticated
+- Costs API tokens (two LLM calls)
+
+```bash
+bash run_tier3_claude.sh
 ```
 
 ## What to look for
 
-The key result is the **before/after difference**. If the skill adds value,
-you'll see the "bare" LLM miss domain-specific terms that the "with-skill"
-LLM produces reliably.
+Across all three tiers, the pattern should be consistent:
+- **Without skill context:** generic or incomplete answers
+- **With skill context:** precise field types (geo_point, keyword, integer),
+  correct translations (copy_to), and incompatibility flags
+
+## Optional: Kiro Live Demo (Run Book)
+
+For a live demo with Kiro:
+1. Open `AIAdvisor/` folder in Kiro
+2. Kiro auto-discovers the skill (check `.kiro/skills/` symlink)
+3. Open agent chat and ask:
+   > "I have a Solr schema with a LatLonPointSpatialField, a copyField from
+   > title to title_sort, and a TrieIntField for price. What OpenSearch mapping
+   > should I create?"
+4. Compare the response against the Tier 1-3 automated results

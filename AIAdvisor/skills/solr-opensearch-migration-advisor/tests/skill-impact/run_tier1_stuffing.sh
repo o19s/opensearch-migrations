@@ -93,7 +93,7 @@ echo "--- Running promptfoo eval (bare vs with-skill) ---"
 echo ""
 
 cd "$SCRIPT_DIR"
-promptfoo eval --config promptfooconfig.yaml --no-cache $PROVIDER_OVERRIDE 2>&1
+promptfoo eval --config promptfooconfig-stuffing.yaml --no-cache $PROVIDER_OVERRIDE 2>&1
 
 # --- Step 3: Print summary ---
 echo ""

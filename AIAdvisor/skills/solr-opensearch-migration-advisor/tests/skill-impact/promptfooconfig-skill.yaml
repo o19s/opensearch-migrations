@@ -1,0 +1,81 @@
+# Tier 2: Skill Code Provider — Deterministic Skill Engagement
+#
+# Uses the real skill code (skill.handle_message) via a custom script
+# provider. No LLM involved — tests the deterministic Python converters
+# through the same code path that Kiro/Claude Code would use via MCP.
+#
+# Usage:
+#   bash run_tier2_skill.sh
+
+prompts:
+  - id: skill-engagement
+    label: "Skill handle_message()"
+    raw: "{{query}}"
+
+providers:
+  - "exec:python3 skill_provider.py"
+
+tests:
+  - description: "Schema conversion via handle_message"
+    vars:
+      query: >
+        Please convert this schema:
+        <schema name="test" version="1.6">
+          <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+          <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+          <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+            <analyzer type="index">
+              <tokenizer class="solr.StandardTokenizerFactory"/>
+              <filter class="solr.LowerCaseFilterFactory"/>
+            </analyzer>
+          </fieldType>
+          <fieldType name="location" class="solr.LatLonPointSpatialField" docValues="true"/>
+          <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+
+          <field name="id" type="string" indexed="true" stored="true" required="true"/>
+          <field name="title" type="text_general" indexed="true" stored="true"/>
+          <field name="price" type="pint" indexed="true" stored="true"/>
+          <field name="location" type="location" indexed="true" stored="true"/>
+          <field name="created_at" type="pdate" indexed="true" stored="true"/>
+        </schema>
+    assert:
+      # Deterministic converter should produce correct OpenSearch types
+      - type: contains
+        value: "geo_point"
+        metric: spatial_mapping
+      - type: contains
+        value: "keyword"
+        metric: string_mapping
+      - type: contains
+        value: "integer"
+        metric: int_mapping
+      - type: contains
+        value: "text"
+        metric: text_mapping
+      - type: contains
+        value: "date"
+        metric: date_mapping
+      # Should produce valid JSON mapping
+      - type: contains
+        value: "mappings"
+        metric: valid_structure
+      # Should also generate a report (skill_provider appends it)
+      - type: contains
+        value: "Migration Report"
+        metric: report_generated
+
+  - description: "Query translation via handle_message"
+    vars:
+      query: "translate query: title:opensearch AND price:[10 TO 100]"
+    assert:
+      - type: contains
+        value: "query"
+        metric: has_query_key
+      - type: javascript
+        value: >
+          output.includes('match') || output.includes('term')
+        metric: has_match_clause
+      - type: javascript
+        value: >
+          output.includes('range') || output.includes('[10 TO 100]')
+        metric: has_range_clause
