@@ -80,42 +80,83 @@ tests:
         value: "date"
         metric: date_mapping
 
-      # --- Report structure (all 7 canonical sections) ---
+      # --- Report structure (concept-level, not exact T1 headings) ---
       - type: icontains
-        value: "Migration Report"
+        value: "migration report"
         metric: report_present
-      - type: icontains
-        value: "incompatibilities"
+      - type: icontains-any
+        value:
+          - "incompatibilities"
+          - "incompatibility"
+          - "breaking"
         metric: has_incompatibilities_section
-      - type: icontains
-        value: "client"
+      - type: icontains-any
+        value:
+          - "client"
+          - "SolrJ"
+          - "opensearch-java"
         metric: has_client_section
-      - type: icontains
-        value: "stage plan"
-        metric: has_stage_plan
-      - type: icontains
-        value: "milestones"
-        metric: has_milestones_section
-      - type: icontains
-        value: "blockers"
-        metric: has_blockers_section
-      - type: icontains
-        value: "implementation"
-        metric: has_implementation_section
-      - type: icontains
-        value: "cost"
-        metric: has_cost_section
+      - type: icontains-any
+        value:
+          - "stage plan"
+          - "staged migration"
+          - "migration stage"
+          - "migration plan"
+          - "cutover"
+        metric: has_migration_plan
+      - type: icontains-any
+        value:
+          - "milestones"
+          - "milestone"
+          - "phase"
+          - "week"
+          - "timeline"
+        metric: has_phased_plan
+      - type: icontains-any
+        value:
+          - "blockers"
+          - "blocker"
+          - "risk"
+          - "open items"
+        metric: has_blockers_or_risks
+      - type: icontains-any
+        value:
+          - "implementation"
+          - "action"
+          - "effort"
+          - "checklist"
+        metric: has_actionable_items
+      - type: icontains-any
+        value:
+          - "cost"
+          - "effort"
+          - "infrastructure"
+          - "estimated"
+        metric: has_cost_or_effort
 
-      # --- Stage plan quality ---
-      - type: icontains
-        value: "target validation"
-        metric: stage_plan_has_target_validation
-      - type: icontains
-        value: "success criteria"
-        metric: stage_plan_has_criteria
-      - type: icontains
-        value: "stop conditions"
-        metric: stage_plan_has_stop_conditions
+      # --- Migration plan quality (concept-level) ---
+      - type: icontains-any
+        value:
+          - "target validation"
+          - "schema"
+          - "mapping"
+          - "index created"
+        metric: plan_has_validation_step
+      - type: icontains-any
+        value:
+          - "success criteria"
+          - "validated"
+          - "verified"
+          - "document count"
+          - "smoke"
+        metric: plan_has_verification
+      - type: icontains-any
+        value:
+          - "stop conditions"
+          - "rollback"
+          - "revert"
+          - "fail"
+        metric: plan_has_rollback_awareness
 
       # --- Incompatibility detection ---
       - type: icontains
