@@ -1,14 +1,20 @@
-# Unified Migration Advisor — Report Quality Eval
+# Migration Advisor — 4-Tier Report Quality Eval
 #
-# Two providers, same assertions:
-#   (a) Deterministic: MCP stdio bridge → real skill code, no LLM
-#   (b) LLM + skill: Claude Code CLI with MCP tools available
+# Tiers:
+#   T1  Deterministic (MCP stdio)        — Python only, no LLM
+#   T2  LLM + Skill + OS Mapping         — skill context + pre-converted mapping
+#   T3  LLM + Skill, No OS Mapping       — skill context + raw schema only
+#   T4  LLM + MCP Tools                  — full integration (Claude CLI + MCP)
 #
 # Usage:
-#   bash run_eval.sh              # both providers
-#   bash run_eval.sh --mcp-only   # section (a) only (free, no API key)
+#   bash run_eval.sh              # all 4 tiers
+#   bash run_eval.sh --tier 1     # deterministic only (free, instant)
+#   bash run_eval.sh --tier 2     # LLM + skill + mapping
+#   bash run_eval.sh --tier 3     # LLM + skill, no mapping
+#   bash run_eval.sh --tier 4     # LLM + MCP tools
+#   bash run_eval.sh --mcp-only   # alias for --tier 1
 
-description: "Migration Advisor — Report Quality Eval"
+description: "Migration Advisor — 4-Tier Report Quality Eval"
 
 prompts:
   - id: migration-report
@@ -17,9 +23,13 @@ prompts:
 
 providers:
   - id: "exec:python3 mcp_provider.py"
-    label: "Deterministic (MCP stdio)"
+    label: "T1 Deterministic (MCP stdio)"
+  - id: "exec:python3 skill_llm_with_mapping_provider.py"
+    label: "T2 LLM + Skill + OS Mapping"
+  - id: "exec:python3 skill_llm_no_mapping_provider.py"
+    label: "T3 LLM + Skill, No OS Mapping"
   - id: "exec:python3 claude_provider.py"
-    label: "LLM + Skill (Claude Code CLI)"
+    label: "T4 LLM + MCP Tools"
 
 tests:
   - description: "Schema + queries → complete migration report with stage plan"
@@ -70,16 +80,31 @@ tests:
         value: "date"
         metric: date_mapping
 
-      # --- Report structure ---
-      - type: contains
+      # --- Report structure (all 7 canonical sections) ---
+      - type: icontains
         value: "Migration Report"
         metric: report_present
       - type: icontains
         value: "incompatibilities"
         metric: has_incompatibilities_section
       - type: icontains
+        value: "client"
+        metric: has_client_section
+      - type: icontains
         value: "stage plan"
         metric: has_stage_plan
+      - type: icontains
+        value: "milestones"
+        metric: has_milestones_section
+      - type: icontains
+        value: "blockers"
+        metric: has_blockers_section
+      - type: icontains
+        value: "implementation"
+        metric: has_implementation_section
+      - type: icontains
+        value: "cost"
+        metric: has_cost_section
 
       # --- Stage plan quality ---
       - type: icontains
@@ -96,3 +121,8 @@ tests:
       - type: icontains
         value: "copy_to"
         metric: copyfield_flagged
+
+      # --- Content: client integration ---
+      - type: icontains
+        value: "SolrJ"
+        metric: client_integration_mentioned
