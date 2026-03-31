@@ -84,8 +84,11 @@ echo ""
 
 # ---- Step 5: Run promptfoo eval ----
 echo "Step 5: Running promptfoo eval..."
+EVAL_REPORTS_DIR="$IMPACT_DIR/eval-reports"
 if command -v promptfoo &> /dev/null; then
     cd "$IMPACT_DIR"
+    export REPORT_ARTIFACT_DIR="$EVAL_REPORTS_DIR"
+    mkdir -p "$EVAL_REPORTS_DIR"
     promptfoo eval \
         --config promptfooconfig.yaml \
         --providers "exec:python3 mcp_provider.py" \
@@ -102,13 +105,22 @@ echo "============================================================"
 echo "  Demo Complete!"
 echo ""
 echo "  Artifacts:"
-echo "    Migration Report: ${REPORT_FILE}"
+echo "    Live Solr Report:   ${REPORT_FILE}"
+if [ -f "$EVAL_REPORTS_DIR/migration-report-py.md" ]; then
+echo "    Eval Report (MCP):  ${EVAL_REPORTS_DIR}/migration-report-py.md"
+fi
+if [ -f "$EVAL_REPORTS_DIR/migration-report-skill.md" ]; then
+echo "    Eval Report (LLM):  ${EVAL_REPORTS_DIR}/migration-report-skill.md"
+fi
 if [ "$EVAL_RAN" = true ]; then
-echo "    Promptfoo Eval:   run 'promptfoo view' for interactive results"
+echo "    Promptfoo Eval:     run 'promptfoo view' for interactive results"
 fi
 echo ""
-echo "  Quick look at the report:"
+echo "  Quick look at the reports:"
 echo "    cat ${REPORT_FILE}"
+if [ -f "$EVAL_REPORTS_DIR/migration-report-py.md" ]; then
+echo "    cat ${EVAL_REPORTS_DIR}/migration-report-py.md"
+fi
 echo ""
 echo "  Cleanup:"
 echo "    cd ${SCRIPT_DIR} && docker compose down"
