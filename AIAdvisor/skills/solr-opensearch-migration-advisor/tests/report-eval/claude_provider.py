@@ -61,20 +61,20 @@ def main():
             [
                 claude_path, "-p",
                 "--output-format", "text",
-                "--max-turns", "1",
+                "--max-turns", "5",
                 "--mcp-config", mcp_config_path,
                 "--dangerously-skip-permissions",
                 prompt,
             ],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=300,
         )
         output = result.stdout.strip()
         if not output and result.stderr:
             output = f"ERROR: {result.stderr.strip()}"
     except subprocess.TimeoutExpired:
-        output = "ERROR: claude CLI timed out after 120s"
+        output = "ERROR: claude CLI timed out after 300s"
     except Exception as e:
         output = f"ERROR: {e}"
     finally:
