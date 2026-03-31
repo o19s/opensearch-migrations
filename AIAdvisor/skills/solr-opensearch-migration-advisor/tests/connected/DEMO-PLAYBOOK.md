@@ -22,9 +22,9 @@ git checkout feature/sma-solr-inspector
 cd AIAdvisor/skills/solr-opensearch-migration-advisor
 
 # Install Python dependencies
-python3 -m venv .venv
+uv venv .venv --python 3.11
 source .venv/bin/activate
-pip install -e ".[dev]"
+uv pip install --python .venv/bin/python -e ".[dev]"
 ```
 
 ## Demo Flow
@@ -138,7 +138,7 @@ The eval step is optional. Install with `npm install -g promptfoo` or skip it.
 **Python venv issues:**
 ```bash
 cd ../../   # back to skill root
-python3 -m venv .venv
+uv venv .venv --python 3.11
 source .venv/bin/activate
-pip install -e ".[dev]"
+uv pip install --python .venv/bin/python -e ".[dev]"
 ```
