@@ -167,3 +167,43 @@ tests:
       - type: icontains
         value: "SolrJ"
         metric: client_integration_mentioned
+
+      # --- Qualitative rubrics ---
+      - type: llm-rubric
+        metric: incompatibilities_quality
+        value: >
+          The report identifies the most important Solr-to-OpenSearch
+          incompatibilities raised by the input, distinguishes between severity
+          or impact levels where appropriate, and gives concrete remediation
+          guidance rather than only naming the issue.
+      - type: llm-rubric
+        metric: client_migration_quality
+        value: >
+          The report treats client migration as an application change, not just
+          a terminology swap. It gives a plausible migration direction for the
+          stated client technology and explains at least one concrete
+          implication for code, APIs, or integration behavior.
+      - type: llm-rubric
+        metric: migration_plan_quality
+        value: >
+          The report presents a staged migration plan that is operationally
+          useful. It includes validation steps, success criteria or
+          verification, and explicit stop conditions, rollback thinking, or
+          other risk controls rather than only listing generic implementation
+          tasks.
+      - type: llm-rubric
+        metric: index_design_quality
+        value: >
+          The report shows sound index-design judgment, not just field-type
+          conversion. It explains meaningful mapping or analyzer decisions
+          implied by the schema, addresses copyField or similar structural
+          patterns when relevant, and demonstrates that the target OpenSearch
+          design is intentional rather than a mechanical one-to-one rewrite.
+      - type: llm-rubric
+        metric: stakeholder_coverage_quality
+        value: >
+          The report identifies which stakeholder groups are materially affected
+          by the migration and explains why when that is relevant to the input
+          or migration plan. It goes beyond generic audience labels by tying
+          impacts or decisions to concrete roles such as search owners,
+          developers, operators, product stakeholders, or business users.

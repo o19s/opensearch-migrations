@@ -27,6 +27,7 @@ from query_converter import QueryConverter
 from storage import StorageBackend, FileStorage, SessionState, MigrationStage
 from report import MigrationReport
 from solr_inspector import SolrInspector
+from incompatibility_detector import detect_incompatibilities_xml, detect_incompatibilities_json
 
 
 class SolrToOpenSearchMigrationSkill:
@@ -72,7 +73,7 @@ class SolrToOpenSearchMigrationSkill:
         """Load steering documents from the data directory."""
         docs: Dict[str, str] = {}
         data_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "data", "steering"
+            os.path.dirname(os.path.dirname(__file__)), "steering"
         )
         if os.path.exists(data_dir):
             for filename in os.listdir(data_dir):
@@ -170,6 +171,12 @@ class SolrToOpenSearchMigrationSkill:
                 )
                 state.set_fact("schema_migrated", True)
                 state.advance_progress(1)
+                # Detect incompatibilities from the schema
+                for inc in detect_incompatibilities_xml(schema_xml):
+                    state.add_incompatibility(
+                        inc.category, inc.severity,
+                        inc.description, inc.recommendation,
+                    )
             else:
                 response = (
                     "I detected you want to convert a schema, but I couldn't find "
@@ -484,6 +491,12 @@ class SolrToOpenSearchMigrationSkill:
             )
             state.set_fact("opensearch_mapping", mapping)
             state.set_fact("schema_migrated", True)
+            # Detect incompatibilities from the live schema
+            for inc in detect_incompatibilities_json(schema):
+                state.add_incompatibility(
+                    inc.category, inc.severity,
+                    inc.description, inc.recommendation,
+                )
         except (ValueError, KeyError):
             state.set_fact("schema_migrated", False)
 

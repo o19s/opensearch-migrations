@@ -3,6 +3,36 @@
 Evaluates migration report quality through four increasingly complex tiers,
 from deterministic Python to full LLM + MCP integration.
 
+## Evaluation Philosophy
+
+`T1-T4` are generation tiers. The rubric types are quality dimensions applied
+to outputs from those tiers.
+
+`T1` is the deterministic baseline. It should score well on the core, codified
+dimensions of report quality:
+
+- incompatibilities
+- client migration
+- migration plan
+
+`T2-T4` are richer reasoning tiers and are evaluated across the full rubric
+set, including more judgment-heavy dimensions such as index design and
+stakeholder coverage.
+
+This split is intentional. Higher-tier evaluations can surface useful concerns
+that are missing from the deterministic report. When those concerns prove
+broadly valuable and can be expressed reliably, they should be promoted into
+the Python report generator. In that way, `T1` becomes an iteratively
+improving baseline distilled from what the richer tiers repeatedly teach us.
+
+| Rubric Type | T1 Deterministic | T2 LLM+Skill+Mapping | T3 LLM+Skill | T4 LLM+MCP |
+|---|---|---|---|---|
+| `incompatibilities_quality` | Primary | Primary | Primary | Primary |
+| `client_migration_quality` | Primary | Primary | Primary | Primary |
+| `migration_plan_quality` | Primary | Primary | Primary | Primary |
+| `index_design_quality` | Advisory initially | Primary | Primary | Primary |
+| `stakeholder_coverage_quality` | Advisory initially | Primary | Primary | Primary |
+
 ## Tiers
 
 ### T1: Deterministic (MCP stdio)
@@ -76,7 +106,7 @@ Run `promptfoo view` after an eval to inspect results in the browser.
 
 ## Assertions
 
-All tiers are evaluated against the same assertions:
+All tiers are evaluated against the same assertion families:
 
 - **Schema mapping**: geo_point, keyword, integer, date
 - **Report structure**: all 7 canonical sections (Incompatibilities, Client
@@ -84,10 +114,17 @@ All tiers are evaluated against the same assertions:
 - **Stage plan quality**: target validation, success criteria, stop conditions
 - **Incompatibility detection**: copyField → copy_to flagged
 - **Client integration**: SolrJ mentioned
+- **Qualitative rubrics**: incompatibilities, client migration, index design,
+  migration plan, stakeholder coverage
 
 ## What to expect
 
-- **T1**: all assertions pass (deterministic baseline)
-- **T2**: all/most pass — LLM has mapping + skill guidance
-- **T3**: most pass — hardest test, reveals skill content gaps
-- **T4**: all pass — LLM can call tools to fill gaps
+- **T1**: should pass the structural checks and establish the deterministic
+  baseline; advanced qualitative rubrics may initially lag and serve as a
+  signal for what to codify next
+- **T2**: should perform well on both structural and qualitative checks when
+  the mapping is already available
+- **T3**: is the hardest pure-skill tier and often reveals gaps in synthesis,
+  index design judgment, and missing report content
+- **T4**: should be the strongest end-to-end tier because it can combine skill
+  guidance with live MCP tools

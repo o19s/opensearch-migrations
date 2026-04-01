@@ -74,8 +74,16 @@ def main():
     result = skill.inspect_solr(solr_url, collection, session_id)
     print(f"  {result}")
 
-    # Add client integration facts from handler analysis
+    # Print detected incompatibilities
     state = skill._storage.load(session_id)
+    if state.incompatibilities:
+        print(f"  Incompatibilities found: {len(state.incompatibilities)}")
+        for inc in state.incompatibilities:
+            print(f"    [{inc.severity}] {inc.description}")
+    else:
+        print("  No incompatibilities detected.")
+
+    # Add client integration facts from handler analysis
     if handler_summary:
         state.set_fact("solr_handler_stats", handler_summary)
     skill._storage.save(state)

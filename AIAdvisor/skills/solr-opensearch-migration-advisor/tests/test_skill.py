@@ -287,3 +287,32 @@ def test_generate_report_stage_plan_references_client_integrations(skill):
     report = skill.generate_report("client-stages")
     stage_plan_section = report.split("## Stage Plan")[1].split("## Major Milestones")[0]
     assert "SolrJ" in stage_plan_section
+
+
+# ---------------------------------------------------------------------------
+# Incompatibility detection integration
+# ---------------------------------------------------------------------------
+
+_SCHEMA_WITH_TRIE_AND_COPY = """<schema name="test" version="1.6">
+  <fieldType name="string" class="solr.StrField"/>
+  <fieldType name="tint" class="solr.TrieIntField"/>
+  <field name="id" type="string" indexed="true" stored="true"/>
+  <field name="title" type="string" indexed="true" stored="true"/>
+  <field name="count" type="tint" indexed="true" stored="true"/>
+  <copyField source="title" dest="id"/>
+</schema>"""
+
+
+def test_handle_message_schema_populates_incompatibilities(skill):
+    skill.handle_message(f"convert: {_SCHEMA_WITH_TRIE_AND_COPY}", "detect-session")
+    state = skill._storage.load("detect-session")
+    assert len(state.incompatibilities) > 0
+    severities = {i.severity for i in state.incompatibilities}
+    assert "Breaking" in severities
+
+
+def test_generate_report_after_schema_has_real_incompatibilities(skill):
+    skill.handle_message(f"convert: {_SCHEMA_WITH_TRIE_AND_COPY}", "report-detect")
+    report = skill.generate_report("report-detect")
+    assert "Breaking" in report
+    assert "No incompatibilities identified." not in report
