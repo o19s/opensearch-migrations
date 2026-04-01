@@ -1,0 +1,296 @@
+description: "Migration Advisor — Conversational Step Eval"
+
+# Sequential multi-turn evaluation following the SKILL.md workflow.
+# Each test builds on the previous session (continue: true) except the
+# first, which starts a fresh session (continue: false).
+#
+# Tests are ordered to follow the advisor's 8-step workflow (Steps 0-7)
+# and assert that each step produces the expected content.
+
+providers:
+  - id: "exec:python3 claude_sequential_provider.py"
+    label: "Claude CLI (sequential session)"
+    config:
+      timeout: 3000000
+
+defaultTest:
+  options:
+    provider:
+      id: bedrock:us.anthropic.claude-3-5-sonnet-20241022-v2:0
+      config:
+        region: us-east-1
+        max_tokens: 256
+
+prompts:
+  - id: conversational-prompt
+    label: "Migration advisor conversation"
+    raw: "{{query}}"
+
+tests:
+  # ---------------------------------------------------------------
+  # Step 0 — Stakeholder Identification
+  # ---------------------------------------------------------------
+  - description: "Step 0: Advisor asks for user role"
+    vars:
+      continue: "false"
+      query: |
+        Help me migrate my Solr system to OpenSearch.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response asks the user to identify their role. Provides at least
+          5 explicit role examples to choose from, distinguishing among
+          engineers/developers, platform/ops engineers, data engineers,
+          architects, and product manager or business stakeholder roles.
+        metric: step0_role_clarification
+
+  # ---------------------------------------------------------------
+  # Step 1 — Schema Acquisition
+  # ---------------------------------------------------------------
+  - description: "Step 1: Advisor asks for schema after role is given"
+    vars:
+      continue: "true"
+      query: |
+        I'm a Search Engineer.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response acknowledges the Search Engineer role and asks the user
+          to provide their Solr schema (schema.xml or Schema API JSON) or
+          a sample document. It should not skip ahead to incompatibilities
+          or report generation.
+        metric: step1_schema_request
+
+  - description: "Step 1b: Advisor produces OpenSearch mapping from schema"
+    vars:
+      continue: "true"
+      query: |
+        Here is my Solr schema:
+        <schema name="ecommerce" version="1.6">
+          <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+          <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+          <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+            <analyzer type="index">
+              <tokenizer class="solr.StandardTokenizerFactory"/>
+              <filter class="solr.LowerCaseFilterFactory"/>
+            </analyzer>
+          </fieldType>
+          <fieldType name="location" class="solr.LatLonPointSpatialField" docValues="true"/>
+          <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+
+          <field name="id" type="string" indexed="true" stored="true" required="true"/>
+          <field name="title" type="text_general" indexed="true" stored="true"/>
+          <field name="price" type="pint" indexed="true" stored="true"/>
+          <field name="location" type="location" indexed="true" stored="true"/>
+          <field name="created_at" type="pdate" indexed="true" stored="true"/>
+          <copyField source="title" dest="title_sort"/>
+        </schema>
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response presents an OpenSearch mapping that maps the Solr fields
+          to plausible OpenSearch types: keyword for string, integer for
+          pint, text for text_general, geo_point for location, and date
+          for pdate. The mapping should be shown with field-level detail
+          appropriate for a Search Engineer.
+        metric: step1_mapping_quality
+      - type: icontains
+        value: "geo_point"
+        metric: step1_spatial_mapping
+      - type: icontains
+        value: "keyword"
+        metric: step1_string_mapping
+
+  # ---------------------------------------------------------------
+  # Step 2 — Incompatibility Analysis
+  # ---------------------------------------------------------------
+  - description: "Step 2: Advisor flags incompatibilities"
+    vars:
+      continue: "true"
+      query: |
+        Please review the schema for incompatibilities.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response identifies the copyField directive as an incompatibility
+          and explains replacement with copy_to. It should classify findings
+          by severity (Breaking, Behavioral, or Unsupported) and provide
+          remediation guidance.
+        metric: step2_incompatibility_analysis
+      - type: icontains
+        value: "copy_to"
+        metric: step2_copyfield_flagged
+
+  # ---------------------------------------------------------------
+  # Step 3 — Query Translation
+  # ---------------------------------------------------------------
+  - description: "Step 3: Advisor translates Solr queries to OpenSearch DSL"
+    vars:
+      continue: "true"
+      query: |
+        Here are my representative queries:
+        - title:opensearch AND price:[10 TO 100]
+        - {!edismax qf="title^2 description" mm=2}laptop bag
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response translates both Solr queries into OpenSearch Query DSL.
+          The first query should use a bool query with a match on title
+          and a range on price. The second (edismax) query should use
+          multi_match or a bool query with boosted fields. The response
+          should flag any behavioral differences such as scoring model
+          changes (TF-IDF vs BM25).
+        metric: step3_query_translation
+      - type: icontains
+        value: "range"
+        metric: step3_range_query
+      - type: icontains-any
+        value:
+          - "multi_match"
+          - "bool"
+        metric: step3_edismax_translation
+
+  # ---------------------------------------------------------------
+  # Step 4 — Customizations
+  # ---------------------------------------------------------------
+  - description: "Step 4: Advisor asks about Solr customizations"
+    vars:
+      continue: "true"
+      query: |
+        Let's move on to the next step.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response asks the user about Solr-specific customizations such
+          as request handlers, plugins, authentication/authorization
+          setup, or operational constraints. It should not skip ahead
+          to infrastructure or report generation.
+        metric: step4_customization_inquiry
+
+  - description: "Step 4b: Advisor maps customization to OpenSearch equivalent"
+    vars:
+      continue: "true"
+      query: |
+        We use Basic Auth for security and have a custom
+        UpdateRequestProcessorChain for data enrichment on ingest.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response maps Basic Auth to OpenSearch Security plugin and
+          UpdateRequestProcessorChain to OpenSearch ingest pipelines.
+          Each mapping should include a concrete migration action.
+        metric: step4_customization_mapping
+      - type: icontains-any
+        value:
+          - "Security plugin"
+          - "security plugin"
+        metric: step4_auth_mapping
+      - type: icontains-any
+        value:
+          - "ingest pipeline"
+          - "Ingest Pipeline"
+          - "ingest_pipeline"
+        metric: step4_urp_mapping
+
+  # ---------------------------------------------------------------
+  # Step 5 — Cluster & Infrastructure
+  # ---------------------------------------------------------------
+  - description: "Step 5: Advisor asks about cluster topology"
+    vars:
+      continue: "true"
+      query: |
+        Next step please.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response asks about the current Solr deployment: standalone vs
+          SolrCloud, number of nodes/shards/replicas, document count,
+          index size, and/or peak query throughput. It should be gathering
+          infrastructure details to provide sizing recommendations.
+        metric: step5_infra_inquiry
+
+  - description: "Step 5b: Advisor provides sizing recommendation"
+    vars:
+      continue: "true"
+      query: |
+        We run SolrCloud with 3 nodes, 6 shards, 2 replicas.
+        About 50 million documents, 200GB total index size.
+        Peak is around 500 queries/sec with 50 docs/sec indexing.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response provides OpenSearch cluster sizing recommendations
+          based on the stated topology. Should address node count,
+          shard strategy, and be tailored for Search Engineer depth
+          (e.g. JVM heap, instance types, or shard sizing rationale).
+        metric: step5_sizing_recommendation
+
+  # ---------------------------------------------------------------
+  # Step 6 — Client & Front-end Integration
+  # ---------------------------------------------------------------
+  - description: "Step 6: Advisor asks about client libraries"
+    vars:
+      continue: "true"
+      query: |
+        What's next?
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response asks what client libraries or front-end components
+          talk to Solr (e.g. SolrJ, pysolr, custom HTTP client, search
+          UI). It should be gathering integration details for the client
+          migration section.
+        metric: step6_client_inquiry
+
+  - description: "Step 6b: Advisor maps SolrJ to opensearch-java"
+    vars:
+      continue: "true"
+      query: |
+        We use SolrJ in our Java backend and have a React search UI
+        that calls Solr's /select endpoint directly.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response maps SolrJ to opensearch-java and addresses the React
+          UI's direct /select calls (e.g. migrate to /_search endpoint).
+          Each integration should have a concrete migration action.
+        metric: step6_client_mapping
+      - type: icontains
+        value: "opensearch-java"
+        metric: step6_solrj_replacement
+      - type: icontains
+        value: "_search"
+        metric: step6_endpoint_migration
+
+  # ---------------------------------------------------------------
+  # Step 7 — Migration Report
+  # ---------------------------------------------------------------
+  - description: "Step 7: Advisor generates migration report"
+    vars:
+      continue: "true"
+      query: |
+        Please generate the migration report.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response contains a comprehensive migration report that includes:
+          incompatibilities section (with copyField flagged), client impact
+          section (SolrJ and React UI), milestones or staged plan,
+          blockers or risks, and cost or effort estimates. The report
+          should reflect all information gathered in the conversation.
+        metric: step7_report_completeness
+      - type: icontains-any
+        value:
+          - "incompatibilities"
+          - "incompatibility"
+        metric: step7_has_incompatibilities
+      - type: icontains
+        value: "SolrJ"
+        metric: step7_has_client_section
+      - type: icontains-any
+        value:
+          - "milestone"
+          - "stage"
+          - "phase"
+          - "plan"
+        metric: step7_has_plan
