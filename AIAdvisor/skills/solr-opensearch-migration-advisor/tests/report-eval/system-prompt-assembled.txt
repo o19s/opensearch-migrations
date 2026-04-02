@@ -1,0 +1,2079 @@
+# MIGRATION ADVISOR SKILL CONTEXT
+
+## SKILL.md (Agent Skill Definition)
+
+---
+name: solr-to-opensearch
+displayName: "Solr to OpenSearch Migration Advisor"
+description: >
+  Expert in migrating Apache Solr collections to OpenSearch indexes. 
+  Translates Solr XML/JSON schemas to OpenSearch mappings and converts 
+  Solr syntax (Standard, DisMax, eDisMax) into OpenSearch DSL. 
+  Provides sizing for nodes, shards, and JVM heap.
+  Uses the AWS Knowledge MCP Server for accurate, up-to-date OpenSearch
+  and AWS service information.
+keywords: 
+  - "Solr to OpenSearch"
+  - "migrate Solr"
+  - "schema.xml to mapping"
+  - "solrconfig.xml"
+  - "edismax to bool query"
+  - "synonyms.txt"
+  - "SolrCloud vs OpenSearch Cluster"
+  - "OpenSearch best practices"
+  - "AWS OpenSearch Service"
+  - "OpenSearch regional availability"
+metadata:
+  author: jzonthemtn
+  version: "0.2.0"
+  capability: "translation-engine"
+---
+
+# Apache Solr to OpenSearch Migration Advisor
+
+An agent skill for migrating from Apache Solr to OpenSearch. This skill provides
+a transport-agnostic migration advisor that can reason about Solr query behavior,
+configuration, and cluster architecture.
+
+## When to Use
+
+Use this skill when:
+
+- A user needs to migrate a Solr collection or SolrCloud deployment to OpenSearch.
+- A user wants a comprehensive migration advisor that can handle conversational
+  interaction and maintain session context.
+- A user has a `schema.xml` or Solr Schema API JSON document and needs an
+  equivalent OpenSearch index mapping.
+- A user has Solr query strings and needs them translated to OpenSearch Query DSL.
+- A user needs a migration report covering milestones, blockers, and cost estimates.
+- A user has questions about Amazon OpenSearch Service features, regional availability, or AWS best practices.
+
+**Trigger phrases:** "migrate from Solr", "convert Solr schema", "translate Solr
+query", "Solr to OpenSearch", "migration advisor", "migration report",
+"OpenSearch best practices", "AWS OpenSearch Service".
+
+## AWS Knowledge Integration
+
+This skill integrates with the [AWS Knowledge MCP Server](https://awslabs.github.io/mcp/servers/aws-knowledge-mcp-server/)
+(`https://knowledge-mcp.global.api.aws`) to provide accurate, up-to-date information about:
+
+- Amazon OpenSearch Service features and configuration
+- OpenSearch regional availability across AWS regions
+- AWS best practices for search workloads
+- Current AWS documentation and API references
+
+The integration is used automatically when users ask OpenSearch or AWS-specific questions.
+Two dedicated MCP tools are also exposed:
+
+- `aws_knowledge_search(query, topic)` — search AWS docs for any AWS/OpenSearch topic
+- `aws_opensearch_regional_availability(region)` — check OpenSearch Service regional availability
+
+No AWS account or authentication is required to use the AWS Knowledge MCP Server.
+
+## Migration Workflow
+
+Walk the user through each step in order. Do not skip ahead — complete each step before moving to the next.
+
+### Step 0 — Stakeholder Identification
+
+Before diving into the migration, identify who you are working with so you can tailor the depth and focus of your guidance throughout the conversation.
+
+Prompt the user with:
+
+*"Welcome to the Solr to OpenSearch Migration Advisor. To make sure I give you the most relevant guidance, could you tell me a bit about your role? For example, are you a Search Engineer, Application Developer, DevOps/Platform Engineer, Data Engineer, Architect, or a Product Manager/Business Stakeholder?"*
+
+Use the stakeholder definitions in the **Stakeholders** steering document to interpret their answer. If the user describes a role that doesn't map cleanly to one of the defined roles, pick the closest match and confirm it with them.
+
+Once the role is identified:
+
+- Store it in the session under `facts.stakeholder_role`.
+- Briefly acknowledge the role and explain how you'll tailor the session. For example:
+  - A **Search Engineer** gets full technical depth on schema, analyzers, and Query DSL.
+  - An **Application Developer** gets focus on client library changes and API differences.
+  - A **DevOps / Platform Engineer** gets emphasis on cluster sizing, deployment, and operations.
+  - A **Data Engineer** gets focus on ingest pipelines and schema evolution.
+  - An **Architect** gets emphasis on system design, security, and integration patterns.
+  - A **Product Manager / Business Stakeholder** gets plain-language summaries, milestones, and cost estimates — technical details are summarized rather than expanded.
+
+Move to Step 1.
+
+### Step 1 — Schema Acquisition
+
+Get the Solr schema that will be the basis for the OpenSearch index mapping. There are two paths:
+
+- **Path A — Existing schema:** Ask the user to paste their `schema.xml` or the JSON response from the Solr Schema API (`GET /solr/<collection>/schema`). Call `convert_schema_xml` or `convert_schema_json` accordingly and show the resulting OpenSearch mapping.
+- **Path B — No schema yet:** If the user has no existing Solr schema, ask them to provide a sample JSON document that represents the data they plan to index. Infer field names and types from the JSON structure and generate a starter OpenSearch index mapping. Confirm the inferred types with the user before proceeding.
+
+Once a mapping is agreed upon, save it to the session.
+
+**Optional — Create the index in OpenSearch:** After presenting the mapping, ask the user:
+*"Would you like me to create this index in OpenSearch now?"*
+Only call `create_opensearch_index` if the user explicitly agrees. Pass the agreed-upon index name and the mapping JSON. If the user declines or does not respond affirmatively, skip this step and move on. Inform the user that `OPENSEARCH_URL`, `OPENSEARCH_USER`, and `OPENSEARCH_PASSWORD` environment variables can be set to point to their cluster (defaults to `http://localhost:9200`).
+
+**Stakeholder guidance:**
+- **Search Engineer** — show the full mapping JSON with field-by-field annotations; explain every type decision.
+- **Application Developer** — focus on field names and types that affect query construction and response parsing; skip internal analyzer details unless asked.
+- **DevOps / Platform Engineer** — note index settings (number of shards, replicas) alongside the mapping; flag anything that affects cluster resource usage.
+- **Data Engineer** — emphasize field types that affect ingest (date formats, numeric precision, binary fields); highlight any fields that will require transformation before indexing.
+- **Architect** — summarise the mapping at a structural level; call out design decisions (nested vs. flat, dynamic vs. explicit) and their long-term maintainability implications.
+- **Product Manager / Business Stakeholder** — skip the raw JSON; describe the schema in plain language ("we have X searchable text fields, Y date fields, Z numeric fields") and confirm it covers the data they care about.
+
+Move to Step 2.
+
+### Step 2 — Schema Review & Incompatibility Analysis
+
+This step is the primary incompatibility gate. Treat every finding as a potential blocker and be thorough — missed incompatibilities discovered late in a migration are expensive to fix.
+
+Systematically check the converted mapping against every category in the **Incompatibility Reference** section below. For each issue found:
+
+1. Classify it as one of: **Breaking** (will cause data loss or index failure), **Behavioral** (works but produces different results), or **Unsupported** (feature has no OpenSearch equivalent).
+2. Record it in the session under `facts.incompatibilities` as a list of objects with keys `category`, `severity`, `description`, and `recommendation`.
+3. Present it to the user immediately with a clear explanation and the recommended resolution.
+
+Specific checks to perform on the schema:
+
+- **copyField** — flag every `<copyField>` directive; explain replacement with `copy_to` on the source field definition.
+- **Field type gaps** — flag `solr.ICUCollationField`, `solr.EnumField`, `solr.ExternalFileField`, `solr.PreAnalyzedField`, and `solr.SortableTextField` as unsupported or requiring manual workarounds.
+- **Custom analyzers** — identify any `<analyzer>`, `<tokenizer>`, or `<filter>` referencing a non-standard class. Check whether an equivalent exists in OpenSearch's built-in analysis chain; flag those that do not.
+- **Dynamic fields** — note that OpenSearch `dynamic_templates` match on field name patterns or data types, not Solr's glob syntax; verify the converted templates preserve the intended behavior.
+- **Stored vs. source** — Solr stores fields individually; OpenSearch stores the original `_source` document. Fields marked `stored="true"` but `indexed="false"` in Solr may behave differently under `_source` filtering.
+- **DocValues** — Solr requires explicit `docValues="true"` for sorting/faceting on most field types; in OpenSearch, `doc_values` is enabled by default for most types. Flag any field where the Solr schema explicitly disables docValues, as the OpenSearch default may change behavior.
+- **Nested / child documents** — Solr block join (`{!parent}`, `{!child}`) has no direct equivalent; flag and recommend OpenSearch [nested objects](https://opensearch.org/docs/latest/field-types/supported-field-types/nested/) or [join field type](https://opensearch.org/docs/latest/field-types/supported-field-types/join/).
+- **Trie field types** — `TrieIntField`, `TrieLongField`, etc. are deprecated in Solr 7+ and have no equivalent in OpenSearch; confirm the user is migrating to the Point field equivalents.
+
+Present all findings as a prioritized list: Breaking first, then Behavioral, then Unsupported. If no incompatibilities are found, state that explicitly so the user has confidence to proceed.
+
+**Stakeholder guidance:**
+- **Search Engineer** — go deep on every finding; show the exact Solr construct, the OpenSearch equivalent, and any edge cases in the conversion.
+- **Application Developer** — highlight only the incompatibilities that affect query results or response shape; skip low-level analyzer details unless they surface in query output.
+- **DevOps / Platform Engineer** — prioritise Breaking issues that could cause index creation or reindex failures; note any that require cluster-level configuration changes.
+- **Data Engineer** — focus on field type gaps and stored-vs-source differences that affect what data can be retrieved after indexing; flag anything requiring pipeline-level transformation.
+- **Architect** — present a risk summary: how many Breaking, Behavioral, and Unsupported issues exist, and what the aggregate migration risk looks like. Skip per-field detail unless asked.
+- **Product Manager / Business Stakeholder** — translate every finding into business impact ("this field won't sort correctly", "facet counts may differ by X%"); avoid technical jargon. Summarise total blocker count and estimated resolution effort in plain language.
+
+### Step 3 — Query Translation
+
+Ask the user for representative Solr queries — at minimum one of each type they use in production (standard, dismax/edismax, facet, range, spatial if applicable). For each query:
+
+- Call `convert_query` and show the OpenSearch Query DSL equivalent.
+- Actively check for query-level incompatibilities and behavioral differences. For each one found, record it in `facts.incompatibilities` with `category: "query"` before moving on.
+- Flag queries that cannot be automatically translated and explain what manual work is needed.
+
+Known query incompatibilities to check for:
+
+| Solr feature | Severity | OpenSearch situation |
+|---|---|---|
+| eDismax `pf`, `pf2`, `pf3` phrase boost fields | Behavioral | No direct equivalent; approximate with `multi_match` type `phrase` in a `should` clause. |
+| eDismax `bq` / `bf` additive boost | Behavioral | Use `function_score` or `script_score`; additive vs. multiplicative semantics differ. |
+| `{!join}` cross-collection join | Breaking | Not supported; restructure as nested documents or application-side join. |
+| `{!collapse}` field collapsing | Behavioral | Use `collapse` via the [Search API collapse parameter](https://opensearch.org/docs/latest/search-plugins/searching-data/collapse/) — available but syntax differs. |
+| Solr Streaming Expressions | Unsupported | No equivalent; move aggregation logic to the application layer or use OpenSearch aggregations. |
+| `{!graph}` graph traversal | Unsupported | No equivalent in OpenSearch. |
+| Spatial `{!geofilt}` / `{!bbox}` | Behavioral | Use `geo_distance` / `geo_bounding_box` queries; parameter names differ. |
+| `MoreLikeThis` handler | Behavioral | Use `more_like_this` query; `mindf`, `mintf` parameter names differ slightly. |
+| Facet pivots | Behavioral | Use nested `terms` aggregations; result shape differs. |
+| `cursorMark` deep pagination | Behavioral | Use `search_after` in OpenSearch; semantics are similar but not identical. |
+| Solr relevance TF-IDF (classic) | Behavioral | OpenSearch defaults to BM25; scores will differ. Configurable via `similarity` setting. |
+
+**Stakeholder guidance:**
+- **Search Engineer** — show the full before/after Query DSL for every translated query; explain scoring differences (TF-IDF vs BM25) and how to tune `similarity` settings if needed.
+- **Application Developer** — this is a high-priority step. Show concrete before/after code examples for each query type; highlight parameter renames and response shape changes that require code updates.
+- **DevOps / Platform Engineer** — flag queries that imply resource-intensive patterns (deep pagination, large facet pivots, graph traversal) and note their infrastructure implications.
+- **Data Engineer** — focus on queries that touch ingest-time decisions (e.g. `copyField` equivalents, `MoreLikeThis` field requirements); flag anything that requires schema or pipeline changes to support.
+- **Architect** — summarise which query patterns have no direct equivalent and require application-layer redesign; assess overall query migration complexity.
+- **Product Manager / Business Stakeholder** — skip Query DSL syntax; describe each query in terms of the search feature it powers ("the autocomplete query", "the category filter") and flag any that will behave differently for end users after migration.
+
+### Step 4 — Solr Customizations
+
+Ask the user whether they rely on any Solr-specific customizations. Use this prompt:
+
+*"Before we look at infrastructure, I'd like to understand any Solr customizations you're using. Do any of the following apply to your deployment? Please describe what you have for each that's relevant:"*
+
+- **Request handlers** — custom `SearchHandler`, `UpdateRequestHandler`, or other handlers defined in `solrconfig.xml`.
+- **Plugins** — custom `QParserPlugin`, `SearchComponent`, `TokenFilterFactory`, `UpdateRequestProcessorChain`, or other plugin types.
+- **Authentication & authorization** — Basic Auth, Kerberos, PKI, Rule-Based Authorization Plugin, or a custom security plugin.
+- **Operational constraints** — specific SLA requirements, air-gapped environments, compliance requirements (e.g. FIPS, FedRAMP), multi-tenancy needs, or read/write traffic isolation.
+
+For each item the user provides, give a concrete OpenSearch equivalent or migration path:
+
+| Solr customization | OpenSearch equivalent / approach |
+|---|---|
+| Custom `SearchHandler` | Use the [Search API](https://opensearch.org/docs/latest/api-reference/search/) with a custom request body; complex handler logic moves to the application layer or an ingest pipeline. |
+| `UpdateRequestProcessorChain` | Replace with an [Ingest Pipeline](https://opensearch.org/docs/latest/ingest-pipelines/) using built-in or custom processors. |
+| Custom `QParserPlugin` | Implement equivalent logic in Query DSL (e.g. `function_score`, `script_score`, `percolate`) or a search pipeline. |
+| Custom `TokenFilterFactory` / `CharFilterFactory` | Re-express as a custom [analyzer definition](https://opensearch.org/docs/latest/analyzers/) in the index settings using the equivalent built-in filter, or implement a custom plugin via the OpenSearch plugin SDK. |
+| Basic Auth | Use the [OpenSearch Security plugin](https://opensearch.org/docs/latest/security/) (bundled) with internal user database or LDAP/Active Directory backend. |
+| Kerberos | OpenSearch Security supports Kerberos via the `kerberos` authentication domain. |
+| PKI / mutual TLS | Configure node-to-node and client TLS in `opensearch.yml`; the Security plugin handles certificate-based auth. |
+| Rule-Based Authorization Plugin | Map to OpenSearch Security [roles and role mappings](https://opensearch.org/docs/latest/security/access-control/). |
+| Air-gapped / offline deployment | OpenSearch supports fully offline installation; use the tarball or RPM/DEB packages and mirror the plugin registry internally. |
+| FIPS 140-2 compliance | OpenSearch provides a [FIPS-compliant distribution](https://opensearch.org/docs/latest/install-and-configure/install-opensearch/fips/). |
+| Multi-tenancy | Use OpenSearch Security [tenants](https://opensearch.org/docs/latest/security/multi-tenancy/) for Dashboards isolation, and index-level permissions for data isolation. |
+| Read/write traffic isolation | Route via separate [coordinating-only nodes](https://opensearch.org/docs/latest/tuning-your-cluster/cluster-formation/cluster-manager/) or use a load balancer with separate pools. |
+
+If the user mentions a customization not in the table above, reason about the closest OpenSearch equivalent and flag it as a manual migration item.
+
+Store all identified customizations and their OpenSearch mappings in the session under `facts.customizations` so they are included in the migration report.
+
+**Stakeholder guidance:**
+- **Search Engineer** — go deep on plugin internals; show the OpenSearch plugin SDK or analysis chain equivalent for each custom component.
+- **Application Developer** — focus on customizations that affect the request/response contract (custom request handlers, response writers); these directly impact client code changes.
+- **DevOps / Platform Engineer** — prioritise authentication, authorization, and operational constraints (air-gapped, FIPS, multi-tenancy); these drive infrastructure and deployment decisions. This is a high-priority step for this role.
+- **Data Engineer** — focus on `UpdateRequestProcessorChain` and custom ingest logic; map each processor to an OpenSearch ingest pipeline equivalent.
+- **Architect** — this is a high-priority step. Assess the full customization surface area for build-vs-buy decisions; flag anything requiring custom OpenSearch plugin development as a significant effort item.
+- **Product Manager / Business Stakeholder** — summarise customizations as capabilities ("custom ranking logic", "data enrichment on ingest") and flag any that require significant engineering effort to replicate, with a rough effort estimate.
+
+### Step 5 — Cluster & Infrastructure Assessment
+
+Ask the user about their current deployment topology:
+
+- Standalone Solr or SolrCloud? Number of nodes, shards, and replicas?
+- Approximate document count and index size?
+- Peak query throughput and indexing rate?
+
+Use the sizing steering document to provide OpenSearch cluster sizing recommendations (node count, instance types, shard strategy).
+
+**Stakeholder guidance:**
+- **Search Engineer** — include shard sizing rationale, JVM heap recommendations, and index lifecycle management strategy.
+- **Application Developer** — this step is lower priority; summarise the cluster topology briefly and move on unless they have specific questions.
+- **DevOps / Platform Engineer** — this is the highest-priority step for this role. Go deep: instance types, storage (EBS vs. instance store), node roles (data, coordinating, cluster manager), auto-scaling, monitoring, and deployment automation. Ask about their target environment (self-managed vs. Amazon OpenSearch Service).
+- **Data Engineer** — focus on indexing throughput capacity: bulk indexing thread pools, refresh intervals, and whether the cluster can sustain their peak ingest rate.
+- **Architect** — focus on topology decisions: single-region vs. multi-region, cross-cluster replication, disaster recovery strategy, and cost model.
+- **Product Manager / Business Stakeholder** — present sizing as cost and SLA terms: estimated monthly infrastructure cost, expected query latency, and uptime characteristics. Skip node-level detail.
+
+### Step 6 — Client & Front-end Integration
+
+Ask the user what client-side code talks to Solr today. Use these prompts:
+
+- *"What client libraries are you using — SolrJ, pysolr, a custom HTTP client, or something else?"*
+- *"Do you have a front-end search UI (e.g. Solr-specific widgets, Velocity templates, or a custom React/Vue app)?"*
+- *"Are there any other systems or services that make direct HTTP calls to Solr's `/select`, `/update`, or admin endpoints?"*
+
+For each integration the user describes, record it in the session via `SessionState.add_client_integration` with:
+
+| Field | What to capture |
+|---|---|
+| `name` | The library, framework, or component name (e.g. "SolrJ", "pysolr", "React Search UI") |
+| `kind` | One of: `library`, `ui`, `http`, `other` |
+| `notes` | How it is currently used (endpoints called, features relied on) |
+| `migration_action` | The concrete change required for OpenSearch |
+
+Use the table below to guide the migration action for common integrations:
+
+| Solr client / UI | Kind | Migration action |
+|---|---|---|
+| SolrJ | library | Replace with [opensearch-java](https://github.com/opensearch-project/opensearch-java); update endpoint URLs and request/response models. |
+| pysolr | library | Replace with [opensearch-py](https://github.com/opensearch-project/opensearch-py); update query construction and response parsing. |
+| solr-ruby / rsolr | library | Replace with [opensearch-ruby](https://github.com/opensearch-project/opensearch-ruby). |
+| Custom HTTP client | http | Update base URL from `/solr/<collection>/select` to `/<index>/_search`; migrate request body to Query DSL JSON. |
+| Solr Admin UI | ui | Migrate to [OpenSearch Dashboards](https://opensearch.org/docs/latest/dashboards/); index management, query dev tools, and monitoring are all available. |
+| Velocity / Solr response writer templates | ui | Remove; OpenSearch returns JSON natively — render in the application layer. |
+| React/Vue/Angular with Solr-specific widgets | ui | Replace Solr-specific components with OpenSearch-compatible equivalents or generic REST-based components. |
+| Solr SolrJ CloudSolrClient (SolrCloud) | library | Replace with OpenSearch client pointed at the cluster load balancer; no ZooKeeper dependency. |
+
+If the user describes an integration not in the table, reason about the endpoint and request/response shape changes needed and provide a concrete before/after example.
+
+Identify any authentication changes required (e.g. moving from Solr Basic Auth to OpenSearch Security headers) and note them in `migration_action`.
+
+**Stakeholder guidance:**
+- **Search Engineer** — note any query or response shape differences between the Solr and OpenSearch client APIs that require logic changes beyond a library swap.
+- **Application Developer** — this is the highest-priority step for this role. Provide concrete before/after code snippets for each integration; cover dependency changes, constructor differences, query builder APIs, and response model changes.
+- **DevOps / Platform Engineer** — focus on authentication changes and any integrations that make direct admin API calls; flag anything that requires network or firewall rule changes.
+- **Data Engineer** — focus on integrations that write to Solr (`/update` endpoints, SolrJ `UpdateRequest`); map each to the OpenSearch bulk/index API equivalent.
+- **Architect** — assess the breadth of the integration surface: how many systems touch Solr, what the migration sequencing should be, and whether a compatibility shim or dual-write period is warranted.
+- **Product Manager / Business Stakeholder** — summarise integrations as a list of systems that need updating ("the product catalog service", "the search UI"), flag any that require third-party vendor involvement, and estimate the number of engineering teams affected.
+
+### Step 7 — Migration Report
+
+Call `generate_report` to produce the final report. The report must cover:
+
+- **Incompatibilities** (prominent, dedicated section at the top) — every item collected in `facts.incompatibilities` across all steps, grouped by severity: Breaking → Unsupported → Behavioral. Each entry must include the category, description, and recommended resolution. Breaking and Unsupported items are also surfaced as explicit blockers.
+- **Client & Front-end Impact** — every `ClientIntegration` recorded in Step 6, grouped by kind (libraries, UI, HTTP clients). Each entry shows the current usage and the concrete migration action required. If no integrations were recorded, state that explicitly.
+- Major milestones and suggested sequencing.
+- Blockers surfaced in Steps 2–6.
+- Implementation points with enough detail for an engineer to act on.
+- Cost estimates for infrastructure, effort, and any required tooling changes.
+
+Present the report to the user and offer to drill into any section.
+
+**Stakeholder guidance — tailor the report structure and emphasis:**
+- **Search Engineer** — lead with the full incompatibility list and query translation details; include the complete OpenSearch mapping and all Query DSL examples as appendices.
+- **Application Developer** — lead with the Client & Front-end Impact section; make the before/after code changes the most prominent part of the report.
+- **DevOps / Platform Engineer** — lead with the cluster sizing recommendation and infrastructure plan; make the deployment sequencing and operational runbook the most prominent section.
+- **Data Engineer** — lead with ingest pipeline changes and schema evolution impact; highlight any steps that require a full reindex vs. an incremental migration.
+- **Architect** — lead with the executive risk summary (blocker count by severity, affected systems, estimated total effort); follow with the integration surface map and recommended migration sequencing.
+- **Product Manager / Business Stakeholder** — produce a plain-language executive summary first: what is changing, what the risks are in business terms, the proposed timeline with milestones, and the estimated cost. Place all technical detail in an appendix clearly labelled as optional reading.
+
+## Resuming a Conversation
+
+Migration plans can span weeks or months, and conversations may be restarted many times. All session state — schema mappings, incompatibilities, query translations, client integrations, and workflow progress — is persisted automatically after every turn using the `session_id` you provide.
+
+### How to resume
+
+When starting a new conversation, pass the same `session_id` you used previously:
+
+```python
+# Resume an existing session — all prior context is restored automatically
+response = skill.handle_message("Let's continue the migration", session_id="my-project-migration")
+```
+
+Via MCP:
+```json
+{ "tool": "handle_message", "arguments": { "message": "Let's continue", "session_id": "my-project-migration" } }
+```
+
+The advisor will reload the full `SessionState` (history, facts, progress, incompatibilities, client integrations) and pick up exactly where you left off.
+
+### Choosing a session ID
+
+Use a stable, meaningful identifier tied to your project — not a random UUID — so it is easy to recall across restarts:
+
+- `acme-solr-migration`
+- `projectname-prod-cluster`
+- `team-search-migration-2025`
+
+### Listing and inspecting existing sessions
+
+```python
+from scripts.storage import FileStorage
+
+storage = FileStorage("sessions")
+
+# List all saved sessions
+print(storage.list_sessions())
+
+# Inspect a specific session
+state = storage.load("my-project-migration")
+print(f"Progress: Step {state.progress}")
+print(f"Incompatibilities found: {len(state.incompatibilities)}")
+print(f"Facts: {state.facts}")
+```
+
+### Session files
+
+With the default `FileStorage` backend, each session is stored as a JSON file at `sessions/<session_id>.json`. You can back these up, copy them between machines, or inspect them directly. The file is human-readable and contains the full conversation history, all discovered facts, and migration progress.
+
+### Starting fresh
+
+To reset a session and start over:
+
+```python
+storage.delete("my-project-migration")
+```
+
+Or simply use a new `session_id`.
+
+---
+
+## Reference Knowledge Base
+
+You have access to a verified knowledge base of technical information about Apache Solr and OpenSearch located under the `references` directory. Before answering any questions, search the provided context and cite your sources from the reference materials.
+
+#[[file:references/01-sample-reference.md]]
+#[[file:steering/stakeholders.md]]
+
+## Instructions
+
+- Always maintain the session context using the `session_id`. Every call loads the full `SessionState` (history, facts, progress, incompatibilities) and saves it back before returning — sessions are fully resumable across restarts.
+- Follow the steps in order. If the user jumps ahead, acknowledge their input, store it in the session, and guide them back to complete any skipped steps.
+- If a user asks for migration advice but hasn't provided technical details, proactively request the Solr schema or a sample JSON document (Step 1).
+- Use the steering documents (Stakeholders, Query Translation, Index Design, Sizing, Incompatibilities) to inform all reasoning.
+- **Incompatibility tracking is mandatory.** Every incompatibility found in any step must be recorded in `facts.incompatibilities` (via `SessionState.add_incompatibility`) before moving on. Never silently skip a known issue.
+- When in doubt about whether something is an incompatibility, flag it conservatively — a false positive is far less harmful than a missed breaking change.
+
+### Session State Fields
+
+The `SessionState` object persisted for each session contains:
+
+| Field | Type | Purpose |
+|---|---|---|
+| `session_id` | `str` | Unique session identifier |
+| `history` | `list[{user, assistant}]` | Full conversation turns |
+| `facts` | `dict` | Discovered migration facts (e.g. `schema_migrated`, `customizations`) |
+| `progress` | `int` | Current workflow step (0 = not started; advances forward only) |
+| `incompatibilities` | `list[Incompatibility]` | All incompatibilities found, with `category`, `severity`, `description`, `recommendation` |
+| `client_integrations` | `list[ClientIntegration]` | Client-side and front-end integrations collected in Step 6, with `name`, `kind`, `notes`, `migration_action` |
+
+### Pluggable Storage Backends
+
+The storage backend is injected at construction time. Built-in options:
+
+- `InMemoryStorage` — ephemeral, process-scoped; useful for tests and single-turn use.
+- `FileStorage(base_path)` — JSON file per session on disk; the default for persistent deployments.
+
+Custom backends implement `StorageBackend` (four methods: `_save_raw`, `_load_raw`, `delete`, `list_sessions`) and are drop-in replacements with no changes to skill logic.
+
+### Usage
+
+#### Library Usage
+```python
+import sys
+import os
+# Add scripts directory to sys.path
+sys.path.append(os.path.join(os.getcwd(), ".kiro/skills/solr-to-opensearch/scripts"))
+
+from skill import SolrToOpenSearchMigrationSkill
+
+# Initialize advisor
+skill = SolrToOpenSearchMigrationSkill()
+
+# Handle conversational message
+session_id = "user-123"
+response = skill.handle_message("Help me migrate my Solr schema: <schema>...</schema>", session_id)
+print(response)
+
+# Generate final report
+report = skill.generate_report(session_id)
+print(report)
+```
+
+#### MCP Server Usage
+Install dependencies and run the MCP server over stdio:
+```bash
+pip install -e ".kiro/skills/solr-to-opensearch[mcp]"
+python .kiro/skills/solr-to-opensearch/scripts/mcp_server.py
+```
+
+Or configure it in your MCP client (e.g. `.kiro/settings/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "solr-to-opensearch": {
+      "command": "python3",
+      "args": [".kiro/skills/solr-to-opensearch/scripts/mcp_server.py"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+## Reference Data
+
+### Field Type Mapping Reference
+| Solr Field Type | OpenSearch Type |
+|---|---|
+| TextField | text |
+| StrField | keyword |
+| IntPointField / TrieIntField | integer |
+| LongPointField / TrieLongField | long |
+| FloatPointField / TrieFloatField | float |
+| DoublePointField / TrieDoubleField | double |
+| DatePointField / TrieDateField | date |
+| BoolField | boolean |
+| BinaryField | binary |
+| LatLonPointSpatialField | geo_point |
+| SpatialRecursivePrefixTreeFieldType | geo_shape |
+
+## accuracy
+
+# Accuracy First: Solr to OpenSearch Migration
+
+Accuracy is the top priority in this migration. Correctness always takes precedence over speed, brevity, or convenience.
+
+## Core Principle
+
+When translating Solr constructs to OpenSearch equivalents, never guess or approximate. If a mapping is uncertain, say so explicitly. A wrong answer is worse than no answer.
+
+## Rules
+
+- Verify every query translation produces semantically equivalent results before presenting it. Behavior must match, not just syntax.
+- Flag any Solr feature that has no direct OpenSearch equivalent rather than silently substituting a close-but-different alternative.
+- Do not omit edge cases. If a translation works in most cases but breaks under specific conditions (e.g., null values, multi-valued fields, nested docs), document those conditions.
+- Prefer explicit over implicit. If OpenSearch has a default that differs from Solr's default, call it out.
+- When in doubt about a mapping, consult `references/steering/incompatibilities.md`, `references/steering/query_translation.md`, and `references/steering/index_design.md` before responding.
+- Do not conflate similar-but-different concepts (e.g., Solr `fq` caching behavior vs. OpenSearch `filter` context — functionally similar, but caching mechanics differ).
+- If a user's Solr query or schema cannot be accurately migrated with the current information available, say so and ask for clarification rather than producing a best-guess output.
+
+## What Accuracy Means Here
+
+- Query translation: the OpenSearch query must return the same documents in the same relevance order as the Solr query, given the same index data.
+- Schema mapping: field types, analysis chains, and storage settings must preserve the same indexing and retrieval behavior.
+- Sizing: estimates must be clearly labeled as estimates with stated assumptions, not presented as exact values.
+- Incompatibilities: must be surfaced proactively, not discovered after implementation.
+
+## client_migration
+
+# Client Library Migration: Solr to OpenSearch
+
+## Client Library Mapping
+
+| Language | Solr Client | OpenSearch Client | Package |
+|----------|------------|-------------------|---------|
+| Java | SolrJ | opensearch-java | `org.opensearch.client:opensearch-java:2.18.0` |
+| Python | pysolr | opensearch-py | `pip install opensearch-py` |
+| Go | Direct HTTP / go-solr | opensearch-go | `go get github.com/opensearch-project/opensearch-go/v2` |
+| Node.js | solr-client / HTTP | @opensearch-project/opensearch | `npm install @opensearch-project/opensearch` |
+| .NET | SolrNet | opensearch-net | `dotnet add package OpenSearch.Net` |
+| Spring | Spring Data Solr | Spring Data OpenSearch | `org.opensearch.spring.data:spring-data-opensearch` |
+
+## Java: SolrJ to opensearch-java
+
+**Dependency change:** Replace `org.apache.solr:solr-solrj` with `org.opensearch.client:opensearch-java:2.18.0`.
+
+**Client init -- before (Solr):**
+```java
+SolrClient solrClient = new HttpSolrClient.Builder("http://localhost:8983/solr/products").build();
+```
+
+**Client init -- after (OpenSearch):**
+```java
+RestClientTransport transport = new RestClientTransport(
+    RestClient.builder(new HttpHost("localhost", 9200)).build(),
+    new JacksonJsonpMapper()
+);
+OpenSearchClient client = new OpenSearchClient(transport);
+```
+
+**Query -- before (Solr):**
+```java
+SolrQuery query = new SolrQuery("title:\"red shoes\"");
+query.addFilterQuery("category:footwear");
+QueryResponse response = solrClient.query(query);
+```
+
+**Query -- after (OpenSearch):**
+```java
+SearchResponse<Product> response = client.search(s -> s
+    .index("products")
+    .query(q -> q.bool(b -> b
+        .must(m -> m.matchPhrase(mp -> mp.field("title").query("red shoes")))
+        .filter(f -> f.term(t -> t.field("category").value("footwear")))
+    )),
+    Product.class
+);
+```
+
+**Key difference:** SolrJ uses query strings; opensearch-java uses type-safe DSL builders. Full rewrite required -- no backward compatibility.
+
+## Python: pysolr to opensearch-py
+
+**Dependency change:** Replace `pysolr` with `opensearch-py`.
+
+**Client init -- before (Solr):**
+```python
+import pysolr
+solr = pysolr.Solr('http://localhost:8983/solr/products', timeout=10)
+```
+
+**Client init -- after (OpenSearch):**
+```python
+from opensearchpy import OpenSearch
+client = OpenSearch(
+    hosts=['localhost:9200'],
+    http_auth=('admin', 'admin'),
+    use_ssl=True,
+    verify_certs=False
+)
+```
+
+**Query -- before (Solr):**
+```python
+results = solr.search('title:"red shoes"', fq='category:footwear')
+```
+
+**Query -- after (OpenSearch):**
+```python
+response = client.search(index='products', body={
+    'query': {'bool': {
+        'must': [{'match_phrase': {'title': 'red shoes'}}],
+        'filter': [{'term': {'category': 'footwear'}}]
+    }}
+})
+```
+
+**Key difference:** Both use dict/parameter patterns. Migration is lower friction than Java. Async support via `AsyncOpenSearch` and aiohttp.
+
+## Go: HTTP to opensearch-go
+
+**Dependency change:** `go get github.com/opensearch-project/opensearch-go/v2`
+
+**Client init -- after (OpenSearch):**
+```go
+client, _ := opensearchapi.NewDefaultClient()
+```
+
+**Query -- after (OpenSearch):**
+```go
+req := opensearchapi.SearchRequest{
+    Index: []string{"products"},
+    Body: strings.NewReader(`{
+        "query": {"match": {"title": "running shoes"}}
+    }`),
+}
+res, _ := req.Do(context.Background(), client)
+```
+
+**Key difference:** Solr has limited Go ecosystem (most apps use direct HTTP). opensearch-go provides idiomatic Go with built-in connection pooling and goroutine safety.
+
+## Node.js: solr-client to @opensearch-project/opensearch
+
+**Dependency change:** Replace `solr-client` with `@opensearch-project/opensearch`.
+
+**Client init -- after (OpenSearch):**
+```javascript
+const { Client } = require('@opensearch-project/opensearch');
+const client = new Client({
+    nodes: ['http://localhost:9200'],
+    auth: { username: 'admin', password: 'admin' }
+});
+```
+
+**Query -- after (OpenSearch):**
+```javascript
+const response = await client.search({
+    index: 'products',
+    body: {
+        query: { multi_match: { query: 'running shoes', fields: ['title^2', 'description'] } }
+    }
+});
+```
+
+**Key difference:** Promise-based with native async/await. TypeScript types included. Low migration friction from solr-client or direct HTTP.
+
+## Auth Migration
+
+**Solr Basic Auth** typically uses `security.json` in ZooKeeper with username/password.
+
+**OpenSearch Security Plugin** supports multiple auth backends:
+- Basic auth (username/password) -- closest to Solr
+- TLS client certificates
+- SAML / OpenID Connect
+- LDAP / Active Directory
+
+**Client-side auth change:**
+- All OpenSearch clients accept `http_auth` / `auth` parameters for basic auth
+- TLS: configure `use_ssl=True`, `verify_certs=True`, and CA cert path
+- For AWS OpenSearch Service: use `AWSV4SignerAuth` (opensearch-py) or `AwsSdk2Transport` (opensearch-java)
+
+**Action item:** Map each Solr user/role to an OpenSearch security role. OpenSearch uses fine-grained access control (index-level, field-level, document-level) which is more granular than Solr's plugin.
+
+## Connection Pooling Differences
+
+| Aspect | Solr (SolrJ) | OpenSearch |
+|--------|-------------|------------|
+| Protocol | HTTP to Solr nodes or ZooKeeper-managed | HTTP/HTTPS direct to nodes |
+| Discovery | ZooKeeper (SolrCloud) | Static host list or sniffing |
+| Pooling | Apache HttpClient pool | Built-in per client library |
+| Failover | ZooKeeper-based leader election | Round-robin with retry |
+
+**Best practices for OpenSearch clients:**
+- Create one client instance per service, reuse across requests. Never create per-request.
+- Configure multiple hosts for failover: all clients support host lists.
+- Set explicit timeouts: connect (5s), socket (60s).
+- Use `max_retries=3` and `retry_on_timeout=True` for transient failures.
+- For bulk indexing: use the bulk API with 1000-5000 docs per batch, not single-doc loops.
+
+## incompatibilities
+
+# Solr to OpenSearch Incompatibilities Steering
+
+Use this reference when analyzing Solr configurations and producing migration reports.
+For each incompatibility found, state severity and recommend a concrete remediation.
+
+Severity levels:
+- **Breaking** — Migration fails or produces errors without remediation
+- **Behavioral** — Silently different behavior; results/performance change without errors
+- **Unsupported** — Feature has no direct equivalent; requires architectural change
+
+---
+
+## Query Gaps
+
+### Function Queries
+**Severity: Breaking**
+
+Solr `bf=sqrt(views)^2 log(1+clicks)` has no inline equivalent. OpenSearch requires
+`function_score` with `script_score` or `field_value_factor`.
+
+```json
+{
+  "function_score": {
+    "query": { "match": { "title": "solr" } },
+    "functions": [{
+      "script_score": {
+        "script": "Math.sqrt(doc['views'].value) * Math.log(1 + doc['clicks'].value)"
+      }
+    }]
+  }
+}
+```
+
+**Remediation**: Translate each `bf`/`bq` function to a `function_score` function.
+For high-QPS use cases, pre-compute boost scores at index time to avoid script overhead.
+
+### MoreLikeThis (MLT)
+**Severity: Breaking**
+
+Solr MLT handler (`/mlt?q=id:123&mlt.fl=title,body`) becomes a dedicated query type.
+
+```json
+{ "more_like_this": { "fields": ["title","body"], "like": [{"_id": "123"}] } }
+```
+
+**Remediation**: Rewrite MLT handler calls to `more_like_this` query. Parameter names
+differ (`mlt.mintf` -> `min_term_freq`, `mlt.mindf` -> `min_doc_freq`).
+
+### Spatial Queries
+**Severity: Breaking**
+
+Solr `latlon`/`SpatialRecursivePrefixTreeFieldType` map to `geo_point` and `geo_shape`.
+Solr `{!geofilt}` becomes `geo_distance` query; `{!bbox}` becomes `geo_bounding_box`.
+
+**Remediation**: Convert field types in mapping. Rewrite spatial filter queries to
+OpenSearch geo query DSL. Verify coordinate order (Solr uses `lat,lon`; OpenSearch
+uses `[lon,lat]` in GeoJSON or `{"lat":x,"lon":y}` object form).
+
+### Relevance Scoring (TF-IDF vs BM25)
+**Severity: Behavioral**
+
+Solr defaults to TF-IDF; OpenSearch defaults to BM25. BM25 saturates term frequency,
+so documents stuffed with repeated terms score lower than in TF-IDF. Expect 30-40%
+difference in top-10 results without tuning.
+
+**Remediation**: Run shadow queries comparing top-10 overlap for 2-4 weeks before
+cutover. If results diverge unacceptably, tune BM25 `k1`/`b` parameters per-field:
+
+```json
+{
+  "settings": { "index": { "similarity": {
+    "tuned_bm25": { "type": "BM25", "k1": 1.2, "b": 0.75 }
+  }}},
+  "mappings": { "properties": {
+    "title": { "type": "text", "similarity": "tuned_bm25" }
+  }}
+}
+```
+
+### Custom Similarity Classes
+**Severity: Unsupported**
+
+Solr allows custom Java similarity plugins (`<similarity class="com.x.Custom"/>`).
+OpenSearch cannot load custom similarity code at runtime.
+
+**Remediation**: (1) Rewrite as `function_score` + `script_score`, (2) accept BM25,
+or (3) build a re-ranking microservice that scores top-N candidates externally.
+
+---
+
+## Feature Gaps
+
+### Dynamic Fields / Schemaless Mode
+**Severity: Behavioral**
+
+Solr schemaless indexes everything as text. OpenSearch dynamic mapping infers types
+aggressively: `"123"` becomes `long`, `"2024-01-15"` becomes `date`, `"true"` becomes
+`boolean`. Queries that worked on text fields break on numeric fields.
+
+**Remediation**: Disable dynamic mapping (`"dynamic": false`) and define explicit
+mappings. Or use `dynamic_templates` to force all strings to `text`:
+
+```json
+{ "dynamic_templates": [{ "strings_as_text": {
+    "match_mapping_type": "string",
+    "mapping": { "type": "text", "fields": { "keyword": { "type": "keyword" } } }
+}}]}
+```
+
+### Nested Documents
+**Severity: Breaking**
+
+Solr `_childDocuments_` / block-join queries map to OpenSearch `nested` type or
+`join` field (parent-child). The query syntax is completely different.
+
+**Remediation**: Map child documents as `nested` objects (preferred for performance)
+or use `join` field type for true parent-child relationships. Rewrite all
+`{!parent}`/`{!child}` queries to `nested` or `has_child`/`has_parent` queries.
+
+### Joins
+**Severity: Unsupported**
+
+Solr `{!join from=X to=Y}` has no direct equivalent. OpenSearch offers `terms` lookup
+query (cross-index), `nested` query, or denormalized index design.
+
+**Remediation**: Prefer denormalization at index time. For large join cardinalities,
+use `terms` lookup query or application-side join.
+
+### Atomic Updates / Optimistic Locking
+**Severity: Behavioral**
+
+Solr atomic updates use `_version_` for concurrency control. OpenSearch partial updates
+use `seq_no` + `primary_term` instead. If your code relies on Solr version checking,
+the concurrency model must be ported.
+
+```
+PUT /index/_update/id?if_seq_no=5&if_primary_term=1
+{ "doc": { "price": 9.99 } }
+```
+
+**Remediation**: Replace `_version_` checks with `if_seq_no`/`if_primary_term`.
+Use `doc_as_upsert: true` if the document may not yet exist.
+
+### Commit / Refresh Semantics
+**Severity: Behavioral**
+
+Solr soft commit ~ OpenSearch refresh. Solr hard commit = refresh + fsync; OpenSearch
+separates these. Default `refresh_interval` is 1s, so documents are not instantly
+searchable after indexing (unlike Solr's default immediate soft commit).
+
+**Remediation**: Set `refresh_interval` to match application needs. During bulk
+migration, set to `"-1"` (disabled) and re-enable after. For near-real-time apps,
+`"100ms"` works but increases indexing overhead.
+
+---
+
+## Infrastructure Gaps
+
+### Shard Collocation
+**Severity: Breaking**
+
+Solr allows primary + replica of the same shard on one node. OpenSearch forbids this.
+A Solr cluster running 3 nodes with 4 shards + 1 replica (8 shard copies, collocated)
+needs minimum 8 nodes in OpenSearch.
+
+**Remediation**: Calculate minimum nodes as `shards * (1 + replicas)`. Budget 30%
+extra capacity for OpenSearch's higher per-shard memory overhead.
+
+### ZooKeeper Removal
+**Severity: Behavioral**
+
+Solr's external ZooKeeper provides independent cluster state inspection. OpenSearch
+embeds cluster state in master nodes — no external observability tool.
+
+**Remediation**: Deploy minimum 3 dedicated master-eligible nodes (5 for production).
+Implement `_cluster/health` monitoring, Prometheus alerting on cluster status, and
+document recovery runbooks for master/data node failures.
+
+### JVM Tuning
+**Severity: Behavioral**
+
+OpenSearch defaults to 2GB heap (vs Solr's typical 8GB+). OpenSearch uses more memory
+per shard. Migrating with default JVM settings causes OOM errors and GC pauses.
+
+**Remediation**: Set heap to 50% of system RAM, capped at 31GB (`-Xms16g -Xmx16g`).
+Use G1GC. Tune `-XX:MaxGCPauseMillis=30` for low-latency query workloads.
+
+### Write Latency / Replication
+**Severity: Behavioral**
+
+Solr leader election allows unacknowledged replica writes. OpenSearch waits for in-sync
+replicas by default, adding 100-400ms write latency.
+
+**Remediation**: Tune `write.wait_for_active_shards`: `1` = primary-only (fast, weaker
+consistency), `"all"` = full consistency (slow). Default is quorum.
+
+---
+
+## Plugin Gaps
+
+### Custom Request Handlers
+**Severity: Unsupported**
+
+Solr request handlers (`/select`, `/spell`, custom endpoints) have no equivalent.
+
+**Remediation**: Rebuild custom handler logic as application-layer code calling the
+standard OpenSearch `_search` API. Simple handlers often become a single query template.
+
+### Search Components (spellcheck, suggest, grouping)
+**Severity: Breaking**
+
+Solr search components (spellcheck, suggest, stats, grouping) are configured in
+`solrconfig.xml`. OpenSearch equivalents exist but use different APIs:
+- Spellcheck -> `suggest` API or `phrase` suggester
+- Grouping -> `collapse` field or `terms` aggregation
+- Stats -> `stats` aggregation
+
+**Remediation**: Inventory all active search components. Map each to its OpenSearch
+equivalent API. Some (like custom chain components) require application-layer reimplementation.
+
+### Connection Pooling / Client Libraries
+**Severity: Behavioral**
+
+SolrJ and OpenSearch clients have different default pool sizes and behaviors. Pool
+exhaustion under load is common post-migration.
+
+**Remediation**: Explicitly configure `maxConnPerRoute` and `maxConnTotal` in the
+OpenSearch REST client. Match or exceed the concurrency level of your application threads.
+
+### Monitoring / Admin UI
+**Severity: Behavioral**
+
+Solr's built-in Admin UI has no OpenSearch equivalent. OpenSearch Dashboards is a
+separate service that must be deployed and configured.
+
+**Remediation**: Deploy OpenSearch Dashboards. Set up Prometheus + Grafana for cluster
+health, query latency (p50/p95/p99), indexing rate, JVM heap, and shard status.
+
+---
+
+## Quick Reference: Severity by Category
+
+| Incompatibility | Severity | Category |
+|---|---|---|
+| Function queries | Breaking | Query |
+| MLT syntax | Breaking | Query |
+| Spatial queries | Breaking | Query |
+| Scoring (TF-IDF vs BM25) | Behavioral | Query |
+| Custom similarity | Unsupported | Query |
+| Dynamic field mapping | Behavioral | Feature |
+| Nested documents | Breaking | Feature |
+| Joins | Unsupported | Feature |
+| Atomic updates / versioning | Behavioral | Feature |
+| Commit / refresh | Behavioral | Feature |
+| Shard collocation | Breaking | Infra |
+| ZooKeeper removal | Behavioral | Infra |
+| JVM tuning | Behavioral | Infra |
+| Write latency | Behavioral | Infra |
+| Custom request handlers | Unsupported | Plugin |
+| Search components | Breaking | Plugin |
+| Client connection pooling | Behavioral | Plugin |
+| Admin UI / monitoring | Behavioral | Plugin |
+
+## index_design
+
+# Index Design: Solr to OpenSearch Migration
+
+When advising on index design migration, use these mappings and patterns.
+Flag any conversion you are uncertain about rather than guessing.
+
+## Field Type Mapping
+
+### Primitive Types
+
+| Solr Type | OpenSearch Type | Notes |
+|-----------|----------------|-------|
+| `solr.StrField` / `string` | `keyword` | Exact match, no analysis |
+| `solr.IntPointField` / `int` | `integer` | 32-bit signed |
+| `solr.LongPointField` / `long` | `long` | 64-bit signed |
+| `solr.FloatPointField` / `float` | `float` | 32-bit IEEE 754 |
+| `solr.DoublePointField` / `double` | `double` | 64-bit IEEE 754 |
+| `solr.BoolField` / `boolean` | `boolean` | |
+| `solr.DatePointField` / `pdate` | `date` | ISO 8601 format |
+| `pdates` (multi-valued date) | `date` (array) | No mapping change needed |
+
+### Text Types
+
+| Solr Type | OpenSearch Strategy |
+|-----------|---------------------|
+| `text_general` | `text` with `standard` analyzer |
+| `text_en` | `text` with custom English analyzer (stemmer + stopwords) |
+| `text_ws` | `text` with `whitespace` tokenizer |
+| `text_ja` / CJK types | `text` with `kuromoji` / `cjk_bigram` (requires analysis plugin) |
+| Custom analyzed types | `text` with equivalent custom analyzer in index settings |
+
+### Specialized Types
+
+| Solr Type | OpenSearch Type | Notes |
+|-----------|----------------|-------|
+| `solr.LatLonPointSpatialField` / `location` | `geo_point` | Accepts `"lat,lon"` or object |
+| `solr.SpatialRecursivePrefixTreeFieldType` | `geo_shape` | For polygons, complex spatial |
+| `binary` | `binary` | Rare |
+| `currency` | `scaled_float` or `float` | Apply exchange rates at query time |
+
+### Deprecated Trie Types
+
+If the Solr schema uses `TrieIntField`, `TrieLongField`, `TrieFloatField`, `TrieDoubleField`, or `TrieDateField`, map them the same as their Point equivalents above. Note that the Solr schema is using deprecated types and recommend the migration as an opportunity to modernize.
+
+## Field Properties
+
+| Solr Property | OpenSearch Equivalent | Default Behavior |
+|---------------|----------------------|------------------|
+| `indexed="true"` | `index: true` | Default for all searchable types |
+| `indexed="false"` | `index: false` | Explicitly disable |
+| `stored="true"` | Present in `_source` | Default; `_source` returns all fields |
+| `stored="false"` | `store: false` | Field still in `_source` unless excluded |
+| `docValues="true"` | `doc_values: true` | **Default for keyword, numeric, date, boolean, geo_point** |
+| `docValues="false"` | `doc_values: false` | Must explicitly disable |
+| `multiValued="true"` | No mapping needed | Arrays are native in OpenSearch |
+| `required="true"` | No equivalent | Validate in application or ingest pipeline |
+| `omitNorms="true"` | `norms: false` | Disable length normalization |
+| `termVectors="true"` | `term_vector: "with_positions_offsets"` | Needed for fast-vector highlighting |
+
+### docValues Behavior Difference
+
+Solr: `docValues` defaults to `false` for most types; you must explicitly enable it.
+OpenSearch: `doc_values` defaults to `true` for `keyword`, all numeric types, `date`, `boolean`, `ip`, and `geo_point`. Only `text` fields lack doc_values by default.
+
+**Migration impact**: Most Solr schemas that explicitly set `docValues="true"` on keyword/numeric fields need no special handling -- OpenSearch already enables it. Schemas that set `docValues="false"` on these types need explicit `"doc_values": false` in OpenSearch.
+
+## Analyzer Chain Translation
+
+### Structure Mapping
+
+- Solr: Analyzers defined in `<fieldType>` XML, applied via `type="fieldTypeName"`
+- OpenSearch: Analyzers defined in `settings.analysis`, referenced by name in field mappings
+- Solr `<analyzer type="index">` maps to OpenSearch `"analyzer"`
+- Solr `<analyzer type="query">` maps to OpenSearch `"search_analyzer"`
+- A single Solr `<analyzer>` (no type) maps to a single OpenSearch `"analyzer"` (used for both)
+
+### Tokenizer Mapping
+
+| Solr Tokenizer | OpenSearch Equivalent |
+|----------------|----------------------|
+| `solr.StandardTokenizerFactory` | `standard` |
+| `solr.WhitespaceTokenizerFactory` | `whitespace` |
+| `solr.KeywordTokenizerFactory` | `keyword` |
+| `solr.PatternTokenizerFactory` | `pattern` |
+| `solr.UAX29URLEmailTokenizerFactory` | `uax_url_email` |
+| `solr.PathHierarchyTokenizerFactory` | `path_hierarchy` |
+| `solr.EdgeNGramTokenizerFactory` | `edge_ngram` |
+| `solr.NGramTokenizerFactory` | `ngram` |
+
+### Filter Mapping
+
+| Solr Filter | OpenSearch Equivalent |
+|-------------|----------------------|
+| `LowerCaseFilterFactory` | `lowercase` |
+| `UpperCaseFilterFactory` | `uppercase` |
+| `StopFilterFactory` | `stop` |
+| `PorterStemFilterFactory` | `porter_stem` |
+| `SnowballFilterFactory` | `snowball` |
+| `KStemFilterFactory` | `kstem` |
+| `SynonymFilterFactory` | `synonym` |
+| `SynonymGraphFilterFactory` | `synonym_graph` (preferred) |
+| `EdgeNGramFilterFactory` | `edge_ngram` |
+| `NGramFilterFactory` | `ngram` |
+| `ShingleFilterFactory` | `shingle` |
+| `TrimFilterFactory` | `trim` |
+| `RemoveDuplicatesTokenFilterFactory` | `remove_duplicates` |
+| `EnglishPossessiveFilterFactory` | `stemmer` with `language: "possessive_english"` |
+| `WordDelimiterFilterFactory` | `word_delimiter` |
+| `WordDelimiterGraphFilterFactory` | `word_delimiter_graph` (preferred) |
+| `LengthFilterFactory` | `length` |
+| `ASCIIFoldingFilterFactory` | `asciifolding` |
+
+### Character Filter Mapping
+
+| Solr Char Filter | OpenSearch Equivalent |
+|------------------|----------------------|
+| `HTMLStripCharFilterFactory` | `html_strip` |
+| `MappingCharFilterFactory` | `mapping` |
+| `PatternReplaceCharFilterFactory` | `pattern_replace` |
+
+### Example: Asymmetric Analyzer (Index vs Query)
+
+Solr pattern where index-time uses stemming but query-time does not:
+
+```json
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "text_en_index": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "english_stop", "porter_stem"]
+        },
+        "text_en_query": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "english_stop"]
+        }
+      },
+      "filter": {
+        "english_stop": { "type": "stop", "stopwords": "_english_" }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "description": {
+        "type": "text",
+        "analyzer": "text_en_index",
+        "search_analyzer": "text_en_query"
+      }
+    }
+  }
+}
+```
+
+### Synonym and Stopword Files
+
+Solr references files like `synonyms.txt` and `stopwords.txt` from the configset directory. In OpenSearch, these must be either:
+- Inlined in the analyzer definition (small lists)
+- Placed in `config/analysis/` on each node and referenced by path
+- Managed via the `_analyze` API for validation before deployment
+
+## copyField to copy_to
+
+Solr `copyField` directives become `copy_to` on source fields:
+
+```xml
+<!-- Solr -->
+<copyField source="title" dest="search_text"/>
+<copyField source="body" dest="search_text"/>
+```
+
+```json
+// OpenSearch
+"title": { "type": "text", "copy_to": "search_text" },
+"body":  { "type": "text", "copy_to": "search_text" },
+"search_text": { "type": "text", "store": false }
+```
+
+Key differences:
+- Solr `copyField` can use wildcards (`source="*_t"`); OpenSearch `copy_to` is per-field only
+- OpenSearch `copy_to` target field must be declared in mappings
+- `copy_to` fields are not in `_source` by default -- they are index-only
+
+## Dynamic Fields to Dynamic Templates
+
+Solr dynamic fields (`*_s`, `*_i`) map to OpenSearch `dynamic_templates`:
+
+```json
+{
+  "mappings": {
+    "dynamic_templates": [
+      { "strings":  { "match": "*_s",  "mapping": { "type": "keyword" } } },
+      { "text":     { "match": "*_t",  "mapping": { "type": "text", "analyzer": "standard" } } },
+      { "integers": { "match": "*_i",  "mapping": { "type": "integer" } } },
+      { "longs":    { "match": "*_l",  "mapping": { "type": "long" } } },
+      { "floats":   { "match": "*_f",  "mapping": { "type": "float" } } },
+      { "doubles":  { "match": "*_d",  "mapping": { "type": "double" } } },
+      { "booleans": { "match": "*_b",  "mapping": { "type": "boolean" } } },
+      { "dates":    { "match": "*_dt", "mapping": { "type": "date" } } },
+      { "geopoints":{ "match": "*_ll", "mapping": { "type": "geo_point" } } }
+    ]
+  }
+}
+```
+
+Key differences:
+- Solr: first-match-wins ordering; OpenSearch: same (template order matters)
+- OpenSearch templates support `match_pattern: "regex"` for complex patterns
+- Recommend `"dynamic": "strict"` in production to prevent unintended field creation
+
+## Nested / Child Documents
+
+### Solr Block Join vs OpenSearch Nested
+
+| Aspect | Solr | OpenSearch |
+|--------|------|------------|
+| Storage | Children in `_childDocuments_` array, flat index | Children in `nested` typed field, hidden docs |
+| Query syntax | `{!parent which="type:parent"}child_field:val` | `{ "nested": { "path": "comments", "query": {...} } }` |
+| Update granularity | Must re-index entire block | Must re-index entire document |
+| Cross-level scoring | `score=total\|avg\|max\|min` in block join | `score_mode` in nested query |
+| Max depth | Flat parent/child only | Arbitrary nesting depth |
+
+### Migration Pattern
+
+Solr block join with `_childDocuments_` becomes a `nested` field type:
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "comments": {
+        "type": "nested",
+        "properties": {
+          "author": { "type": "keyword" },
+          "text": { "type": "text" }
+        }
+      }
+    }
+  }
+}
+```
+
+### When to Use join Instead
+
+If the Solr schema has parent/child relationships that update independently (rare in Solr), consider OpenSearch `join` field type. However, `join` has severe performance costs -- prefer `nested` or denormalization for most cases.
+
+## uniqueKey to _id
+
+Solr `<uniqueKey>id</uniqueKey>` maps to OpenSearch `_id`. When indexing, pass the Solr unique key as the document ID: `PUT /index/_doc/{id}`. Store it as a `keyword` field too if the application queries by it.
+
+## Anti-Patterns to Flag
+
+### 1. Text Field Used for Exact Match
+Solr `string` field migrated as `text` instead of `keyword`. Symptoms: faceting fails or returns tokenized fragments.
+**Fix**: Map `solr.StrField` to `keyword`, not `text`.
+
+### 2. Missing Analyzer Translation
+Custom Solr analyzer chain dropped during migration, field falls back to `standard` analyzer. Symptoms: search recall/precision changes.
+**Fix**: Translate every custom `<fieldType>` analyzer chain to OpenSearch `settings.analysis`.
+
+### 3. Unnecessary doc_values Disable
+Solr schema had no `docValues` (pre-default era), migrator explicitly sets `"doc_values": false`. Symptoms: sorting and aggregations fail.
+**Fix**: Let OpenSearch defaults apply. Only set `"doc_values": false` if the Solr schema explicitly disabled them.
+
+### 4. copyField Wildcard Not Migrated
+Solr `<copyField source="*_t" dest="_text_"/>` silently dropped because OpenSearch `copy_to` does not support wildcards.
+**Fix**: Either add `copy_to` to each matched field, or use an ingest pipeline with a script processor.
+
+### 5. Nested Documents Flattened
+Solr `_childDocuments_` converted to flat object arrays. Symptoms: cross-object matches (searching for author=A AND text=B matches when author=A is on one comment and text=B on another).
+**Fix**: Use `nested` type, not default `object` type, when field isolation matters.
+
+### 6. EdgeNGram Applied Globally
+Solr autocomplete analyzer applied to all `*_t` dynamic fields. Symptoms: massive index bloat (3-5x).
+**Fix**: Restrict edge_ngram to dedicated autocomplete fields via `copy_to`.
+
+### 7. Synonym File Not Deployed
+Solr `synonyms.txt` referenced but not placed on OpenSearch nodes. Symptoms: index creation fails or synonyms silently ignored.
+**Fix**: Deploy synonym/stopword files to all data nodes before index creation.
+
+### 8. Trie Field Types Not Updated
+Deprecated `Trie*Field` types mapped without noting they are obsolete. Not a functional problem, but a missed opportunity.
+**Fix**: Note deprecated types in the migration report; map to standard OpenSearch equivalents.
+
+## query_translation
+
+# Solr to OpenSearch Query Translation
+
+## Purpose
+
+Translate Solr query requests into idiomatic OpenSearch Query DSL. Preserve relevance intent,
+non-scoring filter semantics, and business logic -- not just syntax.
+
+---
+
+## Standard Parser
+
+### Field queries
+
+```
+Solr:  title:opensearch
+OS:    {"query": {"match": {"title": "opensearch"}}}
+```
+
+### Boolean operators
+
+| Solr operator | OpenSearch `bool` clause |
+|---------------|------------------------|
+| `AND` / `+`  | `must`                 |
+| `OR`          | `should` (with `minimum_should_match: 1` when no `must`) |
+| `NOT` / `-`  | `must_not`             |
+
+```
+Solr:  title:solr AND status:published AND -archived:true
+OS:    {"query": {"bool": {
+         "must": [{"match": {"title": "solr"}}, {"term": {"status": "published"}}],
+         "must_not": [{"term": {"archived": true}}]
+       }}}
+```
+
+### Phrase queries
+
+```
+Solr:  title:"solr enterprise"
+OS:    {"query": {"match_phrase": {"title": "solr enterprise"}}}
+
+Solr:  title:"solr enterprise"~5
+OS:    {"query": {"match_phrase": {"title": {"query": "solr enterprise", "slop": 5}}}}
+```
+
+### Wildcards and prefix
+
+```
+Solr:  title:sol*
+OS:    {"query": {"prefix": {"title": "sol"}}}         -- prefer prefix for trailing *
+OS:    {"query": {"wildcard": {"title": "s?lr*"}}}      -- use wildcard only when needed
+```
+
+Leading wildcards (`*arch`) are expensive in both systems. Flag them in migration reports.
+
+### Range queries
+
+| Solr bracket | OpenSearch operator |
+|-------------|-------------------|
+| `[` inclusive | `gte` / `lte`   |
+| `{` exclusive | `gt` / `lt`     |
+| `NOW`        | `now`             |
+
+```
+Solr:  price:[10 TO 100]
+OS:    {"query": {"range": {"price": {"gte": 10, "lte": 100}}}}
+
+Solr:  date:[NOW-30DAYS TO NOW]
+OS:    {"query": {"range": {"date": {"gte": "now-30d", "lte": "now"}}}}
+```
+
+### Fuzzy search
+
+```
+Solr:  campng~2
+OS:    {"query": {"fuzzy": {"title": {"value": "campng", "fuzziness": 2}}}}
+```
+
+---
+
+## eDisMax (and DisMax)
+
+eDisMax is the core user-facing query parser in most production Solr apps. Translation must
+preserve the relevance-shaping intent, not just produce valid JSON.
+
+### qf (query fields) -> multi_match
+
+```
+Solr:  q=laptop&defType=edismax&qf=title^3 description^1 tags^0.5
+OS:    {"query": {"multi_match": {
+         "query": "laptop",
+         "fields": ["title^3", "description^1", "tags^0.5"],
+         "type": "best_fields"
+       }}}
+```
+
+Field boosts are often business logic. Always preserve them and flag for relevance review.
+
+### pf (phrase fields) -> match_phrase in bool.should
+
+```
+Solr:  q=solr guide&defType=edismax&qf=title body&pf=title^10
+OS:    {"query": {"bool": {
+         "must": [{"multi_match": {"query": "solr guide", "fields": ["title", "body"]}}],
+         "should": [{"match_phrase": {"title": {"query": "solr guide", "boost": 10}}}]
+       }}}
+```
+
+pf rewards phrase proximity without requiring it. The `should` clause preserves this behavior.
+
+### mm (minimum should match)
+
+```
+Solr:  q=solr migration guide&defType=edismax&qf=title body&mm=75%
+OS:    {"query": {"multi_match": {
+         "query": "solr migration guide",
+         "fields": ["title", "body"],
+         "minimum_should_match": "75%"
+       }}}
+```
+
+mm changes the candidate set. Poor handling causes precision and recall surprises. Always
+preserve the exact mm value.
+
+### bq (boost query) -> bool.should with boost
+
+```
+Solr:  q=laptop&defType=edismax&qf=title body&bq=featured:true^5
+OS:    {"query": {"bool": {
+         "must": [{"multi_match": {"query": "laptop", "fields": ["title", "body"]}}],
+         "should": [{"term": {"featured": {"value": true, "boost": 5}}}]
+       }}}
+```
+
+### boost / bf (boost functions) -> function_score
+
+```
+Solr:  q=laptop&defType=edismax&qf=title body&boost=sqrt(views)
+OS:    {"query": {"function_score": {
+         "query": {"multi_match": {"query": "laptop", "fields": ["title", "body"]}},
+         "functions": [{"script_score": {"script": {"source": "Math.sqrt(doc['views'].value)"}}}],
+         "boost_mode": "multiply"
+       }}}
+```
+
+Common Solr function mappings:
+- `sqrt(field)` -> `Math.sqrt(doc['field'].value)`
+- `log(field)` -> `Math.log(doc['field'].value)`
+- `log(1+field)` -> use `Math.log1p(doc['field'].value)`
+
+### tie_breaker
+
+```
+Solr:  tie=0.3
+OS:    "tie_breaker": 0.3   (inside multi_match)
+```
+
+### Per-field slop (eDisMax-specific)
+
+```
+Solr:  q=solr guide&defType=edismax&qf=title~2^3 body~5
+OS:    {"query": {"bool": {"should": [
+         {"match_phrase": {"title": {"query": "solr guide", "slop": 2, "boost": 3}}},
+         {"match_phrase": {"body": {"query": "solr guide", "slop": 5}}}
+       ]}}}
+```
+
+### Full eDisMax composite example
+
+```
+Solr:  q=laptop&defType=edismax&qf=title^3 description^1 tags^0.5
+       &mm=75%&pf=title^10&bq=featured:true^5&boost=sqrt(views)
+       &fq=status:active&fq=price:[0 TO 5000]
+
+OS:    {"query": {"function_score": {
+         "query": {"bool": {
+           "must": [{"multi_match": {
+             "query": "laptop",
+             "fields": ["title^3", "description^1", "tags^0.5"],
+             "type": "best_fields",
+             "minimum_should_match": "75%"
+           }}],
+           "should": [
+             {"match_phrase": {"title": {"query": "laptop", "boost": 10}}},
+             {"term": {"featured": {"value": true, "boost": 5}}}
+           ],
+           "filter": [
+             {"term": {"status": "active"}},
+             {"range": {"price": {"gte": 0, "lte": 5000}}}
+           ]
+         }},
+         "functions": [{"script_score": {"script": {"source": "Math.sqrt(doc['views'].value)"}}}],
+         "boost_mode": "multiply"
+       }}}
+```
+
+---
+
+## Filter Queries (fq) -> bool.filter
+
+fq clauses must land in `bool.filter`, never in scoring context. This preserves non-scoring
+semantics and enables OpenSearch filter caching.
+
+### Single filter
+
+```
+Solr:  q=title:solr&fq=status:published
+OS:    {"query": {"bool": {
+         "must": [{"match": {"title": "solr"}}],
+         "filter": [{"term": {"status": "published"}}]
+       }}}
+```
+
+### Multiple filters (conjunctive by default)
+
+```
+Solr:  q=laptop&fq=status:active&fq=category:electronics&fq=price:[0 TO 500]
+OS:    {"query": {"bool": {
+         "must": [{"match_all": {}}],
+         "filter": [
+           {"term": {"status": "active"}},
+           {"term": {"category": "electronics"}},
+           {"range": {"price": {"gte": 0, "lte": 500}}}
+         ]
+       }}}
+```
+
+### OR within a single fq
+
+```
+Solr:  fq=brand:(Dell OR HP OR Lenovo)
+OS:    "filter": [{"bool": {"should": [
+         {"term": {"brand": "Dell"}},
+         {"term": {"brand": "HP"}},
+         {"term": {"brand": "Lenovo"}}
+       ], "minimum_should_match": 1}}]
+```
+
+### Match-all with filters only
+
+```
+Solr:  q=*:*&fq=price:[10 TO 100]&fq=inStock:true
+OS:    {"query": {"bool": {
+         "filter": [
+           {"range": {"price": {"gte": 10, "lte": 100}}},
+           {"term": {"inStock": true}}
+         ]
+       }}}
+```
+
+---
+
+## Faceting -> Aggregations
+
+### Field facet -> terms aggregation
+
+```
+Solr:  facet=true&facet.field=category&facet.field=brand&facet.limit=10&facet.mincount=5
+OS:    "aggs": {
+         "category": {"terms": {"field": "category", "size": 10, "min_doc_count": 5}},
+         "brand": {"terms": {"field": "brand", "size": 10, "min_doc_count": 5}}
+       }
+```
+
+### Range facet -> range aggregation
+
+```
+Solr:  facet.range=price&facet.range.start=0&facet.range.end=1000&facet.range.gap=100
+OS:    "aggs": {"price_ranges": {"histogram": {"field": "price", "interval": 100}}}
+```
+
+Use `histogram` when gaps are uniform. Use `range` with explicit `ranges` array when custom.
+
+### Date facet -> date_histogram
+
+```
+Solr:  facet.range=created_at&facet.range.gap=+1MONTH
+OS:    "aggs": {"created_monthly": {"date_histogram": {
+         "field": "created_at", "calendar_interval": "month"
+       }}}
+```
+
+Interval mapping: `+1MONTH` -> `month`, `+1DAY` -> `day`, `+1HOUR` -> `hour`,
+`+30SECONDS` -> `fixed_interval: "30s"`.
+
+### Pivot facet -> nested aggregation
+
+```
+Solr:  facet.pivot=category,brand
+OS:    "aggs": {"category": {"terms": {"field": "category"}, "aggs": {
+         "brand": {"terms": {"field": "brand"}}
+       }}}
+```
+
+---
+
+## Highlighting
+
+```
+Solr:  hl=true&hl.fl=title,body&hl.fragsize=150
+       &hl.simple.pre=<em>&hl.simple.post=</em>
+
+OS:    "highlight": {
+         "fields": {
+           "title": {},
+           "body": {"fragment_size": 150, "number_of_fragments": 3}
+         },
+         "pre_tags": ["<em>"],
+         "post_tags": ["</em>"]
+       }
+```
+
+---
+
+## Spellcheck / Suggest
+
+Solr's SpellCheckComponent maps to the OpenSearch Suggest API. Requires index-time setup.
+
+```
+Solr:  q=campign&spellcheck=true&spellcheck.collate=true
+
+OS:    {"suggest": {"text": "campign", "spell": {"term": {"field": "title"}}}}
+```
+
+For autocomplete, use a `completion` field type in the mapping:
+
+```json
+"title": {"type": "text", "fields": {"suggest": {"type": "completion"}}}
+```
+
+Then query with: `{"suggest": {"title-suggest": {"prefix": "cam", "completion": {"field": "title.suggest"}}}}`
+
+---
+
+## Sort, Pagination, Field List
+
+### Sort
+
+```
+Solr:  sort=price asc,score desc
+OS:    "sort": [{"price": "asc"}, "_score"]
+```
+
+Sort on `text` fields requires a `.keyword` sub-field in OpenSearch.
+
+### Pagination
+
+```
+Solr:  start=20&rows=10
+OS:    "from": 20, "size": 10
+```
+
+Deep pagination (from + size > 10,000) requires `search_after` with a sort tiebreaker:
+
+```json
+{"sort": [{"price": "asc"}, {"_id": "asc"}], "size": 10, "search_after": [29.99, "doc_500"]}
+```
+
+### Field list (fl) -> _source filtering
+
+```
+Solr:  fl=id,title,price,score
+OS:    "_source": ["id", "title", "price"]
+```
+
+`score` is not in `_source`. Request it separately or it is returned by default in `_score`.
+
+---
+
+## Grouping / Collapsing
+
+### Solr group.field -> collapse field
+
+```
+Solr:  q=laptop&group=true&group.field=brand&group.limit=1
+OS:    {"query": {"match": {"title": "laptop"}},
+        "collapse": {"field": "brand"},
+        "aggs": {"brand_hits": {"top_hits": {"size": 1}}}
+       }
+```
+
+`collapse` returns one doc per unique field value. For multiple docs per group, combine with
+`top_hits` aggregation.
+
+### Solr group.query -> filters + top_hits
+
+For arbitrary grouping queries, use named filters aggregation:
+
+```json
+"aggs": {
+  "price_groups": {
+    "filters": {
+      "filters": {
+        "cheap": {"range": {"price": {"lte": 100}}},
+        "mid": {"range": {"price": {"gt": 100, "lte": 500}}},
+        "premium": {"range": {"price": {"gt": 500}}}
+      }
+    },
+    "aggs": {"top": {"top_hits": {"size": 3}}}
+  }
+}
+```
+
+---
+
+## Migration Warnings
+
+Flag these patterns explicitly when encountered during translation:
+
+1. **Leading wildcards** (`*suffix`) -- expensive, suggest ngram tokenizer or reverse wildcard
+2. **Complex mm expressions** (`2<75%`) -- verify OpenSearch supports the exact syntax variant
+3. **bf with conditional logic** (`if(field>10,2,1)`) -- requires Painless script in function_score
+4. **Geo fq** -- requires geo_point field type and geo_distance/geo_bounding_box queries
+5. **pf2/pf3 (bigram/trigram phrase boost)** -- no direct equivalent; approximate with shingle analyzer + match_phrase
+6. **autoRelaxMM** -- no direct equivalent; document as a behavioral gap
+7. **group.func** -- no direct equivalent; requires custom scripting
+8. **Multiple group.field** -- OpenSearch collapse supports only one field
+
+When only partial translation is possible, emit a warning with the untranslated parameter
+and a concrete suggestion for manual review.
+
+## relevance
+
+# Relevance Tuning: Solr to OpenSearch
+
+## BM25 Scoring Parameters
+
+OpenSearch defaults to BM25. The two tunable parameters:
+
+- **k1** (term frequency saturation, default 1.2): Controls how much repeated term matches improve score. Lower (0.8) for short fields like title; higher (1.5-2.0) for keyword-heavy fields (tags, categories). k1=0 means only IDF matters.
+- **b** (length normalization, default 0.75): Controls penalty for long documents. Lower (0.5) for title fields where length is uniform; higher (0.9) for body fields with high length variance. b=0 disables normalization entirely.
+
+**When to tune:** Only after establishing a baseline measurement. Default BM25 parameters are reasonable for most use cases. Tune when analysis shows specific field types are over- or under-weighted.
+
+## Per-Field Similarity Settings
+
+Define custom similarity per field at index creation time:
+
+```json
+PUT product-index/_settings
+{
+  "index.similarity.title_bm25": { "type": "BM25", "k1": 0.8, "b": 0.5 },
+  "index.similarity.body_bm25":  { "type": "BM25", "k1": 1.2, "b": 0.75 }
+}
+```
+
+Then assign in mappings: `"similarity": "title_bm25"`. This is more precise than global parameter changes and is the recommended approach for multi-field search.
+
+## function_score for Business Signals
+
+BM25 handles text relevance. Use `function_score` to blend in business metrics:
+
+- **Popularity:** `field_value_factor` with `modifier: "log1p"` on sales/views/ratings fields
+- **Freshness:** `gauss` decay on date fields (e.g., `scale: "30d"`, `decay: 0.5`)
+- **Geo proximity:** `gauss` decay on `geo_point` fields
+- **Inventory/availability:** `filter` + `weight` for conditional boost (e.g., in-stock x2.0)
+
+**boost_mode** controls how function score combines with query score:
+- `multiply` (default): Preserves relevance ordering, amplifies/dampens
+- `sum`: Additive; can elevate low-relevance docs if function score is high
+- `replace`: Ignores query relevance entirely (rarely appropriate)
+
+## Solr TF-IDF to OpenSearch BM25 Migration
+
+Solr historically defaulted to ClassicSimilarity (TF-IDF). OpenSearch uses BM25 exclusively. Key differences:
+
+- TF-IDF uses raw term frequency; BM25 saturates (diminishing returns via k1)
+- TF-IDF length normalization is simpler; BM25's b parameter gives finer control
+- Documents that ranked well due to high term repetition in Solr may rank differently under BM25
+- **Expect score values to change.** Do not compare raw scores across engines. Compare ranked output using metrics.
+- Solr `bf` (boost function) and `bq` (boost query) map to OpenSearch `function_score` and `bool.should` respectively
+
+## The Baseline-Tune Loop
+
+This is the core methodology. Never skip the baseline.
+
+```
+Measure (run scoring tool against judgment set)
+  -> Log (record score + config state)
+  -> Analyze (identify worst-performing queries)
+  -> Hypothesize (one change at a time)
+  -> Test (compare score delta vs. baseline)
+  -> Decide (promote / discard)
+  -> Report -> Measure (repeat)
+```
+
+**Constraints:**
+- One hypothesis per experiment. Do not bundle changes.
+- Always compare against the original logged baseline, not the prior iteration.
+- Run at sprint cadence. Burst tuning before cutover is a red flag.
+- Maintain a decision log: "Tried synonym expansion on [cluster], hurt nDCG by 0.03 -- discarded."
+
+## Relevance Metrics
+
+| Metric | Use When |
+|--------|----------|
+| **nDCG@10** | Default for most migrations. Handles graded relevance (0-3 scale), position-weighted. |
+| **P@k** | Simpler to explain to stakeholders. Good sanity check alongside nDCG. |
+| **MRR** | "Find the right answer" tasks. Measures rank of first relevant result. |
+| **ERR** | Navigational queries where user stops at first perfect result. |
+
+**For Solr-to-OpenSearch migrations:** Use nDCG@10 as primary metric, P@5 as secondary.
+
+## Judgment Methodology
+
+- Use a 4-point scale: Perfect (3) / Good (2) / Fair (1) / Bad (0). Document what each level means for this product.
+- Select query set from actual analytics: top 100-200 queries by frequency plus representative samples per information-need category.
+- Calibrate with a pilot round (2-3 judges, 20-30 queries). Measure Fleiss' Kappa. If Kappa < 0.4, clarify the rubric before scaling.
+- Separate annotation from hypothesis formation. Judges should not propose tuning changes.
+- Customer analytics decide *which* queries to judge, not *how* to judge them.
+
+## Tooling
+
+| Tool | Role | When |
+|------|------|------|
+| **Quepid** | Interactive relevance exploration, building judgment sets, stakeholder demos | During migration (offline measurement) |
+| **RRE** | Automated regression testing in CI/CD pipelines | Once new engine is in staging |
+| **A/B testing** | Live traffic comparison post-cutover | After migration, not during |
+
+**Quepid workflow:** Create case -> configure search endpoint -> import query set -> set scorer (nDCG@10) -> rate results (0-3) -> export baseline -> clone case for experiments -> compare deltas.
+
+**Export and version-control Quepid case JSON.** Losing it means losing reproducibility.
+
+## Decision Heuristics
+
+- nDCG on new engine < old engine after 3 tuning sprints: escalate. May be schema, scoring, or judgment set problem.
+- Single experiment moves nDCG by > 0.05: verify. That delta is large -- likely a confounding variable.
+- Stakeholders ask for A/B testing before cutover: reframe. A/B is post-cutover. Pre-cutover answer is Quepid + offline judgments.
+- Client has no query analytics: don't start judgments yet. First deliverable is analytics instrumentation.
+- Use the Explain API (`GET index/_explain/doc_id`) to debug why specific documents score unexpectedly.
+
+## sizing
+
+# Sizing and Infrastructure Steering
+
+When recommending OpenSearch cluster sizing for a Solr migration, apply these rules.
+All recommendations must be grounded in the inspected Solr topology and data volumes.
+
+## Shard Sizing Rules
+
+Choose target shard size by workload type:
+
+| Workload | Target Shard Size | Rationale |
+|----------|-------------------|-----------|
+| Search (e-commerce, site search) | 10-30 GB | Smaller shards give better query parallelism and faster failover |
+| Logging / analytics | 30-50 GB | Fewer shards reduce cluster state overhead |
+| Hard ceiling | 50 GB | Beyond this, query performance and recovery time degrade significantly |
+
+When the Solr inspection shows mixed workloads, classify each collection individually
+and size shards per-collection.
+
+## Shard Count Formula
+
+Calculate primary shard count per index:
+
+```
+primary_shards = ceil( (source_data_GB * (1 + growth_factor)) / target_shard_size_GB )
+```
+
+- `source_data_GB`: total data size of the Solr collection (from inspection)
+- `growth_factor`: expected growth over 12-18 months (default 0.5 if unknown)
+- `target_shard_size_GB`: from the table above (use 25 GB as default for search, 40 GB for logs)
+
+Example: A 120 GB Solr product catalog with 50% expected growth:
+```
+primary_shards = ceil( (120 * 1.5) / 25 ) = ceil(7.2) = 8 shards
+```
+
+Validate: total shards across all indices should stay well under 1,000 per node.
+If cluster state exceeds 100 MB (`GET /_cluster/stats`), reduce shard count.
+
+## Replica Strategy
+
+**Production (steady state)**:
+- `number_of_replicas: 1` (2 total copies) is the standard recommendation
+- Ensures HA: one copy survives a single node or AZ failure
+- For critical search workloads needing high read throughput, consider `number_of_replicas: 2`
+
+**During migration / bulk load**:
+- Set `number_of_replicas: 0` to eliminate replication overhead
+- This doubles indexing throughput (single write per document)
+- Restore replicas after bulk load completes:
+  ```json
+  PUT <index>/_settings
+  { "number_of_replicas": 1 }
+  ```
+- Monitor `relocating_shards` in cluster health during replica allocation
+
+Always call out this two-phase approach in migration plans.
+
+## JVM Heap Sizing
+
+- Allocate **50% of available RAM** to JVM heap; the rest goes to OS filesystem cache
+- **Maximum heap: 32 GB** -- beyond this, JVM loses compressed ordinary object pointers (CompressedOops), and effective memory usage worsens
+- Minimum recommended: 16 GB per node (8 GB heap)
+- Sweet spot for most production clusters: 64 GB RAM per node (32 GB heap)
+
+When mapping from Solr:
+- If Solr nodes had N GB heap, recommend the same or slightly more for OpenSearch
+- OpenSearch relies more heavily on OS cache for segment reads, so total RAM matters more than heap alone
+
+## Dedicated Master Nodes
+
+**When to recommend them**:
+- Any production cluster
+- Clusters with more than 3 data nodes
+- Clusters handling concurrent indexing and search
+
+**Configuration**:
+- Always deploy **3 dedicated master nodes** (ensures quorum, prevents split-brain)
+- Use small general-purpose instances (e.g., m5.large or m6g.large)
+- Masters need minimal heap (512 MB - 1 GB) and moderate CPU
+- Distribute across 3 Availability Zones
+
+**What masters do**: cluster state management, shard allocation, index creation.
+They must be isolated from data/search load to keep the cluster stable under pressure.
+
+## Multi-AZ Deployment
+
+**Mandatory for production**:
+- Distribute data nodes across 3 Availability Zones
+- Single AZ failure causes no downtime when replicas exist in other AZs
+- AWS OpenSearch Service applies shard allocation awareness automatically
+
+**Configuration** (self-managed):
+```json
+PUT _cluster/settings
+{
+  "persistent": {
+    "cluster.routing.allocation.awareness.attributes": "zone"
+  }
+}
+```
+
+Cross-AZ replication latency is typically <5 ms within a region.
+
+## Node Role Separation
+
+For clusters beyond ~10 data nodes, separate roles:
+
+| Role | Purpose | When to add |
+|------|---------|-------------|
+| Master | Cluster coordination | Always in production (3 nodes) |
+| Data | Index storage + search | Sized by storage and throughput needs |
+| Coordinating | Query routing, aggregation reduction | Clusters with >20 data nodes or heavy aggregations |
+| Ingest | Pipeline processing | When using complex ingest pipelines (e.g., enrich, grok) |
+
+## Bulk Indexing Tuning
+
+These settings apply during the migration data load phase.
+
+**Batch size**: 5-15 MB per bulk request (not a fixed document count).
+Start with 1,000 docs or 5 MB, measure throughput, adjust upward.
+
+**Concurrency**: 2-4 concurrent bulk requests per data node.
+Example: 8-node cluster = 16-32 concurrent requests.
+
+**Refresh interval**: Disable during bulk load for maximum throughput:
+```json
+PUT <index>/_settings
+{ "index.refresh_interval": "-1" }
+```
+Restore to `"1s"` (or `"30s"` for logs) after load completes.
+
+**Translog**: For throughput-critical migration loads:
+```json
+PUT _cluster/settings
+{
+  "persistent": {
+    "index.translog.durability": "async",
+    "index.translog.sync_interval": "5s"
+  }
+}
+```
+Restore to `"sync"` after migration for data safety.
+
+**Index buffer**: Increase from default 10% to 20-30% of heap for indexing-heavy loads:
+```json
+PUT _cluster/settings
+{ "persistent": { "indices.memory.index_buffer_size": "20%" } }
+```
+
+**Migration load checklist** (include in every migration plan):
+1. Set `refresh_interval: -1`
+2. Set `number_of_replicas: 0`
+3. Use bulk API with 5-15 MB batches
+4. Set translog to async
+5. After load: restore refresh_interval, replicas, and translog durability
+6. Run `_forcemerge?max_num_segments=1` on completed indices
+
+## ISM Lifecycle Patterns
+
+Recommend ISM policies when Solr data has time-series characteristics
+(logs, events, metrics) or when retention management is needed.
+
+**Standard hot/warm/cold/delete pattern**:
+
+| Phase | Age | Actions | Storage |
+|-------|-----|---------|---------|
+| Hot | 0-7 days | Rollover at 50 GB or 1 day; priority 100 | Fast SSD (gp3/io1) |
+| Warm | 7-30 days | Force merge to 1 segment; shrink shards; priority 50 | Standard SSD |
+| Cold | 30-90 days | Searchable snapshot to S3 | S3 (~$0.023/GB/month) |
+| Delete | 90+ days | Delete index | None |
+
+**Rollover configuration** (hybrid approach, recommended):
+```json
+"rollover": {
+  "min_age": "1d",
+  "min_primary_shard_size": "50GB",
+  "min_doc_count": 100000
+}
+```
+Rolls over when ANY condition is met. Prevents both undersized and oversized indices.
+
+**When NOT to recommend ISM**: Static search indices (product catalogs, knowledge bases)
+that don't have time-based retention needs. These use fixed indices, not rollover.
+
+## Storage Configuration
+
+**EBS volumes (AWS)**:
+- **gp3**: Default choice. Baseline 3,000 IOPS, 125 MB/s. Scale up to 16,000 IOPS as needed.
+- **io1**: Only when gp3 cannot meet sustained IOPS requirements.
+
+**Capacity planning**:
+- Calculate total size including replicas: `data_GB * (1 + num_replicas)`
+- Add 30-50% headroom for segment merging overhead
+- Trigger alerts at 20% free space; OpenSearch applies read-only block at 5%
+
+## Monitoring Metrics
+
+Include these monitoring recommendations in every migration plan:
+
+**Critical alerts**:
+- `JVMMemoryPressure` > 85% -- risk of GC pauses, scale up or add nodes
+- `ClusterStatus` = Red -- missing primary shards, investigate immediately
+- `FreeStorageSpace` < 20% -- trigger rollover or archive; read-only block at 5%
+
+**Performance tracking**:
+- `IndexingRate` and `IndexingLatency` -- track during and after migration
+- `SearchRate` and `SearchLatency` (p50, p99) -- compare against Solr baselines
+- `CPUUtilization` sustained > 70% -- indicates undersized cluster
+- `NodeCount` drops -- network or availability issue
+
+**Slow logs** (enable post-migration for query tuning):
+```json
+PUT _settings
+{
+  "index.search.slowlog.threshold.query.warn": "10s",
+  "index.search.slowlog.threshold.query.info": "5s"
+}
+```
+
+## Topology Mapping from Solr
+
+- SolrCloud (ZooKeeper coordination) maps to OpenSearch cluster manager (no external ZK needed)
+- Start with a 1:1 resource mapping from Solr nodes to OpenSearch data nodes as a baseline
+- Adjust based on actual shard sizing calculations above
+- If Solr used overshard (many small shards), consolidate in OpenSearch
+- If Solr had very large shards (>50 GB), split in OpenSearch
+
+## stakeholders
+
+# Stakeholder Steering: Solr-to-OpenSearch Migration
+
+## When NOT to Migrate
+
+Treat these as red flags. Any single one warrants a hard conversation; two or more together mean "don't migrate."
+
+| Signal | Why It Kills the Migration |
+|---|---|
+| Only goal is reducing license/infra costs | OpenSearch has real costs at scale too. Run a cost model first -- the savings may not justify the disruption. |
+| No analytics on the current Solr system | You cannot establish a relevance baseline. You will have no way to prove the migration improved anything. |
+| Less than 2 months to production deadline | Almost always produces a rushed lift-and-shift that degrades search quality and frustrates every stakeholder. |
+| Product owner cannot name top 5 user information needs | The search team lacks direction to make good relevance decisions on either platform. |
+| Existing search is "good enough" by measurable criteria | Migrations disrupt. If the status quo is acceptable, disruption cost likely exceeds benefit. |
+| "Everyone uses Elasticsearch/OpenSearch" is the only rationale | Not a reason. Ask: what does the customer get that they don't have today? |
+| Key knowledge holder is departing with no export plan | Undocumented synonyms, boost rules, and pipeline logic cannot be recreated after that person leaves. Capture first, migrate second. |
+
+**"Don't migrate" is a legitimate assessment outcome.** Say so clearly and in writing.
+
+## Pre-Migration Prerequisites
+
+All must be true before kickoff. Missing items are blockers, not risks.
+
+- [ ] Stakeholder-defined success criteria exist and are quantified (nDCG target, latency budget, cost ceiling)
+- [ ] Project scope, team, and goals are documented and agreed
+- [ ] Path to content access is identified with owner, timeline, and blockers
+- [ ] Query analytics access is confirmed (query logs, click data, engagement signals)
+- [ ] At least 2-4 weeks of real query data available for baseline and judgement sets
+- [ ] Current system architecture documented -- every integration point that calls Solr
+- [ ] Solr-specific capabilities inventoried, especially those without direct OpenSearch equivalents (custom UpdateProcessors, DIH, Carrot2 clustering, CDCR, function queries, join/graph queries)
+- [ ] Target OpenSearch version selected; AWS managed vs. self-managed decision made
+- [ ] Key roles formally assigned (search lead, infra engineer, app engineers, data engineer)
+
+## Stakeholder Concerns and Priorities
+
+### Search Engineer
+- **Primary concern:** Relevance regression. Solr TF-IDF vs OpenSearch BM25 produces different rankings. Expect 3-5% initial degradation on critical queries.
+- **Needs:** Relevance evaluation framework, side-by-side comparison tooling, offline testing of top 1000 queries before cutover.
+- **Risk tolerance:** Low for relevance; moderate for operational change.
+- **Watch for:** Analyzer chain translation gaps, dismax/edismax behavior differences, boost/bq/bf parity.
+
+### Application Developer
+- **Primary concern:** Will my app break? How much code do I rewrite?
+- **Needs:** Clear client library migration path (SolrJ to OpenSearch client), per-app effort estimate (typically 1-2 days), runbooks, fallback plan.
+- **Risk tolerance:** Low for breaking changes; wants fast, bounded migration windows.
+- **Watch for:** Query syntax translation bugs that only surface in production, dynamic field mapping differences.
+
+### DevOps / Platform Engineer
+- **Primary concern:** Operational burden and on-call impact. Will this reduce toil?
+- **Needs:** Managed service benefits quantified (eliminate ZooKeeper, manual shard rebalancing), new monitoring stack (CloudWatch, slow query logs), clear runbooks.
+- **Risk tolerance:** Moderate if operational improvement is demonstrated.
+- **Watch for:** JVM tuning differences, shard allocation strategy, index size growth (expect 10-15% larger than Solr).
+
+### Data Engineer
+- **Primary concern:** Data completeness during migration. Zero document loss.
+- **Needs:** Bulk migration pipeline (Solr to S3 to OpenSearch), dual-write capability, consistency validation (document count match, field content integrity).
+- **Risk tolerance:** Zero for data loss; moderate for timeline.
+- **Watch for:** Writes to Solr during migration window, indexing lag, replication status gaps.
+
+### Architect
+- **Primary concern:** Risk clarity over sales-demo smoothness. Where are the hard problems?
+- **Needs:** Feature gap analysis (especially custom plugins, function queries, join/graph queries), cutover/rollback/failover planning, multi-DC topology mapping.
+- **Risk tolerance:** High for complexity if risks are surfaced honestly.
+- **Watch for:** Features that require redesign rather than translation, operational topology changes, vendor lock-in implications.
+
+### Product Manager
+- **Primary concern:** User-facing impact and timeline predictability.
+- **Needs:** Zero-downtime guarantee, gradual rollout plan (1% canary, then 10/25/50/100%), measurable success criteria tied to business outcomes.
+- **Risk tolerance:** Zero for user-visible degradation; moderate for internal complexity.
+- **Watch for:** Scope creep ("while we're migrating, let's also..."), timeline extensions that erode stakeholder confidence.
+
+## Risk Categories and Mitigations
+
+| Category | Key Risks | Mitigation |
+|---|---|---|
+| **Content Access** | Pipeline doesn't exist; access takes weeks longer than estimated | Put on critical path Day 1. Do not start schema design without real documents. |
+| **Relevance** | Scoring algorithm differences; analyzer chain gaps; boost logic parity | Build evaluation framework pre-migration. Run offline comparison. A/B test before full cutover. |
+| **Timeline** | Under-estimated effort; content delays; goalposts moved | Phased approach with go/no-go gates. Dual-write with percentage-based cutover. |
+| **Knowledge** | Tribal knowledge in Solr config; undocumented synonyms/boosts | Export and document everything before migration begins. Knowledge transfer is a first-class workstream. |
+| **Operational** | New monitoring stack; different failure modes; JVM tuning gaps | Training + runbooks before cutover. Shadow traffic period for operational learning. |
+| **Feature Gap** | Custom plugins, DIH, function queries, graph queries have no 1:1 equivalent | Inventory all Solr capabilities early. Flag redesign-required items as separate workstreams. |
+
+## Success Metrics by Stakeholder
+
+| Stakeholder | Metric | Target |
+|---|---|---|
+| Search Engineer | Relevance (CTR, nDCG) | No degradation > 2% post-migration |
+| Search Engineer | Query latency p50/p95/p99 | Meet or beat Solr baseline |
+| App Developer | Migration effort per app | 1-2 days with runbook support |
+| App Developer | Rollback capability | Instant revert available for 1 week post-cutover |
+| DevOps | Monthly operational hours | < 5 hours (down from 15-20) |
+| DevOps | MTTR | < 30 minutes (down from 2+ hours) |
+| Data Engineer | Document completeness | 100% count match, zero data loss |
+| Data Engineer | Index freshness | < 5 seconds from submission |
+| Architect | Feature coverage | All critical Solr capabilities mapped or redesigned |
+| Product Manager | User-visible downtime | Zero during migration |
+| Product Manager | Search availability | 99.95% uptime post-migration |
+| Finance | Year 1 net cost impact | Positive ROI after operational savings |

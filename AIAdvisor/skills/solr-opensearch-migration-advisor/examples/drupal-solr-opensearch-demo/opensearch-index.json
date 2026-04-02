@@ -1,0 +1,217 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "1s"
+    },
+    "analysis": {
+      "filter": {
+        "drupal_en_stop": {
+          "type": "stop",
+          "stopwords": "_english_"
+        },
+        "drupal_en_stem": {
+          "type": "porter_stem"
+        },
+        "drupal_en_possessive": {
+          "type": "stemmer",
+          "language": "possessive_english"
+        },
+        "drupal_ngram_filter": {
+          "type": "ngram",
+          "min_gram": 3,
+          "max_gram": 15
+        }
+      },
+      "analyzer": {
+        "drupal_text_en": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "drupal_en_stop",
+            "lowercase",
+            "drupal_en_possessive",
+            "drupal_en_stem"
+          ]
+        },
+        "drupal_text_en_search": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "drupal_en_stop",
+            "lowercase",
+            "drupal_en_possessive",
+            "drupal_en_stem"
+          ]
+        },
+        "drupal_text_generic": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase"
+          ]
+        },
+        "drupal_ngram_index": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "drupal_ngram_filter"
+          ]
+        },
+        "drupal_ngram_search": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": true,
+    "properties": {
+      "id": {
+        "type": "keyword"
+      },
+      "index_id": {
+        "type": "keyword"
+      },
+      "timestamp": {
+        "type": "date",
+        "format": "strict_date_optional_time||epoch_millis"
+      },
+      "site": {
+        "type": "keyword"
+      },
+      "hash": {
+        "type": "keyword"
+      },
+      "spell": {
+        "type": "text",
+        "analyzer": "drupal_text_en",
+        "search_analyzer": "drupal_text_en_search"
+      }
+    },
+    "dynamic_templates": [
+      {
+        "tm_x3_en_text": {
+          "match": "tm_X3_en_*",
+          "mapping": {
+            "type": "text",
+            "analyzer": "drupal_text_en",
+            "search_analyzer": "drupal_text_en_search",
+            "copy_to": "spell"
+          }
+        }
+      },
+      {
+        "ts_x3_en_text": {
+          "match": "ts_X3_en_*",
+          "mapping": {
+            "type": "text",
+            "analyzer": "drupal_text_en",
+            "search_analyzer": "drupal_text_en_search",
+            "copy_to": "spell"
+          }
+        }
+      },
+      {
+        "tm_generic_text": {
+          "match": "tm_*",
+          "mapping": {
+            "type": "text",
+            "analyzer": "drupal_text_generic"
+          }
+        }
+      },
+      {
+        "ts_generic_text": {
+          "match": "ts_*",
+          "mapping": {
+            "type": "text",
+            "analyzer": "drupal_text_generic"
+          }
+        }
+      },
+      {
+        "tw_ngram_text": {
+          "match": "tw_*",
+          "mapping": {
+            "type": "text",
+            "analyzer": "drupal_ngram_index",
+            "search_analyzer": "drupal_ngram_search"
+          }
+        }
+      },
+      {
+        "ss_keyword": {
+          "match": "ss_*",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "sm_keyword": {
+          "match": "sm_*",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "is_integer": {
+          "match": "is_*",
+          "mapping": {
+            "type": "integer"
+          }
+        }
+      },
+      {
+        "im_integer": {
+          "match": "im_*",
+          "mapping": {
+            "type": "integer"
+          }
+        }
+      },
+      {
+        "bs_boolean": {
+          "match": "bs_*",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "bm_boolean": {
+          "match": "bm_*",
+          "mapping": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "ds_date": {
+          "match": "ds_*",
+          "mapping": {
+            "type": "date",
+            "format": "strict_date_optional_time||epoch_millis"
+          }
+        }
+      },
+      {
+        "dm_date": {
+          "match": "dm_*",
+          "mapping": {
+            "type": "date",
+            "format": "strict_date_optional_time||epoch_millis"
+          }
+        }
+      }
+    ]
+  }
+}

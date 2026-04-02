@@ -1,0 +1,116 @@
+- description: Legacy Solr 4.x with Custom Java Components
+  vars:
+    scenario: Client has Solr 4.10, 20 collections, 500GB data, and heavy custom Java search components. They want to migrate to AWS OpenSearch Service quickly.
+  metadata:
+    scenario_id: legacy-solr4-custom-components
+    expectations:
+      - Must discourage simple lift-and-shift porting of XML configsets and custom Java logic.
+      - Must identify custom components as a redesign or archaeology risk.
+      - Must recommend staged validation rather than direct cutover.
+    keyword_assertions:
+      - BM25
+      - shadow
+      - refactor
+
+- description: Drupal Search API with Low Operational Overhead
+  vars:
+    scenario: Small business e-commerce site using Drupal Search API Solr. They want a low-cost managed migration path to OpenSearch with minimal developer overhead.
+  metadata:
+    scenario_id: drupal-search-api-low-resource
+    expectations:
+      - Should favor a simple managed target posture rather than over-engineered migration mechanics.
+      - Should mention the Drupal application integration angle, not only engine-side mapping.
+      - Should keep scope bounded and cost-aware.
+    keyword_assertions:
+      - Drupal
+      - managed
+      - scope
+
+- description: Relevance-Critical Commerce Migration
+  vars:
+    scenario: E-commerce client where search conversion is critical and stakeholders are afraid a Solr to OpenSearch migration will break their finely tuned relevance.
+  metadata:
+    scenario_id: commerce-relevance-critical
+    expectations:
+      - Must recommend a formal relevance validation phase.
+      - Must mention BM25 vs TF-IDF differences explicitly.
+      - Must require judged evaluation or an equivalent evidence-based relevance process.
+    keyword_assertions:
+      - Quepid
+      - judgment
+      - BM25
+
+- description: Enterprise Migration with Hidden Consumers
+  vars:
+    scenario: Large enterprise uses Solr for customer search, internal admin tools, and nightly reporting jobs. The main web app is known, but secondary consumers are poorly documented.
+  metadata:
+    scenario_id: multi-consumer-enterprise
+    expectations:
+      - Must call out hidden consumers as a migration risk.
+      - Must recommend a consumer inventory before cutover planning.
+      - Must frame the problem as partly application/platform integration, not only engine migration.
+    keyword_assertions:
+      - consumer inventory
+      - admin
+      - reporting
+
+- description: Near-Real-Time Freshness Sensitive Workload
+  vars:
+    scenario: Product catalog search requires minute-level freshness for inventory deltas. Historical backfill is large, but stale availability during migration would be unacceptable.
+  metadata:
+    scenario_id: near-real-time-freshness
+    expectations:
+      - Must distinguish backfill from freshness validation.
+      - Should discuss dual-write or replay strategy only if justified by freshness needs.
+      - Must require rollback or guardrails around freshness during rollout.
+    keyword_assertions:
+      - freshness
+      - dual-write
+      - rollback
+
+- description: TechProducts Full 8-Step Technical Migration
+  vars:
+    scenario: "Search engineer migrating a Spring Boot app's product catalog from Solr to OpenSearch on AWS. Uses TechProducts-style schema: 15 explicit fields, 7 dynamic patterns, text_general analyzer with synonyms (hard disk/hard drive, ipod/portable music player). 5 query patterns: eDisMax keyword search with field boosts, stock filter, price range, category facets, combined query. SolrCloud with 3 nodes, 1 collection, 3 shards, RF=2. 500MB index, 200 QPS peak. SolrJ client in Spring Boot 3.x. Basic auth, no custom plugins."
+  metadata:
+    scenario_id: techproducts-full-workflow
+    expectations:
+      - Must map all 15 fields correctly (id->keyword, name->text, store->geo_point, etc.)
+      - Must convert analyzer chain: StandardTokenizer + LowerCaseFilter + StopFilter for index, add SynonymGraphFilter for query
+      - Must convert copyField directives to copy_to
+      - Must translate eDisMax to multi_match with field boosts
+      - Must translate fq to bool.filter clauses
+      - Must translate facet.field to terms aggregation and note .keyword sub-field needed
+      - Must flag TF-IDF to BM25 scoring difference as high-severity behavioral incompatibility
+      - Must flag cat field needs multi-field mapping for both search and faceting
+      - Must recommend SolrJ -> opensearch-java client migration
+      - Must provide infrastructure sizing appropriate for 500MB/200QPS (not oversized)
+    keyword_assertions:
+      - BM25
+      - synonym
+      - multi_match
+      - copy_to
+      - geo_point
+      - opensearch-java
+
+- description: Drupal Solr->OpenSearch Strategic Judgment and Module Swap
+  vars:
+    scenario: Non-technical small business owner (Daphne) with a Drupal e-commerce site. Developer Carlos handles technical work. Using search_api_solr with ~200 machine-generated fields, facets module, search_api_autocomplete. Multilingual content (English + Spanish). Single standalone Solr server, ~2000 products, ~50 searches/day. Wants cheapest AWS option. Related products feature (possibly MLT). Views integration for search results.
+  metadata:
+    scenario_id: drupal-full-workflow
+    expectations:
+      - "CRITICAL: Must recommend module swap (search_api_solr -> search_api_opensearch), NOT raw schema conversion"
+      - Must NOT attempt line-by-line conversion of Drupal's machine-generated schema.xml
+      - Must use non-technical language appropriate for a business owner
+      - Must flag autocomplete as likely to need extra setup or break
+      - Must flag multilingual (Spanish) analyzer compatibility concern
+      - Must flag search_api_opensearch module maturity as a risk
+      - Must provide realistic cost estimates (t3.small ~$25/mo, not r6g.large)
+      - Must recommend testing top 5 customer searches before/after migration
+      - Must frame migration as decisions for Daphne and tasks for Carlos
+      - Must NOT use unexplained jargon (BM25, eDisMax, dynamic_templates without context)
+    keyword_assertions:
+      - module
+      - Drupal
+      - autocomplete
+      - multilingual
+      - Carlos

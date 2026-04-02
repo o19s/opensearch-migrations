@@ -1,0 +1,654 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Migration Advisor — 4-Tier Report Quality Eval</title>
+    <style>
+      body {
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        text-align: left;
+        word-break: break-all;
+      }
+      th,
+      td {
+        padding: 5px;
+        min-width: 200px;
+        white-space: pre-wrap;
+        vertical-align: top;
+      }
+
+      tr > td[data-content^='[PASS]'] {
+        color: green;
+      }
+      tr > td[data-content^='[FAIL]'] {
+        color: #ad0000;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        
+        <th>query</th>
+        
+        <th>[T4 LLM + MCP Tools] Full migration report request</th>
+        
+      </thead>
+      <tbody>
+        
+        <tr>
+          
+          <td data-content="I am a Search Engineer migrating from Solr to OpenSearch.
+
+Here is my Solr schema:
+&lt;schema name=&quot;ecommerce&quot; version=&quot;1.6&quot;&gt;
+  &lt;fieldType name=&quot;string&quot; class=&quot;solr.StrField&quot; sortMissingLast=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pint&quot; class=&quot;solr.IntPointField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;text_general&quot; class=&quot;solr.TextField&quot; positionIncrementGap=&quot;100&quot;&gt;
+    &lt;analyzer type=&quot;index&quot;&gt;
+      &lt;tokenizer class=&quot;solr.StandardTokenizerFactory&quot;/&gt;
+      &lt;filter class=&quot;solr.LowerCaseFilterFactory&quot;/&gt;
+    &lt;/analyzer&gt;
+  &lt;/fieldType&gt;
+  &lt;fieldType name=&quot;location&quot; class=&quot;solr.LatLonPointSpatialField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pdate&quot; class=&quot;solr.DatePointField&quot; docValues=&quot;true&quot;/&gt;
+
+  &lt;field name=&quot;id&quot; type=&quot;string&quot; indexed=&quot;true&quot; stored=&quot;true&quot; required=&quot;true&quot;/&gt;
+  &lt;field name=&quot;title&quot; type=&quot;text_general&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;price&quot; type=&quot;pint&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;location&quot; type=&quot;location&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;created_at&quot; type=&quot;pdate&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;copyField source=&quot;title&quot; dest=&quot;title_sort&quot;/&gt;
+&lt;/schema&gt;
+
+Here are my representative queries:
+- title:opensearch AND price:[10 TO 100]
+
+I use SolrJ as my client library.
+
+Please convert the schema, translate the queries, and generate
+a complete migration report including the stage plan.
+">I am a Search Engineer migrating from Solr to OpenSearch.
+
+Here is my Solr schema:
+&lt;schema name=&quot;ecommerce&quot; version=&quot;1.6&quot;&gt;
+  &lt;fieldType name=&quot;string&quot; class=&quot;solr.StrField&quot; sortMissingLast=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pint&quot; class=&quot;solr.IntPointField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;text_general&quot; class=&quot;solr.TextField&quot; positionIncrementGap=&quot;100&quot;&gt;
+    &lt;analyzer type=&quot;index&quot;&gt;
+      &lt;tokenizer class=&quot;solr.StandardTokenizerFactory&quot;/&gt;
+      &lt;filter class=&quot;solr.LowerCaseFilterFactory&quot;/&gt;
+    &lt;/analyzer&gt;
+  &lt;/fieldType&gt;
+  &lt;fieldType name=&quot;location&quot; class=&quot;solr.LatLonPointSpatialField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pdate&quot; class=&quot;solr.DatePointField&quot; docValues=&quot;true&quot;/&gt;
+
+  &lt;field name=&quot;id&quot; type=&quot;string&quot; indexed=&quot;true&quot; stored=&quot;true&quot; required=&quot;true&quot;/&gt;
+  &lt;field name=&quot;title&quot; type=&quot;text_general&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;price&quot; type=&quot;pint&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;location&quot; type=&quot;location&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;created_at&quot; type=&quot;pdate&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;copyField source=&quot;title&quot; dest=&quot;title_sort&quot;/&gt;
+&lt;/schema&gt;
+
+Here are my representative queries:
+- title:opensearch AND price:[10 TO 100]
+
+I use SolrJ as my client library.
+
+Please convert the schema, translate the queries, and generate
+a complete migration report including the stage plan.
+</td>
+          
+          <td data-content="[PASS] (1.00, spatial_mapping: 1.00, string_mapping: 1.00, int_mapping: 1.00, date_mapping: 1.00, report_present: 1.00, has_incompatibilities_section: 1.00, has_client_section: 1.00, has_migration_plan: 1.00, has_phased_plan: 1.00, has_blockers_or_risks: 1.00, has_actionable_items: 1.00, has_cost_or_effort: 1.00, plan_has_validation_step: 1.00, plan_has_verification: 1.00, plan_has_rollback_awareness: 1.00, copyfield_flagged: 1.00, client_integration_mentioned: 1.00)
+
+{&quot;output&quot;: &quot;# Solr → OpenSearch Migration Report: `ecommerce` Index
+
+## 1. Stakeholder Profile
+
+**Role:** Search Engineer
+**Primary concern:** Relevance regression, analyzer chain fidelity, query parity.
+
+---
+
+## 2. Schema Conversion
+
+### Solr Field Type → OpenSearch Mapping
+
+| Solr Field | Solr Type | OpenSearch Type | Notes |
+|---|---|---|---|
+| `id` | `solr.StrField` | `keyword` | Exact match; also used as `_id` |
+| `title` | `text_general` (StandardTokenizer + LowerCase) | `text` | Custom analyzer required |
+| `price` | `solr.IntPointField` | `integer` | `doc_values: true` by default in OS |
+| `location` | `solr.LatLonPointSpatialField` | `geo_point` | Coordinate format difference — see incompatibilities |
+| `created_at` | `solr.DatePointField` | `date` | ISO 8601 format |
+| `title_sort` | (copyField target from `title`) | `keyword` (via `copy_to`) | Used for sorting on title |
+
+### OpenSearch Index Mapping
+
+```json
+{
+  &#92;&quot;settings&#92;&quot;: {
+    &#92;&quot;analysis&#92;&quot;: {
+      &#92;&quot;analyzer&#92;&quot;: {
+        &#92;&quot;text_general&#92;&quot;: {
+          &#92;&quot;type&#92;&quot;: &#92;&quot;custom&#92;&quot;,
+          &#92;&quot;tokenizer&#92;&quot;: &#92;&quot;standard&#92;&quot;,
+          &#92;&quot;filter&#92;&quot;: [&#92;&quot;lowercase&#92;&quot;]
+        }
+      }
+    }
+  },
+  &#92;&quot;mappings&#92;&quot;: {
+    &#92;&quot;properties&#92;&quot;: {
+      &#92;&quot;id&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;keyword&#92;&quot;
+      },
+      &#92;&quot;title&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;text&#92;&quot;,
+        &#92;&quot;analyzer&#92;&quot;: &#92;&quot;text_general&#92;&quot;,
+        &#92;&quot;copy_to&#92;&quot;: &#92;&quot;title_sort&#92;&quot;
+      },
+      &#92;&quot;title_sort&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;keyword&#92;&quot;
+      },
+      &#92;&quot;price&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;integer&#92;&quot;
+      },
+      &#92;&quot;location&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;geo_point&#92;&quot;
+      },
+      &#92;&quot;created_at&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;date&#92;&quot;
+      }
+    }
+  }
+}
+```
+
+**Key decisions:**
+- The `text_general` analyzer is explicitly recreated in `settings.analysis` to preserve the index-time StandardTokenizer + LowerCase chain. OpenSearch&#39;s built-in `standard` analyzer is equivalent here, but making it explicit avoids silent drift.
+- `title_sort` is declared as `keyword` (for sorting) and populated via `copy_to` on `title`. In Solr this was a `copyField`; OpenSearch `copy_to` is per-field only (no wildcards).
+- `doc_values` is enabled by default for `keyword`, `integer`, `date`, and `geo_point` in OpenSearch, so no explicit setting needed (Solr required explicit `docValues=&#92;&quot;true&#92;&quot;`).
+
+---
+
+## 3. Query Translation
+
+### Input: `title:opensearch AND price:[10 TO 100]`
+
+**OpenSearch Query DSL:**
+
+```json
+{
+  &#92;&quot;query&#92;&quot;: {
+    &#92;&quot;bool&#92;&quot;: {
+      &#92;&quot;must&#92;&quot;: [
+        { &#92;&quot;match&#92;&quot;: { &#92;&quot;title&#92;&quot;: &#92;&quot;opensearch&#92;&quot; } },
+        { &#92;&quot;range&#92;&quot;: { &#92;&quot;price&#92;&quot;: { &#92;&quot;gte&#92;&quot;: 10, &#92;&quot;lte&#92;&quot;: 100 } } }
+      ]
+    }
+  }
+}
+```
+
+**Translation notes:**
+- `title:opensearch` → `match` query (analyzed field, not `term`).
+- `price:[10 TO 100]` → `range` with inclusive bounds (`[` = `gte`, `]` = `lte`).
+- Solr `AND` → `bool.must`. Both clauses contribute to scoring; if the `price` range should be non-scoring, move it to `bool.filter`:
+
+```json
+{
+  &#92;&quot;query&#92;&quot;: {
+    &#92;&quot;bool&#92;&quot;: {
+      &#92;&quot;must&#92;&quot;: [
+        { &#92;&quot;match&#92;&quot;: { &#92;&quot;title&#92;&quot;: &#92;&quot;opensearch&#92;&quot; } }
+      ],
+      &#92;&quot;filter&#92;&quot;: [
+        { &#92;&quot;range&#92;&quot;: { &#92;&quot;price&#92;&quot;: { &#92;&quot;gte&#92;&quot;: 10, &#92;&quot;lte&#92;&quot;: 100 } } }
+      ]
+    }
+  }
+}
+```
+
+This filter-based version is recommended — range on `price` is a binary filter, not a relevance signal. It also enables OpenSearch filter caching.
+
+---
+
+## 4. Incompatibilities Detected
+
+| # | Issue | Severity | Remediation |
+|---|---|---|---|
+| 1 | **Scoring: TF-IDF → BM25** | Behavioral | Solr defaults to TF-IDF; OpenSearch uses BM25. Expect ranking differences, especially for documents with high term repetition in `title`. Establish a relevance baseline on Solr before cutover. Compare top-10 overlap using nDCG@10. Tune BM25 `k1`/`b` per-field if needed. |
+| 2 | **Geo coordinate format** | Breaking | Solr `LatLonPointSpatialField` uses `lat,lon` string format. OpenSearch `geo_point` accepts `&#92;&quot;lat,lon&#92;&quot;` strings, `{&#92;&quot;lat&#92;&quot;:x,&#92;&quot;lon&#92;&quot;:y}` objects, or `[lon,lat]` GeoJSON arrays. If your documents use `lat,lon` strings, they index correctly. But if any spatial queries use GeoJSON, note the **reversed** `[lon,lat]` order. |
+| 3 | **Commit/refresh semantics** | Behavioral | Solr soft commit ≈ OpenSearch refresh. Default `refresh_interval` is `1s`, so documents aren&#39;t instantly searchable after indexing. For near-real-time needs, configure explicitly. |
+| 4 | **`copyField` → `copy_to` limitations** | Behavioral | Solr `copyField` supports wildcard sources; OpenSearch `copy_to` is per-field only. Your schema has a single explicit `copyField` so this is not a problem here, but note the limitation for future schema evolution. |
+| 5 | **Admin UI / Monitoring** | Behavioral | Solr Admin UI has no OpenSearch equivalent. Deploy OpenSearch Dashboards and set up monitoring (see Stage Plan). |
+
+---
+
+## 5. Client Migration: SolrJ → opensearch-java
+
+**Dependency change:**
+```xml
+&lt;!-- Remove --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.apache.solr&lt;/groupId&gt;
+  &lt;artifactId&gt;solr-solrj&lt;/artifactId&gt;
+&lt;/dependency&gt;
+
+&lt;!-- Add --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.opensearch.client&lt;/groupId&gt;
+  &lt;artifactId&gt;opensearch-java&lt;/artifactId&gt;
+  &lt;version&gt;2.18.0&lt;/version&gt;
+&lt;/dependency&gt;
+```
+
+**Client initialization:**
+
+```java
+// Before (SolrJ)
+SolrClient solrClient = new HttpSolrClient.Builder(
+    &#92;&quot;http://localhost:8983/solr/ecommerce&#92;&quot;
+).build();
+
+// After (opensearch-java)
+RestClientTransport transport = new RestClientTransport(
+    RestClient.builder(new HttpHost(&#92;&quot;localhost&#92;&quot;, 9200)).build(),
+    new JacksonJsonpMapper()
+);
+OpenSearchClient client = new OpenSearchClient(transport);
+```
+
+**Query rewrite:**
+
+```java
+// Before (SolrJ)
+SolrQuery query = new SolrQuery(&#92;&quot;title:opensearch AND price:[10 TO 100]&#92;&quot;);
+QueryResponse response = solrClient.query(query);
+
+// After (opensearch-java)
+SearchResponse&lt;Product&gt; response = client.search(s -&gt; s
+    .index(&#92;&quot;ecommerce&#92;&quot;)
+    .query(q -&gt; q.bool(b -&gt; b
+        .must(m -&gt; m.match(mt -&gt; mt.field(&#92;&quot;title&#92;&quot;).query(&#92;&quot;opensearch&#92;&quot;)))
+        .filter(f -&gt; f.range(r -&gt; r.field(&#92;&quot;price&#92;&quot;).gte(JsonData.of(10)).lte(JsonData.of(100))))
+    )),
+    Product.class
+);
+```
+
+**Key differences:**
+- SolrJ uses query strings; opensearch-java uses type-safe DSL builders. **Full rewrite required** — no backward compatibility.
+- ZooKeeper-based discovery is replaced by a static host list (or sniffing).
+- Connection pooling: explicitly configure `maxConnPerRoute` and `maxConnTotal` on the `RestClient` to match your application&#39;s concurrency level.
+- Create **one client instance** per service and reuse it. Never create per-request.
+
+---
+
+## 6. Relevance Migration Plan
+
+1. **Establish baseline on Solr** — Run your top 100-200 queries through Solr, capture top-10 results. Use Quepid or export to a judgment set.
+2. **Measure on OpenSearch** — Run the same queries against OpenSearch with default BM25. Compute nDCG@10 and top-10 overlap.
+3. **Tune if needed** — For the `title` field (short, uniform-length), consider `k1=0.8, b=0.5`:
+   ```json
+   {
+     &#92;&quot;settings&#92;&quot;: {
+       &#92;&quot;index.similarity.title_bm25&#92;&quot;: {
+         &#92;&quot;type&#92;&quot;: &#92;&quot;BM25&#92;&quot;, &#92;&quot;k1&#92;&quot;: 0.8, &#92;&quot;b&#92;&quot;: 0.5
+       }
+     }
+   }
+   ```
+4. **Run shadow queries** for 2-4 weeks before cutover, comparing top-10 overlap.
+5. **Target:** No relevance degradation &gt; 2% on nDCG@10.
+
+---
+
+## 7. Stage Plan
+
+### Stage 0: Prerequisites (Week 1)
+- [ ] Confirm query analytics access (query logs, click data)
+- [ ] Document all integration points that call Solr
+- [ ] Select target: AWS OpenSearch Service (managed) vs. self-managed
+- [ ] Assign key roles: search lead, infra engineer, app engineers
+
+### Stage 1: Index Creation &amp; Validation (Week 2)
+- [ ] Create OpenSearch index with mapping above
+- [ ] Validate analyzer chain: `POST ecommerce/_analyze` with sample `title` values
+- [ ] Verify `geo_point` field accepts your existing coordinate format
+- [ ] Confirm `copy_to` populates `title_sort` correctly
+
+### Stage 2: Data Migration (Weeks 2-3)
+- [ ] Set `refresh_interval: -1` and `number_of_replicas: 0` for bulk load
+- [ ] Export documents from Solr (Solr export handler or cursor-based fetch)
+- [ ] Bulk index into OpenSearch (5-15 MB batches, 2-4 concurrent requests per node)
+- [ ] Restore `refresh_interval: 1s` and `number_of_replicas: 1`
+- [ ] Run `_forcemerge?max_num_segments=1`
+- [ ] Validate: document count match, spot-check field content
+
+### Stage 3: Query Migration &amp; Relevance (Weeks 3-4)
+- [ ] Rewrite all SolrJ query code to opensearch-java DSL
+- [ ] Establish relevance baseline on Solr (nDCG@10 on top queries)
+- [ ] Run same queries against OpenSearch, compare results
+- [ ] Tune BM25 parameters if nDCG delta &gt; 2%
+
+### Stage 4: Infrastructure &amp; Monitoring (Week 4)
+- [ ] Deploy OpenSearch Dashboards
+- [ ] Configure monitoring: JVM memory pressure, cluster health, search/index latency
+- [ ] Enable slow query logs (`warn: 10s`, `info: 5s`)
+- [ ] Set up alerts: cluster red, free storage &lt; 20%, JVM pressure &gt; 85%
+
+### Stage 5: Cutover (Week 5)
+- [ ] Dual-write to both Solr and OpenSearch
+- [ ] Shadow traffic: route read queries to both, compare responses
+- [ ] Canary rollout: 1% → 10% → 25% → 50% → 100%
+- [ ] Keep Solr running for 1 week post-cutover as rollback safety net
+- [ ] Decommission Solr after confidence period
+
+---
+
+## 8. Migration Checklist Summary
+
+| Item | Status |
+|---|---|
+| Schema converted | Done (see Section 2) |
+| Analyzer chains translated | Done (`text_general`: standard + lowercase) |
+| `copyField` → `copy_to` mapped | Done (`title` → `title_sort`) |
+| Queries translated | Done (see Section 3) |
+| Incompatibilities documented | 5 found, 0 blockers (see Section 4) |
+| Client library migration path | SolrJ → opensearch-java 2.18.0 (see Section 5) |
+| Relevance plan | Baseline → compare → tune loop (see Section 6) |
+| Stage plan | 5 stages, ~5 weeks (see Section 7) |
+
+**Overall assessment:** This is a straightforward migration. The schema is small, uses standard types, and has no custom plugins or complex features (no nested documents, joins, function queries, or custom request handlers). The main risk is the TF-IDF → BM25 behavioral change on relevance — address this with baseline measurement before cutover.&quot;}
+
+Pass Reason: All assertions passed">[PASS] (1.00, spatial_mapping: 1.00, string_mapping: 1.00, int_mapping: 1.00, date_mapping: 1.00, report_present: 1.00, has_incompatibilities_section: 1.00, has_client_section: 1.00, has_migration_plan: 1.00, has_phased_plan: 1.00, has_blockers_or_risks: 1.00, has_actionable_items: 1.00, has_cost_or_effort: 1.00, plan_has_validation_step: 1.00, plan_has_verification: 1.00, plan_has_rollback_awareness: 1.00, copyfield_flagged: 1.00, client_integration_mentioned: 1.00)
+
+{&quot;output&quot;: &quot;# Solr → OpenSearch Migration Report: `ecommerce` Index
+
+## 1. Stakeholder Profile
+
+**Role:** Search Engineer
+**Primary concern:** Relevance regression, analyzer chain fidelity, query parity.
+
+---
+
+## 2. Schema Conversion
+
+### Solr Field Type → OpenSearch Mapping
+
+| Solr Field | Solr Type | OpenSearch Type | Notes |
+|---|---|---|---|
+| `id` | `solr.StrField` | `keyword` | Exact match; also used as `_id` |
+| `title` | `text_general` (StandardTokenizer + LowerCase) | `text` | Custom analyzer required |
+| `price` | `solr.IntPointField` | `integer` | `doc_values: true` by default in OS |
+| `location` | `solr.LatLonPointSpatialField` | `geo_point` | Coordinate format difference — see incompatibilities |
+| `created_at` | `solr.DatePointField` | `date` | ISO 8601 format |
+| `title_sort` | (copyField target from `title`) | `keyword` (via `copy_to`) | Used for sorting on title |
+
+### OpenSearch Index Mapping
+
+```json
+{
+  &#92;&quot;settings&#92;&quot;: {
+    &#92;&quot;analysis&#92;&quot;: {
+      &#92;&quot;analyzer&#92;&quot;: {
+        &#92;&quot;text_general&#92;&quot;: {
+          &#92;&quot;type&#92;&quot;: &#92;&quot;custom&#92;&quot;,
+          &#92;&quot;tokenizer&#92;&quot;: &#92;&quot;standard&#92;&quot;,
+          &#92;&quot;filter&#92;&quot;: [&#92;&quot;lowercase&#92;&quot;]
+        }
+      }
+    }
+  },
+  &#92;&quot;mappings&#92;&quot;: {
+    &#92;&quot;properties&#92;&quot;: {
+      &#92;&quot;id&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;keyword&#92;&quot;
+      },
+      &#92;&quot;title&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;text&#92;&quot;,
+        &#92;&quot;analyzer&#92;&quot;: &#92;&quot;text_general&#92;&quot;,
+        &#92;&quot;copy_to&#92;&quot;: &#92;&quot;title_sort&#92;&quot;
+      },
+      &#92;&quot;title_sort&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;keyword&#92;&quot;
+      },
+      &#92;&quot;price&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;integer&#92;&quot;
+      },
+      &#92;&quot;location&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;geo_point&#92;&quot;
+      },
+      &#92;&quot;created_at&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;date&#92;&quot;
+      }
+    }
+  }
+}
+```
+
+**Key decisions:**
+- The `text_general` analyzer is explicitly recreated in `settings.analysis` to preserve the index-time StandardTokenizer + LowerCase chain. OpenSearch&#39;s built-in `standard` analyzer is equivalent here, but making it explicit avoids silent drift.
+- `title_sort` is declared as `keyword` (for sorting) and populated via `copy_to` on `title`. In Solr this was a `copyField`; OpenSearch `copy_to` is per-field only (no wildcards).
+- `doc_values` is enabled by default for `keyword`, `integer`, `date`, and `geo_point` in OpenSearch, so no explicit setting needed (Solr required explicit `docValues=&#92;&quot;true&#92;&quot;`).
+
+---
+
+## 3. Query Translation
+
+### Input: `title:opensearch AND price:[10 TO 100]`
+
+**OpenSearch Query DSL:**
+
+```json
+{
+  &#92;&quot;query&#92;&quot;: {
+    &#92;&quot;bool&#92;&quot;: {
+      &#92;&quot;must&#92;&quot;: [
+        { &#92;&quot;match&#92;&quot;: { &#92;&quot;title&#92;&quot;: &#92;&quot;opensearch&#92;&quot; } },
+        { &#92;&quot;range&#92;&quot;: { &#92;&quot;price&#92;&quot;: { &#92;&quot;gte&#92;&quot;: 10, &#92;&quot;lte&#92;&quot;: 100 } } }
+      ]
+    }
+  }
+}
+```
+
+**Translation notes:**
+- `title:opensearch` → `match` query (analyzed field, not `term`).
+- `price:[10 TO 100]` → `range` with inclusive bounds (`[` = `gte`, `]` = `lte`).
+- Solr `AND` → `bool.must`. Both clauses contribute to scoring; if the `price` range should be non-scoring, move it to `bool.filter`:
+
+```json
+{
+  &#92;&quot;query&#92;&quot;: {
+    &#92;&quot;bool&#92;&quot;: {
+      &#92;&quot;must&#92;&quot;: [
+        { &#92;&quot;match&#92;&quot;: { &#92;&quot;title&#92;&quot;: &#92;&quot;opensearch&#92;&quot; } }
+      ],
+      &#92;&quot;filter&#92;&quot;: [
+        { &#92;&quot;range&#92;&quot;: { &#92;&quot;price&#92;&quot;: { &#92;&quot;gte&#92;&quot;: 10, &#92;&quot;lte&#92;&quot;: 100 } } }
+      ]
+    }
+  }
+}
+```
+
+This filter-based version is recommended — range on `price` is a binary filter, not a relevance signal. It also enables OpenSearch filter caching.
+
+---
+
+## 4. Incompatibilities Detected
+
+| # | Issue | Severity | Remediation |
+|---|---|---|---|
+| 1 | **Scoring: TF-IDF → BM25** | Behavioral | Solr defaults to TF-IDF; OpenSearch uses BM25. Expect ranking differences, especially for documents with high term repetition in `title`. Establish a relevance baseline on Solr before cutover. Compare top-10 overlap using nDCG@10. Tune BM25 `k1`/`b` per-field if needed. |
+| 2 | **Geo coordinate format** | Breaking | Solr `LatLonPointSpatialField` uses `lat,lon` string format. OpenSearch `geo_point` accepts `&#92;&quot;lat,lon&#92;&quot;` strings, `{&#92;&quot;lat&#92;&quot;:x,&#92;&quot;lon&#92;&quot;:y}` objects, or `[lon,lat]` GeoJSON arrays. If your documents use `lat,lon` strings, they index correctly. But if any spatial queries use GeoJSON, note the **reversed** `[lon,lat]` order. |
+| 3 | **Commit/refresh semantics** | Behavioral | Solr soft commit ≈ OpenSearch refresh. Default `refresh_interval` is `1s`, so documents aren&#39;t instantly searchable after indexing. For near-real-time needs, configure explicitly. |
+| 4 | **`copyField` → `copy_to` limitations** | Behavioral | Solr `copyField` supports wildcard sources; OpenSearch `copy_to` is per-field only. Your schema has a single explicit `copyField` so this is not a problem here, but note the limitation for future schema evolution. |
+| 5 | **Admin UI / Monitoring** | Behavioral | Solr Admin UI has no OpenSearch equivalent. Deploy OpenSearch Dashboards and set up monitoring (see Stage Plan). |
+
+---
+
+## 5. Client Migration: SolrJ → opensearch-java
+
+**Dependency change:**
+```xml
+&lt;!-- Remove --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.apache.solr&lt;/groupId&gt;
+  &lt;artifactId&gt;solr-solrj&lt;/artifactId&gt;
+&lt;/dependency&gt;
+
+&lt;!-- Add --&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.opensearch.client&lt;/groupId&gt;
+  &lt;artifactId&gt;opensearch-java&lt;/artifactId&gt;
+  &lt;version&gt;2.18.0&lt;/version&gt;
+&lt;/dependency&gt;
+```
+
+**Client initialization:**
+
+```java
+// Before (SolrJ)
+SolrClient solrClient = new HttpSolrClient.Builder(
+    &#92;&quot;http://localhost:8983/solr/ecommerce&#92;&quot;
+).build();
+
+// After (opensearch-java)
+RestClientTransport transport = new RestClientTransport(
+    RestClient.builder(new HttpHost(&#92;&quot;localhost&#92;&quot;, 9200)).build(),
+    new JacksonJsonpMapper()
+);
+OpenSearchClient client = new OpenSearchClient(transport);
+```
+
+**Query rewrite:**
+
+```java
+// Before (SolrJ)
+SolrQuery query = new SolrQuery(&#92;&quot;title:opensearch AND price:[10 TO 100]&#92;&quot;);
+QueryResponse response = solrClient.query(query);
+
+// After (opensearch-java)
+SearchResponse&lt;Product&gt; response = client.search(s -&gt; s
+    .index(&#92;&quot;ecommerce&#92;&quot;)
+    .query(q -&gt; q.bool(b -&gt; b
+        .must(m -&gt; m.match(mt -&gt; mt.field(&#92;&quot;title&#92;&quot;).query(&#92;&quot;opensearch&#92;&quot;)))
+        .filter(f -&gt; f.range(r -&gt; r.field(&#92;&quot;price&#92;&quot;).gte(JsonData.of(10)).lte(JsonData.of(100))))
+    )),
+    Product.class
+);
+```
+
+**Key differences:**
+- SolrJ uses query strings; opensearch-java uses type-safe DSL builders. **Full rewrite required** — no backward compatibility.
+- ZooKeeper-based discovery is replaced by a static host list (or sniffing).
+- Connection pooling: explicitly configure `maxConnPerRoute` and `maxConnTotal` on the `RestClient` to match your application&#39;s concurrency level.
+- Create **one client instance** per service and reuse it. Never create per-request.
+
+---
+
+## 6. Relevance Migration Plan
+
+1. **Establish baseline on Solr** — Run your top 100-200 queries through Solr, capture top-10 results. Use Quepid or export to a judgment set.
+2. **Measure on OpenSearch** — Run the same queries against OpenSearch with default BM25. Compute nDCG@10 and top-10 overlap.
+3. **Tune if needed** — For the `title` field (short, uniform-length), consider `k1=0.8, b=0.5`:
+   ```json
+   {
+     &#92;&quot;settings&#92;&quot;: {
+       &#92;&quot;index.similarity.title_bm25&#92;&quot;: {
+         &#92;&quot;type&#92;&quot;: &#92;&quot;BM25&#92;&quot;, &#92;&quot;k1&#92;&quot;: 0.8, &#92;&quot;b&#92;&quot;: 0.5
+       }
+     }
+   }
+   ```
+4. **Run shadow queries** for 2-4 weeks before cutover, comparing top-10 overlap.
+5. **Target:** No relevance degradation &gt; 2% on nDCG@10.
+
+---
+
+## 7. Stage Plan
+
+### Stage 0: Prerequisites (Week 1)
+- [ ] Confirm query analytics access (query logs, click data)
+- [ ] Document all integration points that call Solr
+- [ ] Select target: AWS OpenSearch Service (managed) vs. self-managed
+- [ ] Assign key roles: search lead, infra engineer, app engineers
+
+### Stage 1: Index Creation &amp; Validation (Week 2)
+- [ ] Create OpenSearch index with mapping above
+- [ ] Validate analyzer chain: `POST ecommerce/_analyze` with sample `title` values
+- [ ] Verify `geo_point` field accepts your existing coordinate format
+- [ ] Confirm `copy_to` populates `title_sort` correctly
+
+### Stage 2: Data Migration (Weeks 2-3)
+- [ ] Set `refresh_interval: -1` and `number_of_replicas: 0` for bulk load
+- [ ] Export documents from Solr (Solr export handler or cursor-based fetch)
+- [ ] Bulk index into OpenSearch (5-15 MB batches, 2-4 concurrent requests per node)
+- [ ] Restore `refresh_interval: 1s` and `number_of_replicas: 1`
+- [ ] Run `_forcemerge?max_num_segments=1`
+- [ ] Validate: document count match, spot-check field content
+
+### Stage 3: Query Migration &amp; Relevance (Weeks 3-4)
+- [ ] Rewrite all SolrJ query code to opensearch-java DSL
+- [ ] Establish relevance baseline on Solr (nDCG@10 on top queries)
+- [ ] Run same queries against OpenSearch, compare results
+- [ ] Tune BM25 parameters if nDCG delta &gt; 2%
+
+### Stage 4: Infrastructure &amp; Monitoring (Week 4)
+- [ ] Deploy OpenSearch Dashboards
+- [ ] Configure monitoring: JVM memory pressure, cluster health, search/index latency
+- [ ] Enable slow query logs (`warn: 10s`, `info: 5s`)
+- [ ] Set up alerts: cluster red, free storage &lt; 20%, JVM pressure &gt; 85%
+
+### Stage 5: Cutover (Week 5)
+- [ ] Dual-write to both Solr and OpenSearch
+- [ ] Shadow traffic: route read queries to both, compare responses
+- [ ] Canary rollout: 1% → 10% → 25% → 50% → 100%
+- [ ] Keep Solr running for 1 week post-cutover as rollback safety net
+- [ ] Decommission Solr after confidence period
+
+---
+
+## 8. Migration Checklist Summary
+
+| Item | Status |
+|---|---|
+| Schema converted | Done (see Section 2) |
+| Analyzer chains translated | Done (`text_general`: standard + lowercase) |
+| `copyField` → `copy_to` mapped | Done (`title` → `title_sort`) |
+| Queries translated | Done (see Section 3) |
+| Incompatibilities documented | 5 found, 0 blockers (see Section 4) |
+| Client library migration path | SolrJ → opensearch-java 2.18.0 (see Section 5) |
+| Relevance plan | Baseline → compare → tune loop (see Section 6) |
+| Stage plan | 5 stages, ~5 weeks (see Section 7) |
+
+**Overall assessment:** This is a straightforward migration. The schema is small, uses standard types, and has no custom plugins or complex features (no nested documents, joins, function queries, or custom request handlers). The main risk is the TF-IDF → BM25 behavioral change on relevance — address this with baseline measurement before cutover.&quot;}
+
+Pass Reason: All assertions passed</td>
+          
+        </tr>
+        
+      </tbody>
+    </table>
+  </body>
+</html>

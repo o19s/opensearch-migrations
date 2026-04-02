@@ -1,0 +1,1431 @@
+[
+  {
+    "id": "edismax-mm-complex",
+    "title": "eDisMax with Complex Minimum Match Expressions",
+    "category": "query-parsers",
+    "difficulty": "hard",
+    "solr_feature": "eDisMax mm (minimum match) parameter with complex expressions",
+    "scenario": "Client uses eDisMax with complex mm expressions like mm=3<75% 6<50% across 5 request handlers. Their main search handler uses mm=2<-1 5<80% meaning: for 2 or fewer clauses all are required, for 3-5 clauses one can be missing, for 6+ clauses 80% must match. They also use per-field mm overrides via mm.autoRelax=true for long queries. Some handlers combine mm with pf/ps for phrase boosting. The application serves a legal document search where recall/precision balance is critical.",
+    "expectations": [
+      "Must map mm parameter to minimum_should_match in OpenSearch bool query.",
+      "Must handle complex mm expressions with multiple breakpoints (3<75% 6<50%).",
+      "Must explain that OpenSearch minimum_should_match supports similar percentage and combination syntax.",
+      "Must flag that mm.autoRelax has no direct OpenSearch equivalent and requires application-level logic.",
+      "Must address interaction between mm and bool query structure (should vs must clauses).",
+      "Must warn that mm behavior differences can significantly affect recall in legal search."
+    ],
+    "keyword_assertions": [
+      "minimum_should_match",
+      "bool",
+      "should",
+      "multi_match"
+    ],
+    "anti_patterns": [
+      "Ignoring the complex breakpoint syntax in mm",
+      "Assuming mm.autoRelax works automatically in OpenSearch",
+      "Not testing recall impact of mm translation"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "edismax-pf-pf2-pf3",
+    "title": "eDisMax Phrase Boosting with pf, pf2, pf3",
+    "category": "query-parsers",
+    "difficulty": "hard",
+    "solr_feature": "eDisMax phrase fields (pf, pf2, pf3) with phrase slop",
+    "scenario": "Client uses eDisMax with pf=title^10 description^5, pf2=title^7 description^3, pf3=title^5, ps=2, ps2=3, ps3=4 across their product search. The pf fields boost exact phrase matches, pf2 boosts bigram proximity matches, pf3 boosts trigram proximity matches — each with separate slop values. They have 8 request handlers using various combinations. The ranking quality depends heavily on this multi-level phrase boosting for relevance.",
+    "expectations": [
+      "Must explain that pf maps to match_phrase queries in bool.should for phrase boosting.",
+      "Must explain pf2/pf3 as bigram/trigram shingle-based phrase boosting with no direct equivalent.",
+      "Must map ps/ps2/ps3 slop parameters to match_phrase slop values.",
+      "Must recommend combined_fields or multi_match with phrase_prefix as partial alternatives.",
+      "Must flag that reproducing pf2/pf3 behavior requires custom analyzer chains with shingle filters.",
+      "Must warn about significant relevance impact — this needs thorough Quepid testing."
+    ],
+    "keyword_assertions": [
+      "match_phrase",
+      "slop",
+      "shingle",
+      "bool.should"
+    ],
+    "anti_patterns": [
+      "Ignoring pf2/pf3 and only mapping pf",
+      "Assuming multi_match type=phrase covers bigram/trigram boosting",
+      "Not flagging the need for relevance regression testing"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "function-query-scoring",
+    "title": "Solr Function Queries for Custom Scoring",
+    "category": "query-parsers",
+    "difficulty": "hard",
+    "solr_feature": "Function queries (bf, boost, bq) with math functions",
+    "scenario": "Client uses complex function queries for scoring: bf=recip(ms(NOW,pub_date),3.16e-11,1,1) for date-decay boosting, boost=product(popularity,0.1) as a multiplicative boost, and bq={!func}log(views_count) as an additive boost. The scoring formula combines text relevance with freshness, popularity, and view count. They have A/B tested these boosts extensively and the current weights represent 18 months of tuning.",
+    "expectations": [
+      "Must map bf (additive boost) to function_score with sum/field_value_factor.",
+      "Must map boost (multiplicative) to function_score with multiply combine mode.",
+      "Must map recip() date decay to decay functions (gauss, exp, or linear) in function_score.",
+      "Must map log() to script_score or field_value_factor with log1p modifier.",
+      "Must warn that exact numeric equivalence is unlikely — will need re-tuning.",
+      "Must recommend function_score with multiple functions and score_mode/boost_mode configuration."
+    ],
+    "keyword_assertions": [
+      "function_score",
+      "field_value_factor",
+      "decay",
+      "script_score"
+    ],
+    "anti_patterns": [
+      "Claiming function queries map 1:1 to OpenSearch",
+      "Ignoring the multiplicative vs additive distinction",
+      "Not warning about the need to re-tune scoring weights"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "grouping-collapsing",
+    "title": "Result Grouping and Field Collapsing",
+    "category": "query-features",
+    "difficulty": "hard",
+    "solr_feature": "Solr result grouping (group=true) and CollapsingQParserPlugin",
+    "scenario": "Client uses two grouping strategies: (1) group=true&group.field=category&group.limit=3&group.ngroups=true for search results grouped by category showing top 3 per category with total group count, and (2) {!collapse field=product_family max=score}fq for deduplication, collapsing product variants to show only the best-scoring variant per product family. The grouped view is the default search UI. The collapse filter processes 2M docs and is performance-sensitive.",
+    "expectations": [
+      "Must map group=true to terms aggregation with top_hits sub-aggregation for grouped results.",
+      "Must map {!collapse} to field_collapsing search option (field_collapse parameter).",
+      "Must explain group.ngroups equivalent — cardinality aggregation alongside the terms aggregation.",
+      "Must flag that collapse in OpenSearch returns only the top doc per group, not group.limit=N docs.",
+      "Must address performance differences between Solr CollapsingQParser and OpenSearch field collapsing.",
+      "Must warn that grouped pagination works differently in OpenSearch."
+    ],
+    "keyword_assertions": [
+      "field_collapse",
+      "top_hits",
+      "terms aggregation",
+      "cardinality"
+    ],
+    "anti_patterns": [
+      "Confusing Solr grouping with OpenSearch field collapsing — they have different capabilities",
+      "Not addressing the group.limit>1 limitation in OpenSearch collapse",
+      "Ignoring grouped pagination differences"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "query-elevation",
+    "title": "Query Elevation Component",
+    "category": "query-features",
+    "difficulty": "medium",
+    "solr_feature": "QueryElevationComponent (elevate.xml)",
+    "scenario": "Client uses QueryElevationComponent with an elevate.xml file containing 200+ query-to-document elevation rules. For query 'laptop', docs D123 and D456 are elevated to positions 1 and 2; for query 'support', doc D789 is elevated and doc D999 is excluded. The elevate.xml is managed by the merchandising team and updated weekly. The component is configured with forceElevation=true and markExcludes=true.",
+    "expectations": [
+      "Must explain that OpenSearch has no built-in query elevation equivalent.",
+      "Must recommend pinned query as the closest alternative for boosting specific docs to top.",
+      "Must address document exclusion — use must_not clause in bool query.",
+      "Must flag that managing elevation rules requires application-level logic (no XML config equivalent).",
+      "Must suggest storing elevation rules in an index or external system with API-driven query construction.",
+      "Must note that pinned query has a limit on the number of pinned docs."
+    ],
+    "keyword_assertions": [
+      "pinned",
+      "no built-in equivalent",
+      "must_not",
+      "application-level"
+    ],
+    "anti_patterns": [
+      "Claiming OpenSearch has a direct query elevation feature",
+      "Ignoring the document exclusion requirement",
+      "Not addressing the operational workflow for rule management"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "trie-fields-legacy",
+    "title": "Legacy Trie Field Types Migration",
+    "category": "schema-field-types",
+    "difficulty": "medium",
+    "solr_feature": "TrieIntField, TrieLongField, TrieFloatField, TrieDoubleField, TrieDateField",
+    "scenario": "Client is on Solr 6.x with schema using legacy Trie field types: TrieIntField with precisionStep=8 for 15 integer fields, TrieDateField with precisionStep=6 for 8 date fields, and TrieDoubleField for 5 price/score fields. They have not migrated to Solr's newer Point field types. The precisionStep settings were tuned for range query performance. Total index size is 50GB with 10M documents.",
+    "expectations": [
+      "Must map TrieIntField to integer (or long) in OpenSearch.",
+      "Must map TrieDateField to date in OpenSearch.",
+      "Must map TrieDoubleField to double (or float/scaled_float) in OpenSearch.",
+      "Must explain that precisionStep is a Solr-specific optimization with no OpenSearch equivalent — OpenSearch uses BKD trees internally.",
+      "Must note that OpenSearch numeric types are already optimized for range queries via BKD trees.",
+      "Must flag that Trie fields are deprecated even in Solr — this is a good cleanup opportunity."
+    ],
+    "keyword_assertions": [
+      "integer",
+      "date",
+      "double",
+      "BKD"
+    ],
+    "anti_patterns": [
+      "Trying to replicate precisionStep behavior in OpenSearch",
+      "Not mentioning that BKD trees handle range queries efficiently by default",
+      "Mapping all numeric types to long without considering precision needs"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "nested-docs-block-join",
+    "title": "Nested Documents with Block Join Queries",
+    "category": "query-parsers",
+    "difficulty": "hard",
+    "solr_feature": "Block join queries ({!parent}, {!child}) with nested documents",
+    "scenario": "Client indexes parent-child document hierarchies using Solr's block join indexing. Products (parent) contain variants (child) with {!parent which='doc_type:product'}color:red to find products that have a red variant. They also use {!child of='doc_type:product'}brand:Nike to find variants of Nike products. The hierarchy is 2 levels deep with ~5 variants per product. Total: 500K products, 2.5M variants. Child docs share the parent's _root_ field.",
+    "expectations": [
+      "Must map to OpenSearch nested field type and nested queries.",
+      "Must explain the fundamental difference: Solr uses flat doc blocks, OpenSearch uses nested objects within a single document.",
+      "Must address re-indexing requirement — documents must be restructured from flat parent+child to nested format.",
+      "Must map {!parent} to has_child query and {!child} to has_parent query (or nested query).",
+      "Must warn about inner_hits for accessing matched nested documents.",
+      "Must flag performance implications of nested queries with large numbers of nested docs per parent."
+    ],
+    "keyword_assertions": [
+      "nested",
+      "has_child",
+      "has_parent",
+      "inner_hits"
+    ],
+    "anti_patterns": [
+      "Assuming flat block join docs can be indexed as-is in OpenSearch",
+      "Not mentioning the document restructuring requirement",
+      "Confusing nested with parent-child (join) field type in OpenSearch"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "rpt-spatial-heatmap",
+    "title": "RPT Spatial Field with Heatmap Faceting",
+    "category": "query-parsers",
+    "difficulty": "hard",
+    "solr_feature": "SpatialRecursivePrefixTreeFieldType (RPT) with heatmap faceting",
+    "scenario": "Client uses SpatialRecursivePrefixTreeFieldType for complex spatial queries including: polygon-based geo search with WKT input, heatmap faceting (facet.heatmap) for a map-based UI showing document density across grid cells, and spatial filtering with arbitrary shapes (not just circles). The RPT field uses geohash grid with maxDistErr=0.001. They serve a real estate search platform with ~3M property listings.",
+    "expectations": [
+      "Must explain that RPT has no direct equivalent in OpenSearch — it's one of Solr's most spatially advanced features.",
+      "Must map basic spatial queries to geo_shape field type in OpenSearch.",
+      "Must map heatmap faceting to geotile_grid or geohash_grid aggregation.",
+      "Must flag that heatmap faceting response format differs significantly between Solr and OpenSearch.",
+      "Must address WKT input support — OpenSearch geo_shape accepts GeoJSON and WKT.",
+      "Must warn about precision differences between RPT geohash grid and OpenSearch geotile/geohash grid aggregations."
+    ],
+    "keyword_assertions": [
+      "geo_shape",
+      "geotile_grid",
+      "geohash_grid",
+      "GeoJSON"
+    ],
+    "anti_patterns": [
+      "Mapping RPT to simple geo_point — RPT handles complex shapes",
+      "Ignoring heatmap faceting as a migration concern",
+      "Not mentioning precision/grid resolution differences"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "managed-schema-api",
+    "title": "Managed Schema API for Runtime Schema Changes",
+    "category": "schema-field-types",
+    "difficulty": "medium",
+    "solr_feature": "Schema API (managed schema) for runtime field/type modifications",
+    "scenario": "Client uses Solr's Schema API to add fields at runtime without restart: POST /schema to add new fields, field types, and copy fields. Their CMS integration automatically adds new content type fields via the API when editors define new facets. They have ~50 API-driven schema changes per month. The application also uses the Schema API to read field definitions for UI auto-generation (dropdown type based on field type).",
+    "expectations": [
+      "Must map to OpenSearch PUT mapping API for adding new fields.",
+      "Must warn that OpenSearch mappings are append-only — you cannot modify existing field types without reindexing.",
+      "Must flag that Solr allows adding new field types at runtime while OpenSearch does not support custom analyzer creation after index creation (requires close/open or reindex).",
+      "Must address copy fields — OpenSearch uses copy_to parameter on field mappings.",
+      "Must explain that reading field definitions maps to GET mapping API.",
+      "Must recommend index templates for standardizing mappings across new indices."
+    ],
+    "keyword_assertions": [
+      "PUT mapping",
+      "copy_to",
+      "index template",
+      "append-only"
+    ],
+    "anti_patterns": [
+      "Assuming OpenSearch supports full runtime schema modification like Solr",
+      "Not warning about the field type immutability constraint",
+      "Ignoring the copy field to copy_to migration"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "phonetic-filter-chain",
+    "title": "Phonetic Filter Analysis Chain",
+    "category": "analyzers",
+    "difficulty": "medium",
+    "solr_feature": "PhoneticFilterFactory with multiple algorithms",
+    "scenario": "Client uses PhoneticFilterFactory in their people-search analyzer chain with DoubleMetaphone algorithm for name matching. The chain is: KeywordTokenizer -> LowerCaseFilter -> PhoneticFilter(encoder=DoubleMetaphone, inject=true, maxCodeLength=4). The inject=true means both the original token and phonetic code are indexed. They also have a second phonetic field using Soundex for legacy compatibility. The people search handles ~200K names with typo-tolerant matching.",
+    "expectations": [
+      "Must map PhoneticFilterFactory to phonetic token filter plugin in OpenSearch.",
+      "Must explain that the phonetic analysis plugin must be installed (it's not built-in).",
+      "Must map DoubleMetaphone encoder to double_metaphone in the phonetic filter.",
+      "Must address inject=true — OpenSearch phonetic filter has replace parameter (replace:false = inject).",
+      "Must map maxCodeLength to max_code_len parameter.",
+      "Must warn about Soundex mapping and compatibility between Solr and OpenSearch implementations."
+    ],
+    "keyword_assertions": [
+      "phonetic",
+      "double_metaphone",
+      "plugin",
+      "replace"
+    ],
+    "anti_patterns": [
+      "Assuming phonetic analysis is available by default in OpenSearch",
+      "Ignoring the inject=true behavior difference",
+      "Not mentioning the plugin installation requirement"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "word-delimiter-graph",
+    "title": "WordDelimiterGraphFilter Complex Tokenization",
+    "category": "analyzers",
+    "difficulty": "medium",
+    "solr_feature": "WordDelimiterGraphFilterFactory with complex splitting rules",
+    "scenario": "Client uses WordDelimiterGraphFilterFactory with: splitOnCaseChange=1, splitOnNumerics=1, stemEnglishPossessive=1, generateWordParts=1, generateNumberParts=1, catenateWords=1, catenateNumbers=1, preserveOriginal=1, protected=protwords.txt (50 entries like 'Wi-Fi', 'e-mail', 'COVID-19'). This processes product SKUs like 'SD-2450X' into tokens [SD, 2450, X, SD2450X] and brand names like 'PowerShot' into [Power, Shot, PowerShot].",
+    "expectations": [
+      "Must map to word_delimiter_graph token filter in OpenSearch.",
+      "Must map each Solr parameter to its OpenSearch equivalent (split_on_case_change, split_on_numerics, etc.).",
+      "Must address the protected words list — OpenSearch uses protected_words parameter.",
+      "Must flag that preserveOriginal maps to preserve_original in OpenSearch.",
+      "Must note that catenateWords/catenateNumbers maps to catenate_words/catenate_numbers.",
+      "Must warn about edge cases where tokenization behavior may differ subtly between implementations."
+    ],
+    "keyword_assertions": [
+      "word_delimiter_graph",
+      "split_on_case_change",
+      "protected_words",
+      "preserve_original"
+    ],
+    "anti_patterns": [
+      "Assuming parameter names are identical between Solr and OpenSearch",
+      "Ignoring the protected words list migration",
+      "Not testing SKU and brand name tokenization post-migration"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "edge-ngram-autocomplete",
+    "title": "Edge N-gram Autocomplete Implementation",
+    "category": "analyzers",
+    "difficulty": "medium",
+    "solr_feature": "EdgeNGramFilterFactory for search-as-you-type",
+    "scenario": "Client uses EdgeNGramFilterFactory in a dedicated autocomplete field type with: minGramSize=2, maxGramSize=15 at index time, and KeywordTokenizer + LowerCaseFilter at query time (no ngrams at query time). The autocomplete field is a copyField destination from title, brand, and category. The index analyzer chain is: StandardTokenizer -> LowerCaseFilter -> EdgeNGramFilter(2,15). They serve ~500 queries/second to the autocomplete endpoint.",
+    "expectations": [
+      "Must map EdgeNGramFilterFactory to edge_ngram token filter in OpenSearch.",
+      "Must map minGramSize/maxGramSize to min_gram/max_gram parameters.",
+      "Must recommend using different index and search analyzers (edge_ngram at index, standard at search).",
+      "Must mention the search_as_you_type field type as a potentially simpler alternative.",
+      "Must address the copyField pattern — maps to copy_to in OpenSearch.",
+      "Must note performance implications of edge_ngram with maxGramSize=15 on index size."
+    ],
+    "keyword_assertions": [
+      "edge_ngram",
+      "min_gram",
+      "max_gram",
+      "search_as_you_type"
+    ],
+    "anti_patterns": [
+      "Using edge_ngram at both index and query time",
+      "Not mentioning search_as_you_type as a simpler alternative",
+      "Ignoring the index size impact of large maxGramSize"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "range-faceting-date-gap",
+    "title": "Range Faceting with Date Gaps and Hardend",
+    "category": "faceting",
+    "difficulty": "medium",
+    "solr_feature": "facet.range with date math gaps",
+    "scenario": "Client uses range faceting with date math: facet.range=created_date&facet.range.start=NOW/YEAR-5YEARS&facet.range.end=NOW&facet.range.gap=+1MONTH&facet.range.hardend=true. They also have numeric range facets: facet.range=price&facet.range.start=0&facet.range.end=1000&facet.range.gap=50. The date range facets include facet.range.other=before,after,between for counts outside the defined ranges. Used for a timeline filter showing document counts per month.",
+    "expectations": [
+      "Must map facet.range to date_histogram aggregation for date fields.",
+      "Must map facet.range to histogram aggregation for numeric fields.",
+      "Must map facet.range.gap=+1MONTH to calendar_interval or fixed_interval in date_histogram.",
+      "Must map facet.range.hardend to extended_bounds in the histogram aggregation.",
+      "Must map facet.range.other (before/after/between) — these require additional range aggregations or extended_bounds.",
+      "Must explain Solr date math (NOW/YEAR-5YEARS) to OpenSearch date math (now/y-5y) syntax differences."
+    ],
+    "keyword_assertions": [
+      "date_histogram",
+      "histogram",
+      "calendar_interval",
+      "extended_bounds"
+    ],
+    "anti_patterns": [
+      "Using fixed_interval for month-based date gaps (months vary in length)",
+      "Ignoring the before/after/between counts requirement",
+      "Not translating date math syntax"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "pivot-faceting-hierarchical",
+    "title": "Pivot Faceting for Hierarchical Drill-Down",
+    "category": "faceting",
+    "difficulty": "medium",
+    "solr_feature": "facet.pivot for multi-level hierarchical faceting",
+    "scenario": "Client uses pivot faceting: facet.pivot=department,category,subcategory for a 3-level navigation tree, facet.pivot=region,city with facet.pivot.mincount=5 for a location drill-down, and facet.pivot={!stats=pricestats}brand,product_type with stats for per-brand/product-type price statistics. The navigation tree drives the left sidebar of their e-commerce site with collapsible facet groups.",
+    "expectations": [
+      "Must map facet.pivot to nested terms aggregations (terms agg with terms sub-agg with terms sub-sub-agg).",
+      "Must map facet.pivot.mincount to min_doc_count in terms aggregation.",
+      "Must address the stats-enabled pivot — requires extended_stats as a sub-aggregation at the leaf level.",
+      "Must warn about performance impact of 3-level nested aggregations on high-cardinality fields.",
+      "Must explain that OpenSearch aggregation nesting is more flexible than Solr pivot faceting.",
+      "Must flag that response format restructuring will be needed in the application layer."
+    ],
+    "keyword_assertions": [
+      "nested aggregation",
+      "terms",
+      "min_doc_count",
+      "sub-aggregation"
+    ],
+    "anti_patterns": [
+      "Suggesting a flat aggregation structure for hierarchical data",
+      "Ignoring the stats overlay on pivot facets",
+      "Not warning about high-cardinality performance at multiple nesting levels"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "json-facet-api",
+    "title": "JSON Facet API (Solr Analytics)",
+    "category": "faceting",
+    "difficulty": "hard",
+    "solr_feature": "JSON Facet API with nested facets and analytics",
+    "scenario": "Client uses Solr's JSON Facet API extensively: json.facet={categories:{type:terms,field:category,limit:20,sort:{avg_price:desc},facet:{avg_price:\"avg(price)\",max_rating:\"max(rating)\",popular_brands:{type:terms,field:brand,limit:5}}}}. They also use query facets: json.facet={price_ranges:{type:query,q:\"price:[0 TO 100]\",facet:{count:\"unique(product_id)\"}}}. The JSON Facet API replaced their legacy facet parameters 2 years ago.",
+    "expectations": [
+      "Must map JSON Facet API terms facet to terms aggregation with sub-aggregations.",
+      "Must map inline stats (avg, max, sum, unique) to avg, max, sum, cardinality aggregations.",
+      "Must map sort by nested stat to order parameter in terms aggregation.",
+      "Must map query facets to filter aggregation in OpenSearch.",
+      "Must explain that the JSON Facet API and OpenSearch aggregation API are conceptually similar but syntactically different.",
+      "Must flag that unique() maps to cardinality aggregation (approximate, uses HyperLogLog++)."
+    ],
+    "keyword_assertions": [
+      "terms aggregation",
+      "avg",
+      "cardinality",
+      "filter aggregation"
+    ],
+    "anti_patterns": [
+      "Treating JSON Facet API as incompatible — it actually maps well to OpenSearch aggregations",
+      "Not handling the sort-by-metric pattern",
+      "Ignoring the unique() to cardinality approximation difference"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "dih-database-import",
+    "title": "DataImportHandler for Database Ingestion",
+    "category": "ingestion",
+    "difficulty": "hard",
+    "solr_feature": "DataImportHandler (DIH) for JDBC database import",
+    "scenario": "Client uses DataImportHandler with a complex db-data-config.xml: root entity from products table with 3 sub-entities (variants from product_variants, categories from product_categories join table, reviews from product_reviews). DIH uses deltaImportCommand with deltaQuery for incremental updates every 15 minutes. The transformer chain includes: RegexTransformer for cleaning HTML, DateFormatTransformer for date normalization, and a custom ScriptTransformer for price calculation. Full import runs nightly and takes 4 hours.",
+    "expectations": [
+      "Must explain that DIH was removed from Solr 9 and has no OpenSearch equivalent.",
+      "Must recommend Logstash with JDBC input plugin as the primary alternative.",
+      "Must address delta/incremental imports — Logstash JDBC input supports sql_last_value tracking.",
+      "Must map sub-entity joins to Logstash JDBC input with nested SQL queries or aggregate filter.",
+      "Must address transformer chain — RegexTransformer maps to Logstash mutate/gsub, DateFormatTransformer to date filter.",
+      "Must warn that custom ScriptTransformer logic needs rewriting in Logstash ruby filter or an ingest pipeline."
+    ],
+    "keyword_assertions": [
+      "Logstash",
+      "JDBC",
+      "sql_last_value",
+      "ingest pipeline"
+    ],
+    "anti_patterns": [
+      "Not mentioning that DIH is deprecated/removed",
+      "Suggesting a direct replacement exists in OpenSearch",
+      "Ignoring the incremental import requirement"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "high"
+  },
+  {
+    "id": "atomic-updates-partial",
+    "title": "Atomic Updates and Partial Document Updates",
+    "category": "ingestion",
+    "difficulty": "medium",
+    "solr_feature": "Atomic updates (set, add, remove, inc, removeregex)",
+    "scenario": "Client uses Solr atomic updates extensively: 'set' to update individual fields (price, stock_count), 'add' to append values to multiValued fields (tags, categories), 'inc' to increment numeric counters (view_count, click_count), and 'remove' to remove specific values from multiValued fields. They process ~50K atomic updates per minute during peak hours. The updates avoid full document re-indexing, which would require re-fetching data from 3 source systems.",
+    "expectations": [
+      "Must map atomic updates to OpenSearch Update API with doc (partial update) and script options.",
+      "Must map 'set' operation to partial document update (doc: {field: value}).",
+      "Must map 'inc' to scripted update (ctx._source.field += params.value).",
+      "Must map 'add' to multiValued to scripted update (ctx._source.field.add(params.value)).",
+      "Must map 'remove' to scripted update with removeIf or remove().",
+      "Must warn about performance differences — OpenSearch updates require fetch-modify-reindex internally.",
+      "Must flag that removeregex has no direct equivalent and requires a script."
+    ],
+    "keyword_assertions": [
+      "Update API",
+      "partial update",
+      "script",
+      "ctx._source"
+    ],
+    "anti_patterns": [
+      "Assuming Solr atomic updates and OpenSearch partial updates have identical semantics",
+      "Not mentioning the internal reindex cost of updates in OpenSearch",
+      "Ignoring the scripted update requirement for add/remove/inc operations"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "update-processor-chain",
+    "title": "Update Request Processor Chain",
+    "category": "ingestion",
+    "difficulty": "hard",
+    "solr_feature": "UpdateRequestProcessorChain with multiple processors",
+    "scenario": "Client has a complex UpdateRequestProcessorChain: UUIDUpdateProcessorFactory (auto-generate doc IDs), RegexReplaceProcessorFactory (clean HTML from body field), CloneFieldUpdateProcessorFactory (copy title to title_sort), DefaultValueUpdateProcessorFactory (set status=active for missing values), SignatureUpdateProcessorFactory (dedup via MD5 of title+url), and TrimFieldUpdateProcessorFactory. The chain processes 100K documents/day during indexing. They also have a second chain for real-time updates with fewer processors.",
+    "expectations": [
+      "Must map to OpenSearch ingest pipelines with processor chain.",
+      "Must map UUID processor to set processor with _id or pipeline-level auto-generate.",
+      "Must map RegexReplace to gsub processor in ingest pipeline.",
+      "Must map CloneField to set processor with copy/rename logic.",
+      "Must map DefaultValue to set processor with override:false.",
+      "Must map Signature dedup to fingerprint processor.",
+      "Must explain that ingest pipelines are defined at the cluster level and attached to indices via default_pipeline."
+    ],
+    "keyword_assertions": [
+      "ingest pipeline",
+      "processor",
+      "gsub",
+      "fingerprint"
+    ],
+    "anti_patterns": [
+      "Not mentioning ingest pipelines as the mapping target",
+      "Ignoring the dedup/signature processor requirement",
+      "Assuming all Solr update processors have exact OpenSearch equivalents"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "commit-semantics-nrt",
+    "title": "Commit Semantics and Near-Real-Time Search",
+    "category": "ingestion",
+    "difficulty": "medium",
+    "solr_feature": "Hard commit, soft commit, commitWithin, autoCommit",
+    "scenario": "Client has carefully tuned commit settings: autoCommit maxTime=30000 openSearcher=false for durability (hard commit every 30s without opening a new searcher), autoSoftCommit maxTime=1000 for NRT visibility (soft commit every 1s to make docs searchable), and commitWithin=5000 on real-time update requests for time-sensitive content. They also use explicit hard commits after bulk imports. The distinction between hard commit (durability) and soft commit (visibility) is critical to their architecture.",
+    "expectations": [
+      "Must explain that OpenSearch has no separate hard/soft commit concept.",
+      "Must map soft commit interval to refresh_interval setting (default 1s matches their config).",
+      "Must explain that durability in OpenSearch is handled by translog (write-ahead log), not explicit commits.",
+      "Must map commitWithin to refresh=wait_for or refresh=true on index requests.",
+      "Must flag that explicit commit after bulk import maps to _refresh API call.",
+      "Must warn that the hard/soft commit mental model doesn't transfer — OpenSearch handles durability differently."
+    ],
+    "keyword_assertions": [
+      "refresh_interval",
+      "translog",
+      "refresh",
+      "wait_for"
+    ],
+    "anti_patterns": [
+      "Trying to replicate hard/soft commit distinction in OpenSearch",
+      "Not explaining the translog-based durability model",
+      "Ignoring the commitWithin to refresh mapping"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "cdcr-cross-dc",
+    "title": "Cross-Data-Center Replication (CDCR)",
+    "category": "operational",
+    "difficulty": "hard",
+    "solr_feature": "Cross-Data-Center Replication (CDCR)",
+    "scenario": "Client uses CDCR to replicate 3 collections from a primary Solr cluster in US-East to a secondary cluster in EU-West for disaster recovery and low-latency European reads. CDCR is configured in ACTIVE-PASSIVE mode with the EU cluster serving read-only traffic. Replication lag is typically 5-30 seconds. They have SLA requirements: RPO < 1 minute, RTO < 15 minutes. The EU cluster handles 40% of global read traffic.",
+    "expectations": [
+      "Must map CDCR to OpenSearch cross-cluster replication (CCR).",
+      "Must explain CCR follower/leader index model vs CDCR source/target collection model.",
+      "Must address auto-follow patterns for new indices.",
+      "Must flag that CCR requires the cross-cluster replication plugin (available in OpenSearch).",
+      "Must address RPO/RTO requirements — CCR replication lag characteristics.",
+      "Must warn that CDCR and CCR have different consistency guarantees and failure modes."
+    ],
+    "keyword_assertions": [
+      "cross-cluster replication",
+      "CCR",
+      "follower",
+      "leader",
+      "auto-follow"
+    ],
+    "anti_patterns": [
+      "Assuming CDCR maps directly to CCR without configuration differences",
+      "Ignoring the RPO/RTO requirements",
+      "Not mentioning the CCR plugin requirement"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "zookeeper-configsets",
+    "title": "ZooKeeper-Based Configuration Management",
+    "category": "operational",
+    "difficulty": "medium",
+    "solr_feature": "ZooKeeper for configsets, cluster state, and leader election",
+    "scenario": "Client manages 12 configsets in ZooKeeper for different collection types. They use the Configsets API to upload, update, and share configsets across collections. ZooKeeper also manages cluster state, shard leader election, and overseer operations. They have a 5-node ZooKeeper ensemble with custom session timeouts (tickTime=3000, minSessionTimeout=12000). Some configsets are shared across 3-4 collections via configset linking. They rely on ZK watchers for live config reload.",
+    "expectations": [
+      "Must explain that AWS OpenSearch Service is fully managed — no ZooKeeper equivalent to manage.",
+      "Must map configsets to index templates and component templates in OpenSearch.",
+      "Must explain that cluster state management is handled internally by OpenSearch (no external coordination service).",
+      "Must address config reload — OpenSearch settings changes via API take effect immediately or after close/open.",
+      "Must flag that shared configsets map to component templates (reusable across index templates).",
+      "Must note that ZooKeeper operational overhead (ensemble management, monitoring) is eliminated."
+    ],
+    "keyword_assertions": [
+      "index template",
+      "component template",
+      "fully managed",
+      "no ZooKeeper"
+    ],
+    "anti_patterns": [
+      "Looking for a ZooKeeper equivalent in OpenSearch",
+      "Ignoring the operational simplification of managed service",
+      "Not mapping configset sharing to component templates"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "solr-cache-tuning",
+    "title": "Solr Cache Configuration Tuning",
+    "category": "operational",
+    "difficulty": "medium",
+    "solr_feature": "filterCache, queryResultCache, documentCache tuning",
+    "scenario": "Client has extensively tuned Solr caches: filterCache size=10000 initialSize=5000 autowarmCount=2000 for frequently used filter queries, queryResultCache size=5000 for paginated result sets, documentCache size=20000 for stored field retrieval. They use FastLRUCache with acceptableSize=95%. Cache hit ratios are monitored: filterCache 85%, queryResultCache 60%, documentCache 90%. They warm caches on startup with 2000 pre-registered queries.",
+    "expectations": [
+      "Must explain that OpenSearch uses different caching mechanisms — node query cache, request cache, and filesystem cache.",
+      "Must map filterCache to the node query cache (indices.queries.cache.size, default 10%).",
+      "Must map queryResultCache to the request cache (index.requests.cache.enable).",
+      "Must explain that documentCache has no equivalent — OpenSearch relies on filesystem cache for _source retrieval.",
+      "Must address cache warming — OpenSearch has no explicit cache warming mechanism; caches populate organically.",
+      "Must note that cache behavior is largely automatic in OpenSearch and manual tuning is less common."
+    ],
+    "keyword_assertions": [
+      "node query cache",
+      "request cache",
+      "filesystem cache",
+      "automatic"
+    ],
+    "anti_patterns": [
+      "Trying to replicate Solr's cache architecture in OpenSearch",
+      "Suggesting cache warming scripts for OpenSearch",
+      "Not explaining the fundamental caching model difference"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "time-routed-aliases",
+    "title": "Time-Routed Aliases for Time-Series Data",
+    "category": "operational",
+    "difficulty": "hard",
+    "solr_feature": "Time-Routed Aliases (TRA)",
+    "scenario": "Client uses Time-Routed Aliases to automatically create new collections for log/event data partitioned by month. The alias 'events' automatically routes documents to the correct monthly collection (events_2026_01, events_2026_02, etc.) based on a timestamp field. Old collections are automatically deleted after 12 months. They index ~5M events/day and the alias spans 12 monthly collections. Queries against the alias transparently search across all time partitions.",
+    "expectations": [
+      "Must map to Index State Management (ISM) with rollover action for time-based index creation.",
+      "Must explain the index alias + rollover pattern in OpenSearch as the equivalent.",
+      "Must map auto-deletion to ISM delete action based on index age.",
+      "Must address the routing behavior — write alias points to the active index, read alias spans all indices.",
+      "Must explain rollover conditions (max_age, max_docs, max_size).",
+      "Must warn that Solr TRA routes by document timestamp, while OpenSearch rollover is based on index-level conditions, not per-document routing."
+    ],
+    "keyword_assertions": [
+      "ISM",
+      "rollover",
+      "alias",
+      "index lifecycle"
+    ],
+    "anti_patterns": [
+      "Not mentioning ISM as the lifecycle management tool",
+      "Ignoring the per-document vs per-index routing difference",
+      "Suggesting manual index creation instead of automated rollover"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "streaming-expressions",
+    "title": "Streaming Expressions for Complex Analytics",
+    "category": "query-features",
+    "difficulty": "hard",
+    "solr_feature": "Streaming Expressions (/stream handler)",
+    "scenario": "Client uses Streaming Expressions for complex analytics: search(collection1, q=*:*, fl=\"category,price,brand\", sort=\"category asc\") piped to rollup(over=\"category\", sum(price), count(*)) for aggregated reports. They also use innerJoin() to join data across two collections, and parallel() for distributed map-reduce operations. A Grafana dashboard runs 15 streaming expression queries for real-time business intelligence. Some expressions use daemon() for continuous push-based streaming.",
+    "expectations": [
+      "Must explain that Streaming Expressions have no direct equivalent in OpenSearch.",
+      "Must map basic rollup operations to aggregations (terms + sum + value_count).",
+      "Must map innerJoin across collections to application-level joins or denormalization.",
+      "Must flag that parallel() map-reduce has no OpenSearch equivalent — requires architectural redesign.",
+      "Must address daemon() for continuous streaming — suggest alternatives like OpenSearch SQL or application polling.",
+      "Must recommend breaking complex streaming expressions into multiple OpenSearch queries with application-level orchestration."
+    ],
+    "keyword_assertions": [
+      "no direct equivalent",
+      "aggregation",
+      "denormalization",
+      "architectural"
+    ],
+    "anti_patterns": [
+      "Suggesting OpenSearch SQL covers all streaming expression use cases",
+      "Ignoring the cross-collection join requirement",
+      "Not flagging daemon() continuous streaming as requiring redesign"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "high"
+  },
+  {
+    "id": "cross-collection-join",
+    "title": "Cross-Collection Join Queries",
+    "category": "query-parsers",
+    "difficulty": "hard",
+    "solr_feature": "{!join} across collections",
+    "scenario": "Client uses cross-collection joins: {!join from=author_id to=author_id fromIndex=authors}genre:fiction to find books whose authors write fiction. They also use {!join from=product_id to=product_id fromIndex=inventory}in_stock:true to filter products by inventory status in a separate collection. The join queries are used in 6 search handlers. The authors collection has 50K docs, books has 2M docs, inventory has 500K docs. Joins are used both in main query and filter queries.",
+    "expectations": [
+      "Must explain that OpenSearch has no cross-index join query equivalent.",
+      "Must recommend denormalization as the primary solution — embed author/inventory data in the main index.",
+      "Must suggest terms lookup query as a limited alternative for simple ID-based filtering.",
+      "Must mention application-level join (two queries) as a fallback pattern.",
+      "Must flag that this requires data model redesign and may need a new indexing pipeline.",
+      "Must address the performance trade-off: Solr joins are expensive too, denormalization may improve performance."
+    ],
+    "keyword_assertions": [
+      "denormalization",
+      "terms lookup",
+      "no cross-index join",
+      "data model"
+    ],
+    "anti_patterns": [
+      "Suggesting nested or parent-child as equivalent to cross-collection join",
+      "Not recommending denormalization as the primary approach",
+      "Ignoring the data pipeline changes required"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "high"
+  },
+  {
+    "id": "payload-scoring",
+    "title": "Payload-Based Scoring",
+    "category": "query-features",
+    "difficulty": "hard",
+    "solr_feature": "Payload-aware queries and scoring",
+    "scenario": "Client uses payload-based scoring for their product search: tokens are indexed with payloads representing confidence scores from an NLP entity extraction pipeline. The field type uses DelimitedPayloadTokenFilter with encoder=float and delimiter='|'. Indexed content looks like: 'laptop|0.95 computer|0.8 electronics|0.6'. They use {!payload_score f=entity_field func=max} to score documents by the highest payload value matching the query term. This drives a semantic search layer atop keyword search.",
+    "expectations": [
+      "Must explain that payload-based scoring has no direct equivalent in OpenSearch.",
+      "Must recommend alternative approaches: script_score with a separate score field, rank_feature field type, or nested objects with confidence scores.",
+      "Must address the DelimitedPayloadTokenFilter — payloads are not supported in OpenSearch token filters.",
+      "Must suggest restructuring the data model to store entity-confidence pairs explicitly.",
+      "Must flag rank_feature or rank_features field type as a natural fit for confidence-based boosting.",
+      "Must warn that this requires re-thinking the indexing pipeline from the NLP output format."
+    ],
+    "keyword_assertions": [
+      "no direct equivalent",
+      "script_score",
+      "rank_feature",
+      "data model"
+    ],
+    "anti_patterns": [
+      "Suggesting OpenSearch supports payload scoring natively",
+      "Not recommending rank_feature as an alternative",
+      "Ignoring the need to restructure the NLP pipeline output"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "high"
+  },
+  {
+    "id": "mlt-more-like-this",
+    "title": "More Like This Query Handler",
+    "category": "query-features",
+    "difficulty": "medium",
+    "solr_feature": "MoreLikeThis handler and query parser",
+    "scenario": "Client uses the MLT handler (/mlt) and {!mlt} query parser for 'similar items' recommendations. Configuration: mlt.fl=title,description,category, mlt.mintf=2, mlt.mindf=5, mlt.minwl=3, mlt.maxqt=25, mlt.boost=true. The MLT endpoint is called for every product detail page to show 'You might also like' recommendations. It processes ~200 requests/second. They also use MLT in a batch job to pre-compute similarity clusters for 50K products.",
+    "expectations": [
+      "Must map to OpenSearch more_like_this query.",
+      "Must map mlt.fl to fields parameter in more_like_this query.",
+      "Must map mlt.mintf to min_term_freq, mlt.mindf to min_doc_freq, mlt.minwl to min_word_length.",
+      "Must map mlt.maxqt to max_query_terms.",
+      "Must map mlt.boost to boost_terms parameter.",
+      "Must explain that the /mlt handler maps to a standard _search with more_like_this query.",
+      "Must note that the like parameter can accept document IDs or text directly."
+    ],
+    "keyword_assertions": [
+      "more_like_this",
+      "min_term_freq",
+      "min_doc_freq",
+      "max_query_terms"
+    ],
+    "anti_patterns": [
+      "Claiming MLT has no equivalent — OpenSearch has good MLT support",
+      "Not mapping the parameter names correctly",
+      "Ignoring the batch similarity computation use case"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "spellcheck-suggest-components",
+    "title": "Spellcheck and Suggester Components",
+    "category": "query-features",
+    "difficulty": "medium",
+    "solr_feature": "SpellCheckComponent and SuggestComponent",
+    "scenario": "Client uses both SpellCheckComponent and SuggestComponent: SpellCheckComponent with DirectSolrSpellChecker for 'did you mean' corrections (spellcheck.collate=true, spellcheck.maxCollations=3, spellcheck.accuracy=0.7), and SuggestComponent with AnalyzingInfixLookupFactory for type-ahead suggestions (suggest.dictionary=mySuggester, suggest.count=10). The spellcheck is integrated into every search response. The suggester is a dedicated endpoint hit by the autocomplete UI at ~1000 req/s.",
+    "expectations": [
+      "Must map SpellCheckComponent to the _search with suggest API (term/phrase suggesters).",
+      "Must map SuggestComponent to completion suggester with input field.",
+      "Must explain that DirectSolrSpellChecker maps to term or phrase suggester in OpenSearch.",
+      "Must address spellcheck.collate — maps to phrase suggester's collate feature.",
+      "Must flag that AnalyzingInfixLookupFactory maps to completion suggester with fuzzy matching.",
+      "Must warn that the completion suggester requires a special completion field type in the mapping."
+    ],
+    "keyword_assertions": [
+      "suggest",
+      "completion",
+      "phrase suggester",
+      "term suggester"
+    ],
+    "anti_patterns": [
+      "Combining spellcheck and suggest into a single OpenSearch feature",
+      "Not mentioning the completion field type requirement",
+      "Ignoring the collation feature for spellcheck"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "custom-similarity-tfidf",
+    "title": "Custom Similarity (TF-IDF) Configuration",
+    "category": "schema-field-types",
+    "difficulty": "hard",
+    "solr_feature": "Custom similarity factory (ClassicSimilarityFactory / TF-IDF)",
+    "scenario": "Client uses ClassicSimilarityFactory (TF-IDF) instead of the default BM25 for 4 collections because their relevance tuning was done against TF-IDF behavior over 3 years. They also have a custom SweetSpotSimilarityFactory on 2 fields with tuned length normalization parameters (ln_min=1, ln_max=1, ln_steep=0.5) to de-emphasize document length. The judgment sets and Quepid test cases are all calibrated against TF-IDF scoring. Switching to BM25 causes a 35% ranking difference in their test suite.",
+    "expectations": [
+      "Must explain that OpenSearch defaults to BM25 and supports configuring similarity per field.",
+      "Must show how to configure classic similarity (TF-IDF) via index settings in OpenSearch.",
+      "Must map SweetSpotSimilarity — this has no direct equivalent in OpenSearch.",
+      "Must strongly recommend migrating to BM25 with re-tuned boosts rather than keeping TF-IDF.",
+      "Must flag that maintaining TF-IDF delays benefiting from BM25 improvements.",
+      "Must address the judgment set re-calibration requirement — existing Quepid test cases need updating.",
+      "Must warn about the 30-40% ranking difference and recommend a parallel testing period."
+    ],
+    "keyword_assertions": [
+      "BM25",
+      "classic",
+      "similarity",
+      "judgment"
+    ],
+    "anti_patterns": [
+      "Simply mapping TF-IDF to TF-IDF without recommending BM25 migration",
+      "Ignoring the judgment set recalibration effort",
+      "Not mentioning that SweetSpotSimilarity has no equivalent"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "custom-java-search-component",
+    "title": "Custom Java SearchComponent Plugin",
+    "category": "operational",
+    "difficulty": "hard",
+    "solr_feature": "Custom Java SearchComponent deployed as JAR plugin",
+    "scenario": "Client has a custom SearchComponent written in Java that: (1) enriches queries by calling an external taxonomy service to expand query terms, (2) adds custom facet counts from a Redis cache that are merged with Solr facet results, and (3) logs query analytics to a Kafka topic. The JAR is deployed to Solr's lib directory and configured in solrconfig.xml as a search component in the request handler chain. The component has been maintained for 5 years and is ~3000 lines of Java code.",
+    "expectations": [
+      "Must explain that custom Java plugins cannot be deployed to AWS OpenSearch Service (managed service restriction).",
+      "Must recommend decomposing the plugin into separate concerns: (1) query enrichment via search pipeline or application layer, (2) facet augmentation via application layer post-processing, (3) analytics logging via application-level middleware.",
+      "Must mention OpenSearch search pipelines (request/response processors) as a partial replacement for query enrichment.",
+      "Must flag that this is one of the hardest migration challenges — significant application restructuring required.",
+      "Must suggest the taxonomy expansion could move to a search pipeline request processor or application middleware.",
+      "Must note that if self-managed OpenSearch is used instead of AWS managed, custom plugins are possible but discouraged."
+    ],
+    "keyword_assertions": [
+      "cannot deploy custom plugins",
+      "search pipeline",
+      "application layer",
+      "decompose"
+    ],
+    "anti_patterns": [
+      "Suggesting custom JAR deployment to AWS OpenSearch Service",
+      "Not flagging this as a major migration risk",
+      "Ignoring the need to decompose the plugin's responsibilities"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "high"
+  },
+  {
+    "id": "incompatibility-detection-multi",
+    "title": "Multi-Feature Incompatibility Detection",
+    "category": "amazon-gap",
+    "difficulty": "hard",
+    "solr_feature": "Combined feature incompatibility assessment",
+    "scenario": "Client's Solr deployment uses a combination of features that create compound migration challenges: Streaming Expressions piped to JDBC export, CDCR between two data centers with configset versioning via ZooKeeper, custom UpdateProcessorChain with a Java plugin that calls an external ML model for content classification, and Time-Routed Aliases with custom routing logic. They want a comprehensive incompatibility report that identifies which features have no equivalent, which have partial equivalents, and which map cleanly.",
+    "expectations": [
+      "Must systematically categorize each feature as: no equivalent, partial equivalent, or clean mapping.",
+      "Must identify Streaming Expressions + JDBC export as no-equivalent requiring architectural redesign.",
+      "Must identify custom Java plugin as incompatible with managed OpenSearch.",
+      "Must map CDCR to CCR and ZooKeeper configsets to index templates.",
+      "Must map Time-Routed Aliases to ISM rollover but flag the routing logic difference.",
+      "Must produce a prioritized migration risk matrix showing compound risk from multiple incompatibilities."
+    ],
+    "keyword_assertions": [
+      "no equivalent",
+      "partial equivalent",
+      "risk matrix",
+      "architectural redesign"
+    ],
+    "anti_patterns": [
+      "Evaluating features in isolation without considering compound risk",
+      "Not producing a structured incompatibility report",
+      "Missing any of the no-equivalent features"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "customization-assessment-combined",
+    "title": "Combined Customization Assessment",
+    "category": "amazon-gap",
+    "difficulty": "hard",
+    "solr_feature": "Assessment of all customizations in a Solr deployment",
+    "scenario": "Client needs assessment of all their Solr customizations: 3 custom SearchComponents (Java JARs), 5 custom UpdateRequestProcessors, 2 custom TokenFilterFactories for domain-specific text analysis, custom RequestHandler for a specialized export format, custom QueryParser for a proprietary query syntax, and custom SolrEventListener for cache warming. They need to know which customizations can migrate, which need rewriting, and which need elimination. The team has 2 Java developers available for rewriting.",
+    "expectations": [
+      "Must categorize each customization type by migration path (rewrite, replace with built-in, eliminate).",
+      "Must flag that all custom Java code is incompatible with AWS managed OpenSearch.",
+      "Must map custom TokenFilterFactories to OpenSearch's analysis plugin architecture or script-based alternatives.",
+      "Must recommend search pipelines for SearchComponent-like behavior where possible.",
+      "Must recommend ingest pipelines for UpdateRequestProcessor replacements.",
+      "Must estimate effort level for each customization migration.",
+      "Must flag the custom QueryParser as the highest risk item — may require application-level query translation."
+    ],
+    "keyword_assertions": [
+      "search pipeline",
+      "ingest pipeline",
+      "incompatible",
+      "rewrite",
+      "effort"
+    ],
+    "anti_patterns": [
+      "Treating all customizations uniformly without differentiated migration paths",
+      "Not flagging managed service restrictions on custom Java code",
+      "Providing no effort estimation for rewrites"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "sizing-recommendation-explicit",
+    "title": "Explicit Sizing Recommendation for OpenSearch Cluster",
+    "category": "amazon-gap",
+    "difficulty": "hard",
+    "solr_feature": "Cluster sizing translation from Solr to OpenSearch",
+    "scenario": "Client's current Solr cluster: 6 data nodes (32GB RAM, 8 vCPU, 500GB SSD each), 3 ZooKeeper nodes (8GB RAM, 4 vCPU), total index size 1.2TB across 8 collections, 150M documents, peak QPS 2000, p99 latency target <200ms, bulk indexing 50K docs/min. They use 80% of heap for caches and buffers. Shard count: 24 shards total (3 per collection). Replicas: 2 per shard. They want a concrete AWS OpenSearch instance type and count recommendation.",
+    "expectations": [
+      "Must provide specific AWS instance type recommendations (e.g., r6g.xlarge, r6g.2xlarge).",
+      "Must calculate storage requirements accounting for OpenSearch overhead (~15-20% more than raw data).",
+      "Must recommend shard count based on 10-50GB per shard guideline.",
+      "Must account for the elimination of ZooKeeper nodes (no equivalent in managed service).",
+      "Must factor in replica count for availability and read throughput.",
+      "Must recommend dedicated master nodes for a cluster this size.",
+      "Must address heap sizing — OpenSearch default 50% of RAM for heap, with 32GB max for compressed oops."
+    ],
+    "keyword_assertions": [
+      "r6g",
+      "dedicated master",
+      "shard size",
+      "heap"
+    ],
+    "anti_patterns": [
+      "Providing vague sizing guidance without specific instance types",
+      "Not accounting for ZooKeeper elimination in the cost comparison",
+      "Ignoring the 32GB heap limit for compressed ordinary object pointers"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "client-integration-mapping-multi",
+    "title": "Multi-Client Library Integration Mapping",
+    "category": "amazon-gap",
+    "difficulty": "medium",
+    "solr_feature": "SolrJ client library with multiple integration patterns",
+    "scenario": "Client uses SolrJ in 4 different applications: (1) Spring Boot app using SolrTemplate with custom converters, (2) batch processor using CloudSolrClient with direct SolrQuery objects, (3) real-time indexer using ConcurrentUpdateSolrClient for high-throughput updates, and (4) admin tool using CollectionsAPI wrapper for collection management. They also have a Python application using pysolr. Total codebase: ~15K lines of Solr client code across all apps.",
+    "expectations": [
+      "Must map SolrJ to opensearch-java client library for Java/Spring Boot applications.",
+      "Must map SolrTemplate to OpenSearchRestTemplate or OpenSearchOperations in Spring Data OpenSearch.",
+      "Must map CloudSolrClient to OpenSearchClient (REST-based, no equivalent to ZK-aware client).",
+      "Must map ConcurrentUpdateSolrClient to OpenSearch bulk API with BulkProcessor.",
+      "Must map pysolr to opensearch-py client library.",
+      "Must flag that SolrQuery object model does not map 1:1 — queries must be rewritten to Query DSL.",
+      "Must estimate migration effort for 15K lines of client code."
+    ],
+    "keyword_assertions": [
+      "opensearch-java",
+      "Spring Data OpenSearch",
+      "bulk API",
+      "opensearch-py"
+    ],
+    "anti_patterns": [
+      "Suggesting a single client library for all use cases",
+      "Not mentioning Spring Data OpenSearch for the Spring Boot app",
+      "Ignoring the SolrQuery to Query DSL rewrite effort"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "dismax-basic",
+    "title": "Basic DisMax Parser Migration",
+    "category": "query-parsers",
+    "difficulty": "medium",
+    "solr_feature": "DisMax query parser",
+    "scenario": "Client uses the classic dismax parser (not edismax) with qf=title^2 description^1.5 body, mm=75%, pf=title^5, tie=0.1, bq=category:electronics^5, and bf=recip(rord(date),1,100,100) for date-decay boosting. They have 12 request handlers all using {!dismax}. Need to migrate these to OpenSearch Query DSL.",
+    "expectations": [
+      "Must distinguish DisMax from eDisMax — they are different parsers with different feature sets.",
+      "Must map qf with boosts to multi_match with field boosts.",
+      "Must map tie=0.1 to tie_breaker parameter in multi_match.",
+      "Must map bq=category:electronics^5 to a bool.should clause for boosting.",
+      "Must address bf=recip(rord(date),1,100,100) as requiring a function_score or script_score query.",
+      "Must map mm=75% to minimum_should_match.",
+      "Must map pf to a phrase-boosting approach (e.g., bool.should with match_phrase)."
+    ],
+    "keyword_assertions": [
+      "multi_match",
+      "tie_breaker",
+      "function_score",
+      "minimum_should_match",
+      "bool"
+    ],
+    "anti_patterns": [
+      "Treating DisMax and eDisMax as identical",
+      "Ignoring the bf function query entirely",
+      "Suggesting dismax has a direct OpenSearch equivalent parser"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "spatial-geofilt-bbox",
+    "title": "Geospatial Queries: geofilt and bbox",
+    "category": "query-parsers",
+    "difficulty": "medium",
+    "solr_feature": "Geospatial query parsers (geofilt, bbox)",
+    "scenario": "Client uses {!geofilt pt=40.7128,-74.0060 sfield=location d=50} for radius search of stores within 50km, {!bbox} for bounding-box searches on a map UI, geodist() in sort for distance-based ordering, and geodist() in fl for returning distance in results. The location field is a LatLonPointSpatialField. They have 3 request handlers using geospatial features.",
+    "expectations": [
+      "Must map geofilt to geo_distance query in OpenSearch.",
+      "Must map bbox to geo_bounding_box query.",
+      "Must map geodist() sort to _geo_distance sort.",
+      "Must map LatLonPointSpatialField to geo_point field type.",
+      "Must explain how to return distance in results (script_fields or sort value extraction).",
+      "Must note coordinate format differences (Solr lat,lon vs OpenSearch GeoJSON or various formats)."
+    ],
+    "keyword_assertions": [
+      "geo_distance",
+      "geo_bounding_box",
+      "_geo_distance",
+      "geo_point"
+    ],
+    "anti_patterns": [
+      "Ignoring geodist() in fl as a migration concern",
+      "Assuming coordinate formats are identical"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "fuzzy-proximity-queries",
+    "title": "Fuzzy Search and Proximity Queries",
+    "category": "query-parsers",
+    "difficulty": "medium",
+    "solr_feature": "Fuzzy and proximity query syntax",
+    "scenario": "Client uses title:opensearch~2 for fuzzy matching with edit distance 2 on product names (handles typos like 'opensearh', 'openseach'), and \"search engine\"~5 for proximity matching in description fields. These are used in the main search bar via eDisMax with qs=3. Some queries combine both: title:laptop~1 AND description:\"fast processor\"~3.",
+    "expectations": [
+      "Must map fuzzy syntax (term~N) to fuzzy query with fuzziness parameter.",
+      "Must map proximity syntax (\"phrase\"~N) to match_phrase with slop parameter.",
+      "Must flag that default fuzziness behavior differs between Solr and OpenSearch (AUTO vs explicit).",
+      "Must address the qs (query slop) parameter from eDisMax as it affects phrase proximity globally.",
+      "Must note that OpenSearch fuzziness max edit distance is 2."
+    ],
+    "keyword_assertions": [
+      "fuzziness",
+      "slop",
+      "match_phrase",
+      "fuzzy"
+    ],
+    "anti_patterns": [
+      "Ignoring the fuzziness=2 max limit in OpenSearch",
+      "Treating fuzzy and proximity as the same feature"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "deep-pagination-cursors",
+    "title": "Cursor-Based Deep Pagination",
+    "category": "query-parsers",
+    "difficulty": "medium",
+    "solr_feature": "cursorMark deep pagination",
+    "scenario": "Client uses cursorMark=* with sort=score desc, id asc for full-collection export of 5M documents in batches of 1000. This feeds a nightly analytics pipeline and a separate recommendation engine. They also use start+rows pagination for the user-facing search UI (pages 1-10 typically, but some power users go to page 50+).",
+    "expectations": [
+      "Must map cursorMark to search_after with PIT (point in time) for consistent pagination.",
+      "Must warn that offset-based pagination (from+size) has a default 10,000 hit limit in OpenSearch.",
+      "Must explain PIT lifecycle management (create, use, close) as it has no Solr equivalent.",
+      "Must flag that search_after requires a sort that includes a unique tiebreaker field.",
+      "Must address the nightly export use case — may recommend scroll API as alternative for batch jobs.",
+      "Must warn about memory pressure from too many open scroll/PIT contexts."
+    ],
+    "keyword_assertions": [
+      "search_after",
+      "point in time",
+      "scroll",
+      "10000"
+    ],
+    "anti_patterns": [
+      "Suggesting from+size for 5M document export",
+      "Ignoring PIT lifecycle management",
+      "Not mentioning the default index.max_result_window limit"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "docvalues-stored-combinations",
+    "title": "DocValues and Stored Field Attribute Combinations",
+    "category": "schema-field-types",
+    "difficulty": "medium",
+    "solr_feature": "DocValues and stored field attributes",
+    "scenario": "Client has fields configured in three patterns: (1) stored=false docValues=true for 8 faceting-only fields (category_facet, brand_facet, etc.), (2) stored=true docValues=false for 5 display-only text fields (description, notes, etc.), and (3) indexed=false stored=true for 3 metadata fields (import_batch_id, source_system, raw_payload). They rely on useDocValuesAsStored=true (Solr default since 6.x) so docValues-only fields appear in fl=* results.",
+    "expectations": [
+      "Must explain that OpenSearch doc_values is enabled by default for most field types.",
+      "Must explain OpenSearch store parameter and its relationship to _source.",
+      "Must warn that useDocValuesAsStored has no direct equivalent — OpenSearch returns fields from _source by default.",
+      "Must address indexed=false mapping to index: false in OpenSearch.",
+      "Must flag that disabling _source changes retrieval behavior significantly.",
+      "Must recommend _source filtering or stored_fields as alternatives to Solr's stored/docValues combinations."
+    ],
+    "keyword_assertions": [
+      "doc_values",
+      "_source",
+      "store",
+      "index: false"
+    ],
+    "anti_patterns": [
+      "Assuming Solr stored and OpenSearch store behave identically",
+      "Ignoring the useDocValuesAsStored default behavior difference",
+      "Recommending disabling _source without discussing trade-offs"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "dynamic-field-wildcard-patterns",
+    "title": "Complex Dynamic Field Patterns",
+    "category": "schema-field-types",
+    "difficulty": "medium",
+    "solr_feature": "Dynamic fields with wildcard patterns",
+    "scenario": "Client relies on 15 dynamic field patterns for schema-less indexing: *_s (string), *_i (int), *_f (float), *_dt (date), *_txt (text_general), *_txt_en (text_en), *_txt_es (text_es), *_p (location), *_b (boolean), *_l (long), *_d (double), *_t (text_general), *_ss (multiValued string), *_is (multiValued int), *_fs (multiValued float). Applications create fields on-the-fly by appending suffixes. There are currently ~800 dynamically created fields across 6 collections.",
+    "expectations": [
+      "Must map dynamic fields to dynamic_templates in OpenSearch index mappings.",
+      "Must explain match pattern syntax differences (Solr uses * glob, OpenSearch uses * or regex in dynamic_templates).",
+      "Must warn about pattern priority/ordering differences between Solr and OpenSearch.",
+      "Must flag that *_txt_en and *_txt_es require language-specific analyzers in the template definition.",
+      "Must address *_p (location) mapping to geo_point in dynamic template.",
+      "Must flag that multiValued vs single-valued distinction is implicit in OpenSearch (arrays are always allowed)."
+    ],
+    "keyword_assertions": [
+      "dynamic_templates",
+      "match",
+      "analyzer",
+      "geo_point"
+    ],
+    "anti_patterns": [
+      "Ignoring language-specific analyzer requirements for *_txt_en/*_txt_es",
+      "Assuming dynamic field ordering works the same way",
+      "Not mentioning that OpenSearch fields are implicitly multi-valued"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "synonym-expansion-index-vs-query",
+    "title": "Synonym Handling: Index-Time vs Query-Time",
+    "category": "analyzers",
+    "difficulty": "medium",
+    "solr_feature": "SynonymGraphFilter with index-time vs query-time placement",
+    "scenario": "Client uses SynonymGraphFilter at query time only (in the queryAnalyzer chain) with a 500-entry synonyms.txt file. Some entries are simple synonyms (laptop, notebook), some are one-directional (ipod => portable music player), and some are multi-word (hard disk => hard drive, solid state drive => SSD). The analyzer chain is: StandardTokenizer -> LowerCaseFilter -> SynonymGraphFilter -> FlattenGraphFilter. They chose query-time-only to avoid reindexing when synonyms change.",
+    "expectations": [
+      "Must explain OpenSearch synonym token filter and its placement in analyzer chain.",
+      "Must recommend query-time synonyms (search_analyzer) to match current behavior.",
+      "Must warn about multi-word synonyms and auto_generate_synonyms_phrase_query behavior.",
+      "Must address one-directional synonym mapping syntax differences.",
+      "Must explain synonyms.txt file format compatibility (Solr format vs OpenSearch format).",
+      "Must note that FlattenGraphFilter is not needed in OpenSearch — synonym graph handling differs.",
+      "Must mention the option of uploading synonym files via index settings or packages."
+    ],
+    "keyword_assertions": [
+      "synonym",
+      "search_analyzer",
+      "multi-word",
+      "auto_generate_synonyms_phrase_query"
+    ],
+    "anti_patterns": [
+      "Recommending index-time synonyms without discussing trade-offs",
+      "Ignoring multi-word synonym complications",
+      "Assuming synonyms.txt format is 100% compatible without review"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "stemmer-override-chain",
+    "title": "Custom Stemmer with Override Dictionary",
+    "category": "analyzers",
+    "difficulty": "medium",
+    "solr_feature": "StemmerOverrideFilter + KStemFilter chain",
+    "scenario": "Client uses KStemFilterFactory with a StemmerOverrideFilterFactory placed before it in the analysis chain. The override dictionary has 200 protected words that should not be stemmed (e.g., 'Windows' should not become 'window', 'Python' should not become 'python', 'Azure' stays 'Azure'). The full chain is: StandardTokenizer -> LowerCaseFilter -> StemmerOverrideFilter(dictionary=protected_words.txt) -> KStemFilterFactory. They also have a separate chain for exact-match fields without stemming.",
+    "expectations": [
+      "Must map KStemFilterFactory to kstem token filter in OpenSearch.",
+      "Must map StemmerOverrideFilter to keyword_marker filter or stemmer_override filter in OpenSearch.",
+      "Must address filter ordering — keyword_marker must precede the stemmer in the chain.",
+      "Must explain how to load the protected words dictionary (keywords_path or inline keywords list).",
+      "Must note that stemmer_override and keyword_marker serve slightly different purposes (override maps to specific stems, keyword_marker prevents stemming entirely)."
+    ],
+    "keyword_assertions": [
+      "kstem",
+      "keyword_marker",
+      "stemmer_override",
+      "filter order"
+    ],
+    "anti_patterns": [
+      "Placing keyword_marker after the stemmer in the chain",
+      "Confusing keyword_marker (prevents stemming) with stemmer_override (maps to specific stems)",
+      "Ignoring the protected words dictionary migration"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "facet-method-enum-vs-fc",
+    "title": "Facet Method Selection: enum vs fc",
+    "category": "faceting",
+    "difficulty": "easy",
+    "solr_feature": "facet.method (enum, fc, fcs)",
+    "scenario": "Client explicitly sets facet.method=enum on 4 low-cardinality fields (status with 5 values, color with 20 values, size with 8 values, region with 12 values) and facet.method=fc on 3 high-cardinality fields (brand with 5000 values, sku with 100K values, author with 50K values). They profiled these settings and believe the enum method gives them a 30% speedup on low-cardinality fields.",
+    "expectations": [
+      "Must explain that OpenSearch terms aggregation handles method selection automatically.",
+      "Must mention execution_hint parameter (map vs global_ordinals) as the OpenSearch equivalent.",
+      "Must recommend NOT manually setting execution_hint in most cases — OpenSearch defaults are well-tuned.",
+      "Must note that the performance characteristics may differ and profiling should be redone post-migration.",
+      "Must map facet.method=enum fields to standard terms aggregations."
+    ],
+    "keyword_assertions": [
+      "terms aggregation",
+      "execution_hint",
+      "global_ordinals"
+    ],
+    "anti_patterns": [
+      "Suggesting OpenSearch needs manual execution_hint tuning to match Solr performance",
+      "Ignoring that performance profiling needs to be redone"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "low"
+  },
+  {
+    "id": "stats-component",
+    "title": "Stats Component for Field Statistics",
+    "category": "query-features",
+    "difficulty": "medium",
+    "solr_feature": "StatsComponent",
+    "scenario": "Client uses stats=true&stats.field={!min=true max=true mean=true stddev=true}price&stats.field={!min=true max=true mean=true percentiles='25,50,75,95'}rating in every search response for a product catalog. They also use stats.facet=category for per-category price and rating breakdowns. The stats are displayed in a dashboard sidebar alongside search results. Some queries also use stats.calcdistinct=true on the brand field to show unique brand count.",
+    "expectations": [
+      "Must map stats.field to extended_stats aggregation for min/max/mean/stddev.",
+      "Must map percentiles to percentiles aggregation.",
+      "Must map stats.facet=category to a terms aggregation with extended_stats as a sub-aggregation.",
+      "Must map stats.calcdistinct to cardinality aggregation.",
+      "Must note that aggregations are returned in a separate response section, not inline with hits.",
+      "Must warn about performance impact of running stats on every search query."
+    ],
+    "keyword_assertions": [
+      "extended_stats",
+      "percentiles",
+      "cardinality",
+      "sub-aggregation"
+    ],
+    "anti_patterns": [
+      "Using basic stats aggregation when extended_stats is needed for stddev",
+      "Ignoring the per-category breakdown requirement"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "export-handler-large-result-sets",
+    "title": "Export Handler for Large Result Sets",
+    "category": "query-features",
+    "difficulty": "hard",
+    "solr_feature": "/export handler",
+    "scenario": "Client uses the /export handler to stream entire result sets (1.2M docs matching a date range filter) for downstream analytics pipelines. The export uses sort=timestamp desc and fl=id,timestamp,category,score_value,region. It runs 4 times daily feeding a data warehouse. They chose /export over deep pagination because it bypasses the sort buffer and streams directly from docValues. Response times are 45-90 seconds for the full export.",
+    "expectations": [
+      "Must explain that /export has no direct equivalent in OpenSearch.",
+      "Must recommend scroll API or PIT+search_after for large result set retrieval.",
+      "Must warn about scroll context limits and memory pressure with 1.2M doc retrievals.",
+      "Must address that Solr /export streams from docValues — OpenSearch retrieves from _source.",
+      "Must flag _source filtering as the fl equivalent (include/exclude fields).",
+      "Must discuss scroll timeout management and best practices for batch sizes.",
+      "Must warn that this will likely be slower than Solr /export and may need architectural changes."
+    ],
+    "keyword_assertions": [
+      "scroll",
+      "search_after",
+      "_source",
+      "no direct equivalent"
+    ],
+    "anti_patterns": [
+      "Claiming scroll API is equivalent to /export",
+      "Ignoring memory and performance implications of large scrolls",
+      "Not mentioning the docValues streaming vs _source retrieval difference"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "high"
+  },
+  {
+    "id": "backup-snapshot-strategy",
+    "title": "Backup and Snapshot Migration Strategy",
+    "category": "operational",
+    "difficulty": "medium",
+    "solr_feature": "Collections API BACKUP/RESTORE",
+    "scenario": "Client has automated Solr backups via the Collections API BACKUP command to a shared NFS mount. Backups run every 6 hours with 7-day retention (28 snapshots). They restore individual collections when needed for disaster recovery or test environment refresh. The backup includes the configset, index data, and collection metadata. Total backup size is ~200GB across 8 collections.",
+    "expectations": [
+      "Must map to OpenSearch snapshot/restore API with an S3 repository backend.",
+      "Must explain that Solr backups are NOT directly restorable in OpenSearch — full re-index is required.",
+      "Must recommend ISM (Index State Management) for automated snapshot scheduling.",
+      "Must address the NFS-to-S3 repository change and its operational implications.",
+      "Must explain snapshot lifecycle management (retention policies via ISM or repository settings).",
+      "Must note that OpenSearch snapshots are incremental (only changed segments), which differs from Solr full backups."
+    ],
+    "keyword_assertions": [
+      "snapshot",
+      "S3",
+      "ISM",
+      "incremental",
+      "not directly restorable"
+    ],
+    "anti_patterns": [
+      "Suggesting Solr backups can be converted to OpenSearch snapshots",
+      "Ignoring the re-index requirement",
+      "Not mentioning ISM for automated snapshot management"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "security-field-level",
+    "title": "Field-Level and Document-Level Security",
+    "category": "operational",
+    "difficulty": "medium",
+    "solr_feature": "Per-collection security via separate collections",
+    "scenario": "Client needs role-based access restrictions: support team sees all fields but only their region's documents (NA, EU, APAC), analytics team sees all documents but not PII fields (email, phone, ssn_last4), admin team has full access. Currently enforced by maintaining 3 separate Solr collections (one per region) with the support team only having access to their region's collection. Analytics team has a 4th collection with PII fields stripped at index time. This means 4 copies of largely the same data.",
+    "expectations": [
+      "Must recommend consolidating from multiple collections to a single index with document-level security (DLS).",
+      "Must explain OpenSearch fine-grained access control (FGAC) with DLS and FLS.",
+      "Must describe role-based access control setup: region-based DLS for support, field exclusions for analytics.",
+      "Must flag that this is a significant architectural improvement over the current multi-collection approach.",
+      "Must warn about testing DLS/FLS rules thoroughly before cutover.",
+      "Must note that FGAC requires the Security plugin (available in OpenSearch Service by default)."
+    ],
+    "keyword_assertions": [
+      "document-level security",
+      "field-level security",
+      "fine-grained access control",
+      "role"
+    ],
+    "anti_patterns": [
+      "Recommending multiple indices to mirror the current multi-collection approach",
+      "Ignoring the consolidation opportunity",
+      "Not mentioning the Security plugin requirement"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  },
+  {
+    "id": "replica-types-nrt-tlog-pull",
+    "title": "SolrCloud Replica Types: NRT, TLOG, PULL",
+    "category": "operational",
+    "difficulty": "medium",
+    "solr_feature": "SolrCloud replica types (NRT, TLOG, PULL)",
+    "scenario": "Client uses a mix of replica types per shard: 3 NRT replicas for real-time search (sub-second update visibility), 2 TLOG replicas for failover (replay from transaction log, no local indexing overhead), and 2 PULL replicas for analytics queries (poll-based replication, zero indexing overhead, dedicated to heavy aggregation queries). The PULL replicas are on separate hardware and serve a Grafana dashboard with complex aggregations. Total: 7 replicas per shard across 4 shards.",
+    "expectations": [
+      "Must explain that OpenSearch has a simpler replication model — all replicas receive writes via the primary shard.",
+      "Must flag that there is no TLOG or PULL replica distinction in OpenSearch.",
+      "Must address the PULL replica analytics pattern — recommend cross-cluster replication (CCR) to a separate analytics cluster, or a dedicated coordinating/data node for heavy aggregations.",
+      "Must note that 7 replicas per shard is likely excessive in OpenSearch and recommend right-sizing.",
+      "Must explain that OpenSearch near-real-time (NRT) refresh interval (default 1s) provides similar freshness to Solr NRT replicas.",
+      "Must flag the cost implications of replicating the same data 7 times."
+    ],
+    "keyword_assertions": [
+      "primary shard",
+      "cross-cluster replication",
+      "refresh interval",
+      "no TLOG",
+      "no PULL"
+    ],
+    "anti_patterns": [
+      "Suggesting OpenSearch has equivalent replica type distinctions",
+      "Recommending 7 replicas per shard in OpenSearch without questioning the design",
+      "Ignoring the analytics isolation use case"
+    ],
+    "no_equivalent": true,
+    "migration_risk": "medium"
+  },
+  {
+    "id": "max-clause-count-wildcard-expansion",
+    "title": "Max Clause Count and Wildcard Query Expansion",
+    "category": "query-features",
+    "difficulty": "medium",
+    "solr_feature": "maxBooleanClauses with wildcard expansion",
+    "scenario": "Client's users search with leading wildcards (*phone, *laptop, *drive) and the queries routinely expand to 3000-5000+ terms. Solr's maxBooleanClauses is set to 10240 in solrconfig.xml. After initial OpenSearch testing, some queries are failing with 'maxClauseCount is set to 1024' error. The client also has wildcard queries in filter contexts (fq=sku:*-REFURB) that expand to 2000+ terms.",
+    "expectations": [
+      "Must explain the indices.query.bool.max_clause_count setting in OpenSearch (default 1024).",
+      "Must recommend increasing the setting but warn about memory and performance implications.",
+      "Must suggest rewriting leading wildcards as reverse-token ngrams (reverse + edge_ngram) for better performance.",
+      "Must flag that leading wildcards are inherently expensive in both Solr and OpenSearch.",
+      "Must address the filter-context wildcard (sku:*-REFURB) — suggest a keyword field with a pattern-based approach or a separate boolean field.",
+      "Must note this is a cluster-level setting change, not per-index."
+    ],
+    "keyword_assertions": [
+      "max_clause_count",
+      "1024",
+      "reverse",
+      "ngram",
+      "performance"
+    ],
+    "anti_patterns": [
+      "Simply recommending increasing max_clause_count without discussing alternatives",
+      "Ignoring the performance implications of leading wildcards",
+      "Not mentioning the reverse ngram optimization"
+    ],
+    "no_equivalent": false,
+    "migration_risk": "high"
+  }
+]

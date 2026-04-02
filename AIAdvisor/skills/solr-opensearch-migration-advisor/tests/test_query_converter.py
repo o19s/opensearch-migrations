@@ -1,9 +1,6 @@
 """Tests for query_converter.py"""
-import sys
-import os
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from query_converter import QueryConverter, _unwrap_parens, _split_boolean
 
 
@@ -90,9 +87,108 @@ def test_bare_term_falls_back_to_query_string(converter):
     assert result == {"query": {"query_string": {"query": "opensearch"}}}
 
 
-def test_boost_stripped(converter):
+def test_boost_preserved_on_match(converter):
     result = converter.convert("title:search^2")
-    assert result == {"query": {"match": {"title": "search"}}}
+    assert result == {"query": {"match": {"title": {"query": "search", "boost": 2.0}}}}
+
+
+def test_convert_request_edismax_placeholder(converter):
+    result = converter.convert_request(
+        {
+            "q": "hard drive",
+            "defType": "edismax",
+            "qf": "name^2 features^1 cat^0.5",
+        }
+    )
+    multi_match = result["query"]["multi_match"]
+    assert multi_match["query"] == "hard drive"
+    assert "name^2" in multi_match["fields"]
+    assert "features^1" in multi_match["fields"]
+
+
+def test_convert_request_fq_placeholder(converter):
+    result = converter.convert_request(
+        {
+            "q": "*:*",
+            "fq": ["inStock:true", "cat:electronics"],
+        }
+    )
+    bool_query = result["query"]["bool"]
+    assert {"match_all": {}} in bool_query["must"]
+    assert {"term": {"inStock": True}} in bool_query["filter"]
+    assert {"term": {"cat": "electronics"}} in bool_query["filter"]
+
+
+def test_convert_request_facet_field_placeholder(converter):
+    result = converter.convert_request(
+        {
+            "q": "*:*",
+            "facet.field": "cat",
+        }
+    )
+    assert result["aggs"]["cat"]["terms"]["field"] == "cat.keyword"
+
+
+def test_convert_request_highlight_placeholder(converter):
+    result = converter.convert_request(
+        {
+            "q": "solr migration",
+            "hl": "true",
+            "hl.fl": "title,body",
+            "hl.simple.pre": "<b>",
+            "hl.simple.post": "</b>",
+        }
+    )
+    assert result["highlight"]["fields"] == {"title": {}, "body": {}}
+    assert result["highlight"]["pre_tags"] == ["<b>"]
+    assert result["highlight"]["post_tags"] == ["</b>"]
+
+
+def test_convert_request_highlight_query_placeholder(converter):
+    result = converter.convert_request(
+        {
+            "q": "*:*",
+            "hl": "true",
+            "hl.fl": "title",
+            "hl.q": "title:solr",
+        }
+    )
+    assert result["highlight"]["highlight_query"] == {"match": {"title": "solr"}}
+
+
+def test_convert_request_size_and_sort_placeholders(converter):
+    result = converter.convert_request(
+        {
+            "q": "laptop",
+            "rows": "5",
+            "sort": "price asc",
+        }
+    )
+    assert result["size"] == 5
+    assert result["sort"] == [{"price": {"order": "asc"}}]
+
+
+def test_convert_request_integrated_demo_shape(converter):
+    result = converter.convert_request(
+        {
+            "q": "laptop",
+            "defType": "edismax",
+            "qf": "title^3 description^1",
+            "fq": ["status:active", "price:[0 TO 5000]"],
+            "facet.field": "category",
+            "hl": "true",
+            "hl.fl": "title,description",
+            "rows": "10",
+            "sort": "price asc",
+        }
+    )
+    assert "bool" in result["query"]
+    assert {"term": {"status": "active"}} in result["query"]["bool"]["filter"]
+    assert {"range": {"price": {"gte": 0, "lte": 5000}}} in result["query"]["bool"]["filter"]
+    assert result["aggs"]["category"]["terms"]["field"] == "category.keyword"
+    assert result["highlight"]["fields"] == {"title": {}, "description": {}}
+    assert result["size"] == 10
+    assert result["sort"] == [{"price": {"order": "asc"}}]
 
 
 def test_empty_query_raises(converter):

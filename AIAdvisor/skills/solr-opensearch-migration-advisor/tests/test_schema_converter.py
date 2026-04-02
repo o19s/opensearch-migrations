@@ -1,10 +1,7 @@
 """Tests for schema_converter.py"""
-import sys
-import os
 import json
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from schema_converter import SchemaConverter, SOLR_TYPE_TO_OPENSEARCH
 
 
@@ -97,6 +94,66 @@ def test_xml_dynamic_templates(converter):
     names = [list(t.keys())[0] for t in templates]
     assert "dynamic_i" in names
     assert "dynamic_s" in names
+
+
+def test_xml_analyzer_chain_emits_settings_and_field_analyzers(converter):
+    schema_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="test" version="1.6">
+  <fieldType name="text_general" class="solr.TextField">
+    <analyzer type="index">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+      <filter class="solr.StopFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+      <filter class="solr.SynonymGraphFilterFactory"/>
+    </analyzer>
+  </fieldType>
+  <field name="title" type="text_general"/>
+</schema>"""
+    mapping = converter.convert_xml(schema_xml)
+    analyzers = mapping["settings"]["analysis"]["analyzer"]
+
+    assert "text_general_index" in analyzers
+    assert "text_general_query" in analyzers
+    assert mapping["mappings"]["properties"]["title"]["analyzer"] == "text_general_index"
+    assert mapping["mappings"]["properties"]["title"]["search_analyzer"] == "text_general_query"
+
+
+def test_xml_copy_field_becomes_copy_to(converter):
+    schema_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="test" version="1.6">
+  <fieldType name="string" class="solr.StrField"/>
+  <field name="title" type="string"/>
+  <copyField source="title" dest="_text_"/>
+</schema>"""
+    mapping = converter.convert_xml(schema_xml)
+    assert mapping["mappings"]["properties"]["title"]["copy_to"] == ["_text_"]
+
+
+def test_xml_scoring_incompatibility_flagged_for_text_fields(converter):
+    schema_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="test" version="1.6">
+  <fieldType name="text_general" class="solr.TextField"/>
+  <field name="title" type="text_general"/>
+</schema>"""
+    mapping = converter.convert_xml(schema_xml)
+    incompatibilities = mapping["incompatibilities"]
+    assert any(item["id"] == "SCORING-001" for item in incompatibilities)
+
+
+def test_xml_multilingual_field_patterns_emit_warning(converter):
+    schema_xml = """<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="drupal" version="1.6">
+  <fieldType name="text_und" class="solr.TextField"/>
+  <field name="tm_X3_en_title" type="text_und"/>
+  <field name="tm_X3_es_body" type="text_und"/>
+</schema>"""
+    mapping = converter.convert_xml(schema_xml)
+    warnings = mapping["warnings"]
+    assert any(item["code"] == "LANGUAGE-FIELD-PATTERNS" for item in warnings)
 
 
 def test_xml_invalid_raises(converter):

@@ -62,12 +62,37 @@ _STORED_ATTR = "stored"
 _MULTI_VALUED_ATTR = "multiValued"
 _DOC_VALUES_ATTR = "docValues"
 
+_TOKENIZER_MAP = {
+    "StandardTokenizerFactory": "standard",
+    "KeywordTokenizerFactory": "keyword",
+    "WhitespaceTokenizerFactory": "whitespace",
+}
+
+_FILTER_MAP = {
+    "LowerCaseFilterFactory": "lowercase",
+    "StopFilterFactory": "stop",
+    "SynonymGraphFilterFactory": "synonym_graph",
+    "SynonymFilterFactory": "synonym",
+}
+
 
 def _solr_bool(value: str | None, default: bool = True) -> bool:
     """Convert a Solr XML attribute string to a Python bool."""
     if value is None:
         return default
     return value.strip().lower() == "true"
+
+
+def _factory_short_name(class_name: str) -> str:
+    return class_name.split(".")[-1]
+
+
+def _map_tokenizer(class_name: str) -> str | None:
+    return _TOKENIZER_MAP.get(_factory_short_name(class_name))
+
+
+def _map_filter(class_name: str) -> str | None:
+    return _FILTER_MAP.get(_factory_short_name(class_name))
 
 
 class SchemaConverter:
@@ -89,76 +114,6 @@ class SchemaConverter:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-
-    def _get_field_type_map_xml(self, root: ET.Element) -> dict[str, str]:
-        """Build a lookup from field-type name → Solr class name from XML."""
-        field_type_map: dict[str, str] = {}
-        for ft in root.iter("fieldType"):
-            name = ft.get("name")
-            class_ = ft.get("class", "")
-            if name:
-                field_type_map[name] = class_
-        return field_type_map
-
-    def _process_fields_xml(
-        self,
-        root: ET.Element,
-        field_type_map: dict[str, str]
-    ) -> dict[str, Any]:
-        """Convert Solr fields to OpenSearch properties from XML."""
-        properties: dict[str, Any] = {}
-        for field in root.iter("field"):
-            field_name = field.get("name")
-            if not field_name or field_name.startswith("_"):
-                # Skip internal Solr fields (e.g. _version_)
-                continue
-
-            field_type_name = field.get("type", "")
-            solr_class = field_type_map.get(field_type_name, field_type_name)
-            os_type = SOLR_TYPE_TO_OPENSEARCH.get(solr_class, "keyword")
-
-            prop: dict[str, Any] = {"type": os_type}
-
-            # Propagate store/index hints where relevant.
-            if not _solr_bool(field.get(_STORED_ATTR)):
-                prop["store"] = False
-
-            if not _solr_bool(field.get(_INDEXED_ATTR)):
-                prop["index"] = False
-
-            if _solr_bool(field.get(_DOC_VALUES_ATTR), default=False):
-                prop["doc_values"] = True
-
-            properties[field_name] = prop
-        return properties
-
-    def _process_dynamic_fields_xml(
-        self,
-        root: ET.Element,
-        field_type_map: dict[str, str]
-    ) -> list[dict[str, Any]]:
-        """Convert Solr dynamic fields to OpenSearch dynamic templates from XML."""
-        dynamic_templates: list[dict[str, Any]] = []
-        for df in root.iter("dynamicField"):
-            name_pattern = df.get("name", "")
-            field_type_name = df.get("type", "")
-            solr_class = field_type_map.get(field_type_name, field_type_name)
-            os_type = SOLR_TYPE_TO_OPENSEARCH.get(solr_class, "keyword")
-
-            # Build a best-effort dynamic template.
-            if name_pattern.startswith("*_"):
-                suffix = name_pattern[2:]
-                template_name = f"dynamic_{suffix}"
-                dynamic_templates.append(
-                    {
-                        template_name: {
-                            "match": name_pattern,
-                            "match_pattern": "wildcard",
-                            "mapping": {"type": os_type},
-                        }
-                    }
-                )
-        return dynamic_templates
 
     def convert_xml(self, schema_xml: str) -> dict[str, Any]:
         """Convert a Solr ``schema.xml`` document to an OpenSearch mapping.
@@ -184,36 +139,25 @@ class SchemaConverter:
                 f"Expected root element <schema>, got <{root.tag}>"
             )
 
-        field_type_map = self._get_field_type_map_xml(root)
-        properties = self._process_fields_xml(root, field_type_map)
-        dynamic_templates = self._process_dynamic_fields_xml(root, field_type_map)
-
-        mapping: dict[str, Any] = {"mappings": {"properties": properties}}
-        if dynamic_templates:
-            mapping["mappings"]["dynamic_templates"] = dynamic_templates
-
-        return mapping
-
-    def _get_field_type_map(self, schema: dict[str, Any]) -> dict[str, str]:
-        """Build a lookup from field-type name → Solr class name."""
+        # Build a lookup from field-type name → Solr class name.
         field_type_map: dict[str, str] = {}
-        for ft in schema.get("fieldTypes", []):
+        field_type_analyzers: dict[str, dict[str, str]] = {}
+        settings_analysis: dict[str, Any] = {"analyzer": {}}
+        for ft in root.iter("fieldType"):
             name = ft.get("name")
             class_ = ft.get("class", "")
             if name:
                 field_type_map[name] = class_
-        return field_type_map
+                analyzer_names = self._extract_field_type_analyzers(ft, name, settings_analysis)
+                if analyzer_names:
+                    field_type_analyzers[name] = analyzer_names
 
-    def _process_fields(
-        self,
-        schema: dict[str, Any],
-        field_type_map: dict[str, str]
-    ) -> dict[str, Any]:
-        """Convert Solr fields to OpenSearch properties."""
         properties: dict[str, Any] = {}
-        for field in schema.get("fields", []):
+
+        for field in root.iter("field"):
             field_name = field.get("name")
             if not field_name or field_name.startswith("_"):
+                # Skip internal Solr fields (e.g. _version_)
                 continue
 
             field_type_name = field.get("type", "")
@@ -222,31 +166,38 @@ class SchemaConverter:
 
             prop: dict[str, Any] = {"type": os_type}
 
-            if not field.get("stored", True):
+            analyzer_names = field_type_analyzers.get(field_type_name)
+            if os_type == "text" and analyzer_names:
+                if "index" in analyzer_names:
+                    prop["analyzer"] = analyzer_names["index"]
+                if "query" in analyzer_names:
+                    prop["search_analyzer"] = analyzer_names["query"]
+
+            # Propagate store/index hints where relevant.
+            if not _solr_bool(field.get(_STORED_ATTR)):
                 prop["store"] = False
 
-            if not field.get("indexed", True):
+            if not _solr_bool(field.get(_INDEXED_ATTR)):
                 prop["index"] = False
 
-            if field.get("docValues", False):
+            if _solr_bool(field.get(_DOC_VALUES_ATTR), default=False):
                 prop["doc_values"] = True
 
             properties[field_name] = prop
-        return properties
 
-    def _process_dynamic_fields(
-        self,
-        schema: dict[str, Any],
-        field_type_map: dict[str, str]
-    ) -> list[dict[str, Any]]:
-        """Convert Solr dynamic fields to OpenSearch dynamic templates."""
+        self._apply_copy_fields_xml(root, properties)
+
+        # Also handle <dynamicField> entries by converting them to a comment in
+        # the returned mapping (OpenSearch does not have dynamic field globs,
+        # but does have dynamic templates).
         dynamic_templates: list[dict[str, Any]] = []
-        for df in schema.get("dynamicFields", []):
+        for df in root.iter("dynamicField"):
             name_pattern = df.get("name", "")
             field_type_name = df.get("type", "")
             solr_class = field_type_map.get(field_type_name, field_type_name)
             os_type = SOLR_TYPE_TO_OPENSEARCH.get(solr_class, "keyword")
 
+            # Build a best-effort dynamic template.
             if name_pattern.startswith("*_"):
                 suffix = name_pattern[2:]
                 template_name = f"dynamic_{suffix}"
@@ -259,7 +210,20 @@ class SchemaConverter:
                         }
                     }
                 )
-        return dynamic_templates
+
+        mapping: dict[str, Any] = {"mappings": {"properties": properties}}
+        if dynamic_templates:
+            mapping["mappings"]["dynamic_templates"] = dynamic_templates
+        if settings_analysis["analyzer"]:
+            mapping["settings"] = {"analysis": settings_analysis}
+        incompatibilities = self._detect_incompatibilities(properties)
+        if incompatibilities:
+            mapping["incompatibilities"] = incompatibilities
+        warnings = self._detect_warnings(properties)
+        if warnings:
+            mapping["warnings"] = warnings
+
+        return mapping
 
     def convert_json(self, schema_api_json: str) -> dict[str, Any]:
         """Convert a Solr Schema API JSON document to an OpenSearch mapping.
@@ -292,12 +256,140 @@ class SchemaConverter:
 
         schema = data.get("schema", data)
 
-        field_type_map = self._get_field_type_map(schema)
-        properties = self._process_fields(schema, field_type_map)
-        dynamic_templates = self._process_dynamic_fields(schema, field_type_map)
+        # Build a lookup from field-type name → Solr class name.
+        field_type_map: dict[str, str] = {}
+        for ft in schema.get("fieldTypes", []):
+            name = ft.get("name")
+            class_ = ft.get("class", "")
+            if name:
+                field_type_map[name] = class_
+
+        properties: dict[str, Any] = {}
+
+        for field in schema.get("fields", []):
+            field_name = field.get("name")
+            if not field_name or field_name.startswith("_"):
+                continue
+
+            field_type_name = field.get("type", "")
+            solr_class = field_type_map.get(field_type_name, field_type_name)
+            os_type = SOLR_TYPE_TO_OPENSEARCH.get(solr_class, "keyword")
+
+            prop: dict[str, Any] = {"type": os_type}
+
+            if not field.get("stored", True):
+                prop["store"] = False
+
+            if not field.get("indexed", True):
+                prop["index"] = False
+
+            if field.get("docValues", False):
+                prop["doc_values"] = True
+
+            properties[field_name] = prop
+
+        dynamic_templates: list[dict[str, Any]] = []
+        for df in schema.get("dynamicFields", []):
+            name_pattern = df.get("name", "")
+            field_type_name = df.get("type", "")
+            solr_class = field_type_map.get(field_type_name, field_type_name)
+            os_type = SOLR_TYPE_TO_OPENSEARCH.get(solr_class, "keyword")
+
+            if name_pattern.startswith("*_"):
+                suffix = name_pattern[2:]
+                template_name = f"dynamic_{suffix}"
+                dynamic_templates.append(
+                    {
+                        template_name: {
+                            "match": name_pattern,
+                            "match_pattern": "wildcard",
+                            "mapping": {"type": os_type},
+                        }
+                    }
+                )
 
         mapping: dict[str, Any] = {"mappings": {"properties": properties}}
         if dynamic_templates:
             mapping["mappings"]["dynamic_templates"] = dynamic_templates
 
         return mapping
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _extract_field_type_analyzers(
+        self,
+        field_type: ET.Element,
+        field_type_name: str,
+        settings_analysis: dict[str, Any],
+    ) -> dict[str, str]:
+        analyzer_names: dict[str, str] = {}
+        for analyzer in field_type.findall("analyzer"):
+            analyzer_type = analyzer.get("type", "index")
+            analyzer_name = f"{field_type_name}_{analyzer_type}"
+            analyzer_body: dict[str, Any] = {}
+
+            tokenizer = analyzer.find("tokenizer")
+            if tokenizer is not None:
+                tokenizer_name = _map_tokenizer(tokenizer.get("class", ""))
+                if tokenizer_name:
+                    analyzer_body["tokenizer"] = tokenizer_name
+
+            filters = []
+            for filter_node in analyzer.findall("filter"):
+                filter_name = _map_filter(filter_node.get("class", ""))
+                if filter_name:
+                    filters.append(filter_name)
+
+            if filters:
+                analyzer_body["filter"] = filters
+
+            if analyzer_body:
+                settings_analysis["analyzer"][analyzer_name] = analyzer_body
+                analyzer_names[analyzer_type] = analyzer_name
+
+        return analyzer_names
+
+    def _apply_copy_fields_xml(self, root: ET.Element, properties: dict[str, Any]) -> None:
+        copy_map: dict[str, list[str]] = {}
+        for copy_field in root.iter("copyField"):
+            source = copy_field.get("source")
+            dest = copy_field.get("dest")
+            if not source or not dest or source not in properties:
+                continue
+            copy_map.setdefault(source, [])
+            if dest not in copy_map[source]:
+                copy_map[source].append(dest)
+
+        for source, destinations in copy_map.items():
+            properties[source]["copy_to"] = destinations
+
+    def _detect_incompatibilities(self, properties: dict[str, Any]) -> list[dict[str, str]]:
+        incompatibilities: list[dict[str, str]] = []
+        has_text_fields = any(prop.get("type") == "text" for prop in properties.values())
+        if has_text_fields:
+            incompatibilities.append(
+                {
+                    "id": "SCORING-001",
+                    "area": "scoring",
+                    "category": "Behavioral",
+                    "severity": "high",
+                    "description": "Solr relevance behavior may shift because OpenSearch defaults to BM25 instead of classic TF-IDF style scoring.",
+                    "recommendation": "Establish a judged relevance baseline and compare top queries before cutover.",
+                }
+            )
+        return incompatibilities
+
+    def _detect_warnings(self, properties: dict[str, Any]) -> list[dict[str, str]]:
+        warnings: list[dict[str, str]] = []
+        field_names = list(properties.keys())
+        multilingual_markers = ("_en_", "_es_", "_fr_", "_de_", "_it_", "_pt_")
+        if any(name.startswith("tm_") or any(marker in name for marker in multilingual_markers) for name in field_names):
+            warnings.append(
+                {
+                    "code": "LANGUAGE-FIELD-PATTERNS",
+                    "message": "Detected language-specific or machine-generated field naming patterns; review analyzer assignments and module-managed schema semantics before migration.",
+                }
+            )
+        return warnings

@@ -1,0 +1,197 @@
+{
+  "_comment": "Step handler prompts for the guided workflow. Used by handle_message() state machine (non-LLM path) and as reference for SKILL.md LLM-path instructions.",
+  "_version": "1.0.0",
+
+  "steps": {
+    "greeting": {
+      "step_number": 0,
+      "name": "Stakeholder Identification",
+      "prompt_text": "Welcome! I'm the Solr-to-OpenSearch Migration Advisor. I'll help you plan and execute your migration.\n\nTo give you the most relevant guidance, could you tell me about your role?\n\n1. **Developer** — writing code that talks to Solr\n2. **Search engineer** — tuning relevance, managing schemas\n3. **DevOps / Platform** — managing clusters, infrastructure, deployments\n4. **Architect** — designing the migration strategy\n5. **Manager / stakeholder** — planning timelines and resources\n\nYou can also just describe what you're working on and I'll tailor my guidance accordingly.",
+      "facts_to_record": {
+        "stakeholder_role": "One of: developer, search_engineer, devops, architect, manager, unknown",
+        "workflow_step": "greeting"
+      },
+      "response_patterns": {
+        "developer": "Great — I'll focus on code changes, client library migration, and query translation. Let's start by looking at your Solr schema.",
+        "search_engineer": "Perfect — I'll emphasize relevance impact, analyzer chain conversion, and scoring differences. Let's start with your schema.",
+        "devops": "Got it — I'll focus on cluster sizing, infrastructure changes, and operational differences. Let's start by understanding your current topology.",
+        "architect": "Excellent — I'll cover the full migration strategy including risk assessment, phasing, and architectural decisions. Let's start with an overview of your Solr deployment.",
+        "manager": "Understood — I'll emphasize timelines, effort estimates, risks, and decision points. Let's start by understanding the scope of your migration.",
+        "unknown": "No problem — let's get started! The first thing I'll need is your Solr schema. Do you have access to your schema.xml or can you call the Schema API?"
+      },
+      "next_step": "schema_intake",
+      "can_skip": true,
+      "skip_fact": { "stakeholder_role": "unknown" }
+    },
+
+    "schema_intake": {
+      "step_number": 1,
+      "name": "Schema Acquisition",
+      "prompt_text": "Now let's look at your Solr schema. I can work with either format:\n\n**Option A: schema.xml** — paste the full XML (or the relevant `<fields>` and `<fieldTypes>` sections)\n\n**Option B: Schema API JSON** — run this against your Solr instance:\n```\ncurl http://your-solr:8983/solr/YOUR_COLLECTION/schema\n```\nand paste the JSON response.\n\nIf you don't have access to the schema yet, just describe your setup (number of collections, approximate field count, any custom field types) and we can work with that.",
+      "facts_to_record": {
+        "schema_source": "xml | json | described",
+        "schema_migrated": "boolean — set true when conversion completes",
+        "collection_count": "number — if described",
+        "field_count_approx": "number — if described"
+      },
+      "on_schema_received": "Run convert_schema_xml() or convert_schema_json(). Record conversion result including incompatibilities. Advance to schema_review.",
+      "on_description_received": "Record what we know. Note that we'll need the actual schema later for accurate conversion. Advance to schema_review with partial data.",
+      "next_step": "schema_review",
+      "can_skip": false
+    },
+
+    "schema_review": {
+      "step_number": 2,
+      "name": "Schema Review & Incompatibility Analysis",
+      "prompt_text_template": "Here's what I found in your schema conversion:\n\n**Converted:** {converted_field_count} fields, {converted_type_count} field types\n**Incompatibilities found:** {incompatibility_count}\n\n{incompatibility_summary}\n\n**Key questions to review:**\n1. Do these field mappings look correct for your use case?\n2. Are there any fields I should know more about (custom analyzers, special behavior)?\n3. {analyzer_question}\n\nOnce you're satisfied with the schema mapping, we'll move on to query translation.",
+      "analyzer_question_if_present": "I found {analyzer_count} custom analyzer chains. I've converted them to OpenSearch analysis blocks — please review the tokenizer and filter mappings carefully, as this is where relevance differences are most likely.",
+      "analyzer_question_if_absent": "I didn't find any custom analyzer definitions. Are you using the default analyzers, or are they defined elsewhere (e.g., a separate configoverlay.json)?",
+      "facts_to_record": {
+        "schema_reviewed": "boolean",
+        "schema_review_notes": "any corrections or context from user"
+      },
+      "next_step": "query_intake",
+      "can_skip": true,
+      "skip_condition": "User says 'looks good' or 'next'"
+    },
+
+    "query_intake": {
+      "step_number": 3,
+      "name": "Query Translation",
+      "prompt_text": "Now let's look at your Solr queries. I can translate individual queries or full request parameter sets.\n\n**What I can handle:**\n- Standard Lucene queries: `title:opensearch AND status:active`\n- DisMax/eDisMax requests: `q=search terms&defType=edismax&qf=title^3 body&mm=75%`\n- Filter queries: `fq=category:electronics&fq=price:[10 TO 100]`\n- Faceted searches: `facet=true&facet.field=category`\n\n**Paste a query** (or multiple) and I'll convert it to OpenSearch Query DSL and flag any incompatibilities.\n\nIf you're not sure which queries to start with, sharing your most common request handler configuration from solrconfig.xml would help me understand your query patterns.",
+      "facts_to_record": {
+        "queries_translated": "number",
+        "query_incompatibilities": "list of flagged issues"
+      },
+      "on_query_received": "Run convert_query() or convert_request(). Record incompatibilities. Show converted DSL with any warnings.",
+      "next_step": "customization",
+      "can_skip": true,
+      "skip_condition": "User doesn't have queries ready or wants to come back to this"
+    },
+
+    "customization": {
+      "step_number": 4,
+      "name": "Customization Assessment",
+      "prompt_text": "Let's check for custom Solr features that might affect your migration. Please tell me about any of these:\n\n**Request Handlers:**\n- Do you have custom request handlers beyond `/select` and `/update`?\n- Any custom SearchComponents?\n\n**Plugins:**\n- Custom tokenizers, filters, or analyzers (Java classes)?\n- Custom update processors (updateRequestProcessorChain)?\n- Third-party plugins (e.g., for security, monitoring)?\n\n**Authentication & Authorization:**\n- How is Solr secured? (BasicAuth, Kerberos, custom, none)\n- Any document-level or field-level security?\n\n**Operational Patterns:**\n- Are you using SolrCloud or standalone mode?\n- Any streaming expressions, CDCR, or Data Import Handler?\n- Atomic updates (partial document updates)?\n\nAnswer what you can — even partial information helps me identify risks.",
+      "facts_to_record": {
+        "custom_request_handlers": "list",
+        "custom_plugins": "list",
+        "auth_method": "string",
+        "operational_patterns": "list — solrcloud, streaming, cdcr, dih, atomic_updates",
+        "customizations_assessed": "boolean"
+      },
+      "incompatibility_triggers": {
+        "streaming_expressions": { "id": "QUERY-007", "auto_flag": true },
+        "cdcr": { "id": "OPS-006", "auto_flag": true },
+        "data_import_handler": { "id": "OPS-008", "auto_flag": true },
+        "custom_update_processors": { "id": "OPS-007", "auto_flag": true },
+        "atomic_updates": { "id": "OPS-004", "auto_flag": true },
+        "custom_similarity": { "id": "SCHEMA-005", "auto_flag": true }
+      },
+      "next_step": "infrastructure",
+      "can_skip": true,
+      "skip_fact": { "customizations_assessed": false }
+    },
+
+    "infrastructure": {
+      "step_number": 5,
+      "name": "Infrastructure Assessment",
+      "prompt_text": "Let's assess your infrastructure needs. Tell me about your current Solr deployment:\n\n**Cluster topology:**\n- How many Solr nodes?\n- How many collections?\n- Shard count and replica factor per collection?\n- Approximate total index size (GB)?\n\n**Hardware / resources:**\n- Node instance type or hardware specs (CPU, RAM, disk)?\n- JVM heap size per node?\n\n**Traffic patterns:**\n- Approximate queries per second (QPS)?\n- Indexing rate (documents per second)?\n- Peak vs average load ratio?\n\n**Target environment:**\n- AWS managed OpenSearch, self-managed, or undecided?\n- Single region or multi-region?\n- Required availability (SLA)?\n\nI'll use this to estimate your OpenSearch cluster sizing.",
+      "facts_to_record": {
+        "solr_node_count": "number",
+        "collection_count": "number",
+        "shard_count": "number",
+        "replica_factor": "number",
+        "total_index_size_gb": "number",
+        "instance_type": "string",
+        "jvm_heap_gb": "number",
+        "qps": "number",
+        "indexing_rate": "number",
+        "target_platform": "aws_managed | self_managed | undecided",
+        "infrastructure_assessed": "boolean"
+      },
+      "sizing_heuristics": {
+        "node_multiplier": "2x minimum (replica co-location forbidden in OpenSearch)",
+        "heap_guidance": "50% of RAM, max 32GB (compressed oops threshold)",
+        "storage_guidance": "3x index size for overhead (segments, merges, snapshots)",
+        "az_minimum": "3 AZs for production (2 master-eligible + data nodes)"
+      },
+      "next_step": "integration",
+      "can_skip": true,
+      "skip_fact": { "infrastructure_assessed": false }
+    },
+
+    "integration": {
+      "step_number": 6,
+      "name": "Client Integration Assessment",
+      "prompt_text": "Finally, let's identify the applications and libraries that connect to your Solr deployment:\n\n**Client libraries:**\n- SolrJ (Java)?\n- pysolr or solrpy (Python)?\n- RSolr (Ruby)?\n- Solarium (PHP)?\n- Custom HTTP clients?\n\n**Frameworks:**\n- Spring Data Solr?\n- Drupal Search API Solr?\n- Magento/Adobe Commerce?\n- Custom application framework?\n\n**Integration patterns:**\n- Direct HTTP calls to Solr?\n- Via a search abstraction layer?\n- Multiple applications sharing the same Solr cluster?\n\nFor each integration, I'll flag what needs to change (library swap, query rewrite, config change, etc.).",
+      "facts_to_record": {
+        "client_integrations": "list of {name, kind, notes, migration_action}",
+        "integrations_assessed": "boolean"
+      },
+      "client_migration_guidance": {
+        "SolrJ": {
+          "kind": "library",
+          "action": "Replace with opensearch-java client. Query builders change significantly. URL patterns change.",
+          "effort": "medium"
+        },
+        "pysolr": {
+          "kind": "library",
+          "action": "Replace with opensearch-py. API is similar to elasticsearch-py. Connection and query format change.",
+          "effort": "medium"
+        },
+        "Spring Data Solr": {
+          "kind": "library",
+          "action": "Replace with spring-data-opensearch. Repository interfaces may need rewrite. Custom queries definitely change.",
+          "effort": "high"
+        },
+        "Drupal Search API Solr": {
+          "kind": "library",
+          "action": "Switch to Search API OpenSearch module (or Elasticsearch Connector module). Server config, field mappings, and processor chain all change.",
+          "effort": "high"
+        },
+        "RSolr": {
+          "kind": "library",
+          "action": "Replace with opensearch-ruby. API differs significantly.",
+          "effort": "medium"
+        },
+        "custom_http": {
+          "kind": "http",
+          "action": "Update URL patterns, request/response format. Solr uses /select?q=...&wt=json, OpenSearch uses POST /_search with JSON body.",
+          "effort": "medium"
+        }
+      },
+      "next_step": "report",
+      "can_skip": true,
+      "skip_fact": { "integrations_assessed": false }
+    },
+
+    "report": {
+      "step_number": 7,
+      "name": "Migration Report Generation",
+      "prompt_text_template": "I've gathered enough information to generate your migration report. Here's a summary of what we've covered:\n\n- **Stakeholder:** {stakeholder_role}\n- **Schema:** {schema_status}\n- **Queries:** {query_status}\n- **Customizations:** {customization_status}\n- **Infrastructure:** {infrastructure_status}\n- **Integrations:** {integration_status}\n- **Incompatibilities found:** {total_incompatibilities} ({breaking_count} breaking, {behavioral_count} behavioral, {unsupported_count} unsupported)\n\nShall I generate the full migration report? I can also go back to any step if you want to provide more information first.",
+      "on_confirm": "Call generate_report(session_id). Return formatted markdown report.",
+      "report_sections": [
+        "Executive Summary (tailored to stakeholder role)",
+        "Incompatibilities (grouped by severity: breaking → behavioral → unsupported)",
+        "Schema Migration (field mappings, analyzer changes, incompatibilities)",
+        "Query Migration (translated queries, flagged issues, relevance impact)",
+        "Infrastructure Recommendations (sizing, topology, platform choice)",
+        "Client Integration Changes (per-library migration actions)",
+        "Major Milestones and Sequencing",
+        "Risk Assessment and Blockers",
+        "Effort and Cost Estimates"
+      ],
+      "next_step": null,
+      "can_skip": false
+    }
+  },
+
+  "global_behaviors": {
+    "always_handle_direct_input": "If user pastes schema XML, query, or other technical input at any step, process it immediately regardless of current workflow state.",
+    "always_accept_report_request": "If user asks for report at any step, generate it with whatever data is available.",
+    "allow_step_revisit": "User can say 'go back to schema' or 'let me update the infrastructure info' to revisit any step.",
+    "record_everything": "Every piece of information the user shares should be recorded as a fact in the session, even if it doesn't map to a specific step.",
+    "flag_incompatibilities_immediately": "Don't wait for the report — flag breaking incompatibilities as soon as they're detected."
+  }
+}

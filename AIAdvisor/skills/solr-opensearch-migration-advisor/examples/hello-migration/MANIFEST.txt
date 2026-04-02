@@ -1,0 +1,108 @@
+HELLO MIGRATION: SOLR → OPENSEARCH MIGRATION SPECIFICATION
+Generated: 2026-03-23
+Mode: Express (YOLO) — assumption-driven, review before executing
+Skill-Version: 0.3.0
+
+Complete Migration Specification Package
+=========================================
+
+FILE MANIFEST:
+
+1. README.md
+   Entry point. YOLO banner, assumptions summary table (20 assumptions, 3 high-risk),
+   complexity score (2/5), how-to-use guide, next steps.
+
+2. steering/ (Scope & Architecture Documents)
+
+   product.md
+   - Project goal: operational simplification (Solr/ZK → AWS OpenSearch)
+   - Scope in/out: single collection, no nested docs, no DIH, no streaming
+   - Must-verify checklist: 5 items to confirm before Phase 2
+   - Success criteria: schema fidelity, query equivalence, operational readiness
+   - Key decisions made; open decisions for stakeholder resolution
+
+   tech.md
+   - Source stack: Solr 8.11, SolrCloud, 2-shard 1-replica, ~100K docs [ASSUMED]
+   - Target stack: AWS OpenSearch 2.17, r6g.large.search ×2, 2-AZ, IAM+SigV4
+   - Full compatibility matrix (14 Solr concepts → OpenSearch equivalents)
+   - Risks and mitigations table; success metrics
+
+   structure.md
+   - Spring Boot 3.x / Kotlin project layout (12 files across 7 packages)
+   - Key class responsibilities: HelloDocument, HelloSearchService, DualWriteIndexService
+   - Annotated Kotlin code snippets for OpenSearchConfig, search query builder, dual-write
+   - application.yml with migration feature flags
+   - build.gradle.kts dependencies
+   - Testing strategy (unit + TestContainers integration + load test)
+   - Local development steps
+
+3. requirements.md
+   - 11 functional requirements (FR-1 through FR-11) in EARS format
+   - 4 non-functional requirements (NFR-1 through NFR-4)
+   - Each FR: user story + GIVEN/WHEN/THEN acceptance criteria
+   - Acceptance criteria summary table with phase gate
+   - Covers: keyword search, facets, filters, date ranges, pagination,
+     schema fidelity, relevance parity, bulk reindex, dual-write, cutover, monitoring
+
+4. design.md
+   - Assumed Solr schema (9 fields, 3 copyFields, 2 dynamicFields) — replace with real
+   - Complete OpenSearch mapping JSON (copy-pasteable, ready to POST)
+   - Analyzer chain: custom `hello_text` (standard + lowercase + stop + english_stemmer)
+   - Mapping notes explaining each design decision
+   - 8 concrete query translations (Solr → OpenSearch Query DSL):
+     Q1: eDisMax keyword search → multi_match + match_phrase
+     Q2: fq category filter → bool.filter term
+     Q3: Keyword + filter combined
+     Q4: Date range filter → range query
+     Q5: Facets → terms aggregation
+     Q6: Full production query (all combined)
+     Q7: Sort by date
+     Q8: Deep pagination guard → search_after
+   - ASCII data flow diagram
+   - Cursor-based bulk reindex strategy (Kotlin code)
+   - Relevance baseline plan (Quepid, nDCG@10)
+   - Performance targets table
+
+5. tasks.md
+   - 20 implementation tasks across 5 phases
+   - Phase 1: Audit & Provision (4 tasks, 3–5 days)
+   - Phase 2: Build & Validate (6 tasks, 5–8 days)
+   - Phase 3: Dual-Write & Shadow Traffic (4 tasks, 10–15 days)
+   - Phase 4: Cutover (2 tasks, 2–3 days)
+   - Phase 5: Cleanup (3 tasks, 3–5 days)
+   - Go/no-go gate criteria before cutover
+   - Abort criteria for rollback during Phase 4
+   - Summary table with owner, effort, blocker flag
+
+TOTAL: ~600 lines of technical specification
+
+KEY CHARACTERISTICS:
+
+✓ Assumption-marked — every gap is labeled [ASSUMED: ...]; 20 total assumptions
+✓ Executable — copy-pasteable JSON mappings, Kotlin code, bash commands throughout
+✓ Phased — 5-phase model with clear go/no-go gates between phases
+✓ Safety-first — must-verify checklist before any code is written
+✓ Rollback-ready — Solr kept warm for 30 days; abort criteria defined for cutover
+✓ Measurement-driven — relevance baseline required; parity threshold defined (90%)
+✓ Spring Boot / Kotlin — follows OSC standard platform stack
+
+HIGH-RISK ASSUMPTIONS TO RESOLVE FIRST:
+
+A10 (Relevance parity as goal): If the real goal is relevance improvement, the entire
+    validation strategy changes. Confirm with product stakeholders.
+
+A11 (Standard analyzers only): Custom Java analyzer plugins require manual port effort.
+    Run: grep -n 'class=' schema.xml | grep -v 'solr\.'
+
+A12 (Flat documents): Nested/parent-child documents require architectural redesign.
+    Run: grep -n 'childFilter\|BlockJoin\|toParent' solrconfig.xml
+
+---
+QUICK START:
+1. grep -rn '\[ASSUMED:' .        # Find all assumptions
+2. Run TASK-101 checklist         # Resolve the three high-risk ones
+3. Replace assumed schema in design.md with real field names
+4. Begin TASK-103 (AWS provisioning) in parallel with TASK-102 (schema capture)
+---
+
+End of Manifest

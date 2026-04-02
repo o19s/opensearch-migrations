@@ -1,0 +1,141 @@
+{
+  "_comment": "Sizing and cost estimation heuristics for Solr → OpenSearch migration. Used by report.py and assess_sizing tool.",
+  "_version": "1.0.0",
+
+  "cluster_sizing": {
+    "node_count": {
+      "rule": "OpenSearch needs ~2x Solr nodes minimum due to replica co-location ban",
+      "formula": "os_data_nodes = max(solr_nodes * 2, 3)",
+      "explanation": "Solr allows primary + replica on the same node; OpenSearch forbids it. A 3-node Solr cluster with RF=2 needs at least 6 data nodes in OpenSearch. Minimum 3 for HA.",
+      "master_nodes": "3 dedicated master nodes for production (can be smaller instances)",
+      "az_distribution": "Distribute evenly across 3 AZs"
+    },
+    "storage": {
+      "rule": "3x current index size for operational overhead",
+      "formula": "os_storage_per_node = (total_index_size * 3) / os_data_nodes",
+      "components": {
+        "index_data": "1x — the actual index",
+        "merge_overhead": "1x — Lucene segment merges need temp space",
+        "snapshots_and_headroom": "1x — snapshots, growth, safety margin"
+      },
+      "disk_type": "gp3 (AWS) for most workloads; io2 for high IOPS needs"
+    },
+    "memory": {
+      "rule": "JVM heap = 50% of RAM, max 32GB",
+      "formula": "jvm_heap = min(ram_gb / 2, 32)",
+      "explanation": "Beyond 32GB, JVM loses compressed ordinary object pointers (oops). The other 50% is for OS page cache (critical for search performance).",
+      "solr_to_os": "If Solr runs 8GB heap on 16GB RAM, OpenSearch should get the same or slightly more"
+    },
+    "instance_type_guidance": {
+      "search_heavy": {
+        "pattern": "High QPS, low indexing",
+        "recommendation": "r6g/r7g instances (memory-optimized) — search benefits from large page cache",
+        "example": "r6g.xlarge (4 vCPU, 32 GB RAM) for ~500 QPS per node"
+      },
+      "index_heavy": {
+        "pattern": "High indexing rate, moderate search",
+        "recommendation": "c6g/c7g instances (compute-optimized) — indexing is CPU-bound",
+        "example": "c6g.xlarge (4 vCPU, 8 GB RAM) for ~5000 docs/sec per node"
+      },
+      "balanced": {
+        "pattern": "Mixed workload",
+        "recommendation": "m6g/m7g instances (general purpose)",
+        "example": "m6g.xlarge (4 vCPU, 16 GB RAM) — good starting point"
+      },
+      "small_dev": {
+        "pattern": "Development / testing",
+        "recommendation": "t3.medium minimum (2 vCPU, 4 GB RAM)",
+        "note": "Don't use t3.small — 2GB RAM is not enough for OpenSearch"
+      }
+    }
+  },
+
+  "effort_estimation": {
+    "base_effort_weeks": {
+      "small": { "range": "2-4 weeks", "criteria": "< 5 collections, < 50 fields, no custom plugins, simple queries" },
+      "medium": { "range": "4-8 weeks", "criteria": "5-20 collections, 50-200 fields, some custom analyzers, eDisMax queries" },
+      "large": { "range": "8-16 weeks", "criteria": "20+ collections, 200+ fields, custom plugins, complex queries, multiple client apps" },
+      "enterprise": { "range": "16-32 weeks", "criteria": "50+ collections, custom similarity, streaming expressions, CDCR, regulatory requirements" }
+    },
+    "per_incompatibility_effort": {
+      "Breaking": {
+        "average_days": 5,
+        "range": "2-10 days",
+        "note": "Breaking incompatibilities require design decisions, not just code changes"
+      },
+      "Behavioral": {
+        "average_days": 2,
+        "range": "1-5 days",
+        "note": "Behavioral differences need testing and tuning, not necessarily code changes"
+      },
+      "Unsupported": {
+        "average_days": 3,
+        "range": "1-8 days",
+        "note": "Unsupported features need workaround design; some may be migration blockers"
+      }
+    },
+    "per_client_integration_effort": {
+      "library_swap": {
+        "average_days": 5,
+        "range": "3-10 days",
+        "note": "Replace client library + update query construction + test"
+      },
+      "framework_migration": {
+        "average_days": 10,
+        "range": "5-20 days",
+        "note": "Spring Data Solr → spring-data-opensearch, Drupal module swap, etc."
+      },
+      "custom_http": {
+        "average_days": 3,
+        "range": "1-5 days",
+        "note": "Update URL patterns and request/response format"
+      }
+    },
+    "relevance_tuning_effort": {
+      "estimate": "2-4 weeks",
+      "note": "BM25 vs TF-IDF causes 30-40% ranking difference. Budget for judgment set creation, Quepid/RRE evaluation, boost tuning."
+    },
+    "testing_effort": {
+      "rule": "30% of total implementation effort",
+      "components": {
+        "unit_tests": "10% — schema/query conversion tests",
+        "integration_tests": "10% — end-to-end pipeline tests",
+        "relevance_testing": "10% — judgment sets, A/B comparison, nDCG validation"
+      }
+    }
+  },
+
+  "cost_estimation": {
+    "infrastructure": {
+      "rule": "Expect 1.5-2.5x Solr infrastructure cost, depending on deployment model",
+      "aws_managed_premium": "20-30% premium over self-managed for operational convenience",
+      "factors": [
+        "Node count increase (~2x due to replica placement)",
+        "Storage increase (gp3 vs local disk)",
+        "Managed service pricing if using AWS OpenSearch Service",
+        "Data transfer costs if multi-AZ"
+      ]
+    },
+    "human_effort": {
+      "rule": "Base weeks * team velocity + incompatibility overhead + integration overhead + relevance tuning",
+      "formula_pseudocode": [
+        "base = base_effort_weeks[size]",
+        "incompat = sum(per_incompatibility_effort[severity] for each incompatibility) / 5",
+        "integration = sum(per_client_integration_effort[type] for each client) / 5",
+        "relevance = 3  # weeks, default",
+        "testing = (base + incompat + integration) * 0.3",
+        "total_weeks = base + incompat + integration + relevance + testing"
+      ]
+    },
+    "risk_contingency": {
+      "rule": "Add 20-30% contingency for unknowns",
+      "common_surprises": [
+        "Analyzer chains produce different results (requires tuning)",
+        "Client library migration takes longer than estimated",
+        "Relevance regression discovered late",
+        "Undocumented Solr customizations surface during testing",
+        "AWS managed service limitations block a feature"
+      ]
+    }
+  }
+}

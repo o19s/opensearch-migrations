@@ -1,0 +1,6 @@
+consumer_id,consumer_name,owner,consumer_type,reads_search,writes_index,criticality,cutover_day_required,fallback_available,solr_touchpoints,response_shape_dependency,migration_status,notes
+C1,Storefront search API,Commerce application team,API,yes,no,High,yes,yes,"/select,eDisMax query builder,products collection",yes,assessing,"Primary customer-facing search path"
+C2,Autocomplete service,Commerce application team,service,yes,no,High,yes,yes,"suggest handler,custom response parsing",yes,assessing,"Low latency path with direct response-shape assumptions"
+C3,Catalog indexing worker,Data platform team,batch job,no,yes,High,yes,partial,"SolrJ bulk update path,delete-by-id",no,in progress,"Owns product and inventory updates"
+C4,Merchandising admin tool,Search team,admin tool,yes,yes,Medium,no,partial,"direct Solr query and boost inspection",yes,not started,"Used by internal team; can tolerate short disruption"
+C5,Nightly reporting export,Business systems team,batch job,yes,no,Medium,no,yes,"direct Solr HTTP queries for search term extracts",yes,not started,"Hidden consumer discovered during assessment"

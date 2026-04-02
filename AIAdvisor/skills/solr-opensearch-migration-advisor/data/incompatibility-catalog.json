@@ -1,0 +1,402 @@
+{
+  "_comment": "Structured incompatibility catalog for programmatic detection. Used by converters to flag issues and by report.py to populate findings.",
+  "_version": "1.0.0",
+
+  "incompatibilities": [
+    {
+      "id": "QUERY-001",
+      "area": "query",
+      "feature": "DisMax/eDisMax query parser",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Solr's DisMax and eDisMax query parsers have no direct equivalent in OpenSearch. Must rewrite as Query DSL with bool queries and multi_match.",
+      "detection": {
+        "schema_xml": null,
+        "solrconfig_xml": ["requestHandler with defType=dismax or defType=edismax"],
+        "query_params": ["defType=dismax", "defType=edismax", "qf=", "pf=", "mm=", "bf=", "bq="],
+        "code_patterns": ["SolrQuery.setParam(\"defType\"", "setRequestHandler"]
+      },
+      "recommendation": "Redesign all queries using OpenSearch Query DSL. eDisMax → bool + multi_match. Test each pattern with relevance comparison."
+    },
+    {
+      "id": "QUERY-002",
+      "area": "query",
+      "feature": "minimum_should_match semantics",
+      "category": "Behavioral",
+      "severity": "high",
+      "description": "In Solr eDisMax with sow=true, mm is evaluated per-document across all fields. In OpenSearch multi_match, it's evaluated per-field. Results may silently differ.",
+      "detection": {
+        "query_params": ["mm="]
+      },
+      "recommendation": "Use type:cross_fields in multi_match for Solr-like behavior, or decompose into explicit bool queries with outer-level minimum_should_match."
+    },
+    {
+      "id": "QUERY-003",
+      "area": "query",
+      "feature": "max_clause_count lower default",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "OpenSearch defaults max_clause_count to 1024 (Solr allows much higher). Wildcard and multi-OR queries fail with 'too_many_clauses'.",
+      "detection": {
+        "query_params": ["queries with many OR terms", "prefix/wildcard queries on high-cardinality fields"]
+      },
+      "recommendation": "Increase via cluster settings. Audit queries — rewrite to use 'terms' queries instead of many 'should' clauses."
+    },
+    {
+      "id": "QUERY-004",
+      "area": "query",
+      "feature": "Pagination from/size limit at 10,000",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "OpenSearch default max_result_window is 10000. Any query with from + size > 10000 throws error. Solr has no such hard limit.",
+      "detection": {
+        "code_patterns": ["start > 10000", "rows + start > 10000", "setStart(", "setRows("]
+      },
+      "recommendation": "Switch to search_after for deep pagination. Increase max_result_window only if truly necessary (impacts memory)."
+    },
+    {
+      "id": "QUERY-005",
+      "area": "query",
+      "feature": "Function query composability",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "Solr allows arbitrary mathematical scoring (product, sum, sqrt, log, etc.). OpenSearch function_score has fixed functions. Complex expressions need Painless scripts.",
+      "detection": {
+        "query_params": ["bf=", "boost="],
+        "solrconfig_xml": ["bf=", "boost="]
+      },
+      "recommendation": "Use script_score with Painless for complex formulas. Benchmark — Painless scripts have performance implications at scale."
+    },
+    {
+      "id": "QUERY-006",
+      "area": "query",
+      "feature": "Query elevation (pinned results)",
+      "category": "Unsupported",
+      "severity": "medium",
+      "description": "Solr's Query Elevation Component pins documents to top. OpenSearch has no built-in equivalent.",
+      "detection": {
+        "solrconfig_xml": ["QueryElevationComponent", "elevate.xml"]
+      },
+      "recommendation": "Implement via application logic, function_score with extreme weights, or inject pinned IDs as high-boost should clauses."
+    },
+    {
+      "id": "QUERY-007",
+      "area": "query",
+      "feature": "Streaming expressions",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Full data pipeline language for large-scale exports and transformations. No OpenSearch equivalent.",
+      "detection": {
+        "query_params": ["expr=", "stream.body="],
+        "code_patterns": ["SolrStream", "StreamExpression", "CloudSolrStream"]
+      },
+      "recommendation": "Use search_after for exports, external tools (Spark, Flink) for processing, OpenSearch SQL/PPL for analytics."
+    },
+    {
+      "id": "QUERY-008",
+      "area": "query",
+      "feature": "Graph traversal queries",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Solr graph query and graph streaming expressions. No OpenSearch equivalent.",
+      "detection": {
+        "query_params": ["{!graph}", "gatherNodes("],
+        "code_patterns": ["GraphHandler"]
+      },
+      "recommendation": "Redesign using application-level traversal or external graph database."
+    },
+    {
+      "id": "QUERY-009",
+      "area": "query",
+      "feature": "Cross-collection join (XCJF)",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Solr supports cross-collection join queries. OpenSearch has no cross-index join.",
+      "detection": {
+        "query_params": ["{!join", "{!xcjf"],
+        "solrconfig_xml": ["JoinQParser"]
+      },
+      "recommendation": "Denormalize data, use nested documents, or implement application-side joins."
+    },
+    {
+      "id": "QUERY-010",
+      "area": "query",
+      "feature": "Boost values silently stripped",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "Query converter may strip ^boost values from field:value^N patterns without warning, causing silent relevance regression.",
+      "detection": {
+        "query_params": ["^"]
+      },
+      "recommendation": "Ensure boost values are preserved in conversion. Map to DSL boost parameter."
+    },
+    {
+      "id": "QUERY-011",
+      "area": "query",
+      "feature": "Grouping / field collapsing",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "Solr's CollapsingQParser and group=true have different semantics than OpenSearch's collapse parameter. Null handling and tie-breaking differ.",
+      "detection": {
+        "query_params": ["group=true", "group.field=", "{!collapse"],
+        "solrconfig_xml": ["CollapsingQParser"]
+      },
+      "recommendation": "Rewrite using OpenSearch collapse parameter with inner_hits. Test thoroughly."
+    },
+    {
+      "id": "SCHEMA-001",
+      "area": "schema",
+      "feature": "Analyzer chains not converted",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Solr analyzer chains (tokenizer + filter pipeline) define how text is processed. Dropping them means different tokenization and different search results.",
+      "detection": {
+        "schema_xml": ["<analyzer", "<tokenizer", "<filter"]
+      },
+      "recommendation": "Convert each analyzer chain to OpenSearch analysis block. Test with _analyze API."
+    },
+    {
+      "id": "SCHEMA-002",
+      "area": "schema",
+      "feature": "copyField directives",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "Solr's copyField routes data to multiple fields at index time. Must convert to OpenSearch copy_to property on source field.",
+      "detection": {
+        "schema_xml": ["<copyField"]
+      },
+      "recommendation": "Add copy_to to source field mapping. Note: copy_to only copies values, not analyzers — target field must have its own analyzer."
+    },
+    {
+      "id": "SCHEMA-003",
+      "area": "schema",
+      "feature": "Dynamic field patterns",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "Solr supports various dynamic field patterns (*_t, *_i, attr_*, etc.). OpenSearch dynamic templates have different matching syntax.",
+      "detection": {
+        "schema_xml": ["<dynamicField"]
+      },
+      "recommendation": "Convert to dynamic_templates. Patterns like *_t → match:*_t with match_pattern:regex."
+    },
+    {
+      "id": "SCHEMA-004",
+      "area": "schema",
+      "feature": "Text vs keyword fielddata",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Sorting/aggregating on text fields fails in OpenSearch (fielddata disabled by default). Enabling fielddata: true is a memory bomb causing CircuitBreakingException.",
+      "detection": {
+        "schema_xml": ["fields used for both search AND sort/facet"],
+        "code_patterns": ["sort=", "facet.field="]
+      },
+      "recommendation": "Use multi-field mapping: text for search, .keyword sub-field for sort/agg. NEVER enable fielddata: true in production."
+    },
+    {
+      "id": "SCHEMA-005",
+      "area": "schema",
+      "feature": "Custom similarity classes",
+      "category": "Unsupported",
+      "severity": "high",
+      "description": "Solr allows custom similarity implementations via Java. AWS managed OpenSearch does NOT support custom plugins. Limited to built-in similarities.",
+      "detection": {
+        "schema_xml": ["<similarity"]
+      },
+      "recommendation": "Use built-in BM25 (default) and retune. If custom scorer is critical, this may block AWS managed adoption."
+    },
+    {
+      "id": "SCHEMA-006",
+      "area": "schema",
+      "feature": "Nested/child documents",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Solr block join ({!child}, {!parent}) has no 1:1 mapping to OpenSearch nested type. Different query syntax and update semantics.",
+      "detection": {
+        "schema_xml": ["_childDocuments_", "_root_"],
+        "query_params": ["{!child", "{!parent"]
+      },
+      "recommendation": "Map to OpenSearch nested type with explicit mapping. Rewrite join queries. Consider denormalization for simple cases."
+    },
+    {
+      "id": "SCHEMA-007",
+      "area": "schema",
+      "feature": "SortableTextField",
+      "category": "Unsupported",
+      "severity": "medium",
+      "description": "Solr's SortableTextField combines analysis with sort capability. No OpenSearch equivalent.",
+      "detection": {
+        "schema_xml": ["SortableTextField"]
+      },
+      "recommendation": "Use multi-field mapping: text sub-field for search, keyword sub-field for sorting."
+    },
+    {
+      "id": "SCHEMA-008",
+      "area": "schema",
+      "feature": "multiValued enforcement lost",
+      "category": "Behavioral",
+      "severity": "low",
+      "description": "Solr explicitly marks fields as multiValued=true/false. OpenSearch has no such attribute — any field can accept an array.",
+      "detection": {
+        "schema_xml": ["multiValued=\"false\""]
+      },
+      "recommendation": "Enforce single-value constraints at application layer or via ingest pipeline validation."
+    },
+    {
+      "id": "SCORING-001",
+      "area": "scoring",
+      "feature": "TF-IDF → BM25 default similarity",
+      "category": "Behavioral",
+      "severity": "high",
+      "description": "Solr defaults to TF-IDF (ClassicSimilarity). OpenSearch defaults to BM25. Expect 30-40% ranking difference in top-10 results.",
+      "detection": {
+        "schema_xml": ["no explicit similarity = TF-IDF assumed"]
+      },
+      "recommendation": "Establish relevance baseline BEFORE migration. Re-tune boosts and field weights. Use Quepid/RRE with judgment sets for validation."
+    },
+    {
+      "id": "SCORING-002",
+      "area": "scoring",
+      "feature": "Payload scoring",
+      "category": "Unsupported",
+      "severity": "medium",
+      "description": "Solr allows storing scoring payloads in tokens. OpenSearch has limited support.",
+      "detection": {
+        "schema_xml": ["DelimitedPayloadTokenFilter"],
+        "query_params": ["payload_score", "PayloadScoreFunction"]
+      },
+      "recommendation": "Use script_score with stored payloads or redesign scoring logic."
+    },
+    {
+      "id": "OPS-001",
+      "area": "operations",
+      "feature": "Shard + replica co-location forbidden",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "OpenSearch forbids primary + replica on the same node. A 2-node Solr cluster with RF=2 needs at least 3 OpenSearch nodes.",
+      "detection": {
+        "cluster_topology": ["node count", "replica factor"]
+      },
+      "recommendation": "Plan for ~2x node count. Design 3-AZ topology for production."
+    },
+    {
+      "id": "OPS-002",
+      "area": "operations",
+      "feature": "ZooKeeper → embedded Raft",
+      "category": "Behavioral",
+      "severity": "low",
+      "description": "Solr uses external ZooKeeper for coordination. OpenSearch uses embedded Raft consensus. Removes ZK ops overhead but loses external state visibility.",
+      "detection": {
+        "cluster_topology": ["ZooKeeper ensemble"]
+      },
+      "recommendation": "Remove ZooKeeper infrastructure. Monitor cluster state via OpenSearch APIs."
+    },
+    {
+      "id": "OPS-003",
+      "area": "operations",
+      "feature": "Disk watermark percentage thresholds",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "OpenSearch blocks indexing at disk percentage thresholds (85%, 90%, 95%) even if hundreds of GB remain free on large volumes.",
+      "detection": {
+        "cluster_topology": ["disk size"]
+      },
+      "recommendation": "Check disk usage before migration. Relax thresholds if needed."
+    },
+    {
+      "id": "OPS-004",
+      "area": "operations",
+      "feature": "Atomic update semantics",
+      "category": "Behavioral",
+      "severity": "high",
+      "description": "Solr's atomic updates merge fields elegantly via transaction log. OpenSearch partial updates via _update API retrieve-merge-reindex with different concurrency semantics.",
+      "detection": {
+        "code_patterns": ["atomic update", "set:", "add:", "inc:", "remove:"]
+      },
+      "recommendation": "Test heavily if pipeline uses atomic updates. Consider full-document rewrites or Painless scripts."
+    },
+    {
+      "id": "OPS-005",
+      "area": "operations",
+      "feature": "Real-time get semantics",
+      "category": "Behavioral",
+      "severity": "low",
+      "description": "Solr's /get handler uses transaction log for guaranteed real-time retrieval. OpenSearch GET uses standard search semantics (eventual consistency).",
+      "detection": {
+        "code_patterns": ["/get?id=", "RealTimeGetComponent"]
+      },
+      "recommendation": "Accept eventual consistency, or use explicit refresh after writes if RTG behavior is critical."
+    },
+    {
+      "id": "OPS-006",
+      "area": "operations",
+      "feature": "CDCR (cross-datacenter replication)",
+      "category": "Unsupported",
+      "severity": "high",
+      "description": "Solr's CDCR enables async cross-datacenter replication. No direct OpenSearch equivalent.",
+      "detection": {
+        "solrconfig_xml": ["CdcrRequestHandler", "cdcr"]
+      },
+      "recommendation": "Redesign DR via snapshots, dual-write, Kinesis streaming, or cross-cluster replication (CCR)."
+    },
+    {
+      "id": "OPS-007",
+      "area": "operations",
+      "feature": "Custom update processors",
+      "category": "Unsupported",
+      "severity": "medium",
+      "description": "Solr's updateRequestProcessorChain (Java classes preprocessing documents) has no direct equivalent.",
+      "detection": {
+        "solrconfig_xml": ["<updateRequestProcessorChain", "<processor"]
+      },
+      "recommendation": "Convert to ingest pipelines (simple), application logic (complex), or Painless scripts."
+    },
+    {
+      "id": "OPS-008",
+      "area": "operations",
+      "feature": "Data Import Handler",
+      "category": "Unsupported",
+      "severity": "high",
+      "description": "DIH deprecated in Solr 8.6, removed in 9.0. No OpenSearch equivalent for database-to-index sync.",
+      "detection": {
+        "solrconfig_xml": ["DataImportHandler", "DIH"]
+      },
+      "recommendation": "Replace with Logstash, Apache NiFi, OpenSearch Ingestion (Data Prepper), or custom application code."
+    },
+    {
+      "id": "OPS-009",
+      "area": "operations",
+      "feature": "Dynamic mapping type inference",
+      "category": "Behavioral",
+      "severity": "high",
+      "description": "OpenSearch eagerly creates field types from first document seen. Numeric sent as string on doc 1 locks the type as string. No schema enforcement like Solr.",
+      "detection": {
+        "schema_xml": ["dynamic fields without explicit type"]
+      },
+      "recommendation": "Set dynamic:strict in production mappings to force explicit field definitions."
+    },
+    {
+      "id": "AWS-001",
+      "area": "aws",
+      "feature": "Custom plugins not supported on managed service",
+      "category": "Unsupported",
+      "severity": "high",
+      "description": "AWS managed OpenSearch does not support custom plugins. Limited to pre-built plugins.",
+      "detection": {
+        "deployment": ["target = AWS managed OpenSearch"]
+      },
+      "recommendation": "Find pre-built equivalent or use self-managed OpenSearch for custom plugins."
+    },
+    {
+      "id": "AWS-002",
+      "area": "aws",
+      "feature": "Feature lag behind open-source",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "AWS OpenSearch Service trails open-source by 1-2 versions. Verify features against target AWS version.",
+      "detection": {
+        "deployment": ["target = AWS managed OpenSearch"]
+      },
+      "recommendation": "Verify feature availability against target AWS version before designing around it."
+    }
+  ]
+}

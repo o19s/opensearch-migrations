@@ -1,0 +1,761 @@
+{
+  "evalId": "eval-WhJ-2026-03-31T15:33:56",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-03-31T15:33:56.724Z",
+    "prompts": [
+      {
+        "id": "cfafe3a69d5d2730f62ca3366169a7ceae7eb68c838ba0c86dc7ac1cd16bbeb0",
+        "raw": "{{query}}",
+        "label": "Full migration report request",
+        "provider": "T2 LLM + Skill + OS Mapping",
+        "metrics": {
+          "score": 1,
+          "testPassCount": 1,
+          "testFailCount": 0,
+          "testErrorCount": 0,
+          "assertPassCount": 17,
+          "assertFailCount": 0,
+          "totalLatencyMs": 87029,
+          "tokenUsage": {
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "total": 0,
+            "numRequests": 1,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0
+              }
+            }
+          },
+          "namedScores": {
+            "spatial_mapping": 1,
+            "string_mapping": 1,
+            "int_mapping": 1,
+            "date_mapping": 1,
+            "report_present": 1,
+            "has_incompatibilities_section": 1,
+            "has_client_section": 1,
+            "has_migration_plan": 1,
+            "has_phased_plan": 1,
+            "has_blockers_or_risks": 1,
+            "has_actionable_items": 1,
+            "has_cost_or_effort": 1,
+            "plan_has_validation_step": 1,
+            "plan_has_verification": 1,
+            "plan_has_rollback_awareness": 1,
+            "copyfield_flagged": 1,
+            "client_integration_mentioned": 1
+          },
+          "namedScoresCount": {
+            "spatial_mapping": 1,
+            "string_mapping": 1,
+            "int_mapping": 1,
+            "date_mapping": 1,
+            "report_present": 1,
+            "has_incompatibilities_section": 1,
+            "has_client_section": 1,
+            "has_migration_plan": 1,
+            "has_phased_plan": 1,
+            "has_blockers_or_risks": 1,
+            "has_actionable_items": 1,
+            "has_cost_or_effort": 1,
+            "plan_has_validation_step": 1,
+            "plan_has_verification": 1,
+            "plan_has_rollback_awareness": 1,
+            "copyfield_flagged": 1,
+            "client_integration_mentioned": 1
+          },
+          "cost": 0
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {
+            "spatial_mapping": 1,
+            "string_mapping": 1,
+            "int_mapping": 1,
+            "date_mapping": 1,
+            "report_present": 1,
+            "has_incompatibilities_section": 1,
+            "has_client_section": 1,
+            "has_migration_plan": 1,
+            "has_phased_plan": 1,
+            "has_blockers_or_risks": 1,
+            "has_actionable_items": 1,
+            "has_cost_or_effort": 1,
+            "plan_has_validation_step": 1,
+            "plan_has_verification": 1,
+            "plan_has_rollback_awareness": 1,
+            "copyfield_flagged": 1,
+            "client_integration_mentioned": 1
+          },
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "contains",
+                "value": "geo_point",
+                "metric": "spatial_mapping"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "contains",
+                "value": "keyword",
+                "metric": "string_mapping"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains",
+                "value": "integer",
+                "metric": "int_mapping"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "contains",
+                "value": "date",
+                "metric": "date_mapping"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains",
+                "value": "migration report",
+                "metric": "report_present"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "incompatibilities",
+                  "incompatibility",
+                  "breaking"
+                ],
+                "metric": "has_incompatibilities_section"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "client",
+                  "SolrJ",
+                  "opensearch-java"
+                ],
+                "metric": "has_client_section"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "stage plan",
+                  "staged migration",
+                  "migration stage",
+                  "migration plan",
+                  "cutover"
+                ],
+                "metric": "has_migration_plan"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "milestones",
+                  "milestone",
+                  "phase",
+                  "week",
+                  "timeline"
+                ],
+                "metric": "has_phased_plan"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "blockers",
+                  "blocker",
+                  "risk",
+                  "open items"
+                ],
+                "metric": "has_blockers_or_risks"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "implementation",
+                  "action",
+                  "effort",
+                  "checklist"
+                ],
+                "metric": "has_actionable_items"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "cost",
+                  "effort",
+                  "infrastructure",
+                  "estimated"
+                ],
+                "metric": "has_cost_or_effort"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "target validation",
+                  "schema",
+                  "mapping",
+                  "index created"
+                ],
+                "metric": "plan_has_validation_step"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "success criteria",
+                  "validated",
+                  "verified",
+                  "document count",
+                  "smoke"
+                ],
+                "metric": "plan_has_verification"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains-any",
+                "value": [
+                  "stop conditions",
+                  "rollback",
+                  "revert",
+                  "fail"
+                ],
+                "metric": "plan_has_rollback_awareness"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains",
+                "value": "copy_to",
+                "metric": "copyfield_flagged"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "icontains",
+                "value": "SolrJ",
+                "metric": "client_integration_mentioned"
+              }
+            }
+          ]
+        },
+        "id": "2b394807-4517-4db5-949f-dabd566b4d6d",
+        "latencyMs": 87029,
+        "namedScores": {
+          "spatial_mapping": 1,
+          "string_mapping": 1,
+          "int_mapping": 1,
+          "date_mapping": 1,
+          "report_present": 1,
+          "has_incompatibilities_section": 1,
+          "has_client_section": 1,
+          "has_migration_plan": 1,
+          "has_phased_plan": 1,
+          "has_blockers_or_risks": 1,
+          "has_actionable_items": 1,
+          "has_cost_or_effort": 1,
+          "plan_has_validation_step": 1,
+          "plan_has_verification": 1,
+          "plan_has_rollback_awareness": 1,
+          "copyfield_flagged": 1,
+          "client_integration_mentioned": 1
+        },
+        "prompt": {
+          "raw": "I am a Search Engineer migrating from Solr to OpenSearch.\n\nHere is my Solr schema:\n<schema name=\"ecommerce\" version=\"1.6\">\n  <fieldType name=\"string\" class=\"solr.StrField\" sortMissingLast=\"true\"/>\n  <fieldType name=\"pint\" class=\"solr.IntPointField\" docValues=\"true\"/>\n  <fieldType name=\"text_general\" class=\"solr.TextField\" positionIncrementGap=\"100\">\n    <analyzer type=\"index\">\n      <tokenizer class=\"solr.StandardTokenizerFactory\"/>\n      <filter class=\"solr.LowerCaseFilterFactory\"/>\n    </analyzer>\n  </fieldType>\n  <fieldType name=\"location\" class=\"solr.LatLonPointSpatialField\" docValues=\"true\"/>\n  <fieldType name=\"pdate\" class=\"solr.DatePointField\" docValues=\"true\"/>\n\n  <field name=\"id\" type=\"string\" indexed=\"true\" stored=\"true\" required=\"true\"/>\n  <field name=\"title\" type=\"text_general\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"price\" type=\"pint\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"location\" type=\"location\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"created_at\" type=\"pdate\" indexed=\"true\" stored=\"true\"/>\n  <copyField source=\"title\" dest=\"title_sort\"/>\n</schema>\n\nHere are my representative queries:\n- title:opensearch AND price:[10 TO 100]\n\nI use SolrJ as my client library.\n\nPlease convert the schema, translate the queries, and generate\na complete migration report including the stage plan.",
+          "label": "Full migration report request",
+          "config": {}
+        },
+        "promptId": "cfafe3a69d5d2730f62ca3366169a7ceae7eb68c838ba0c86dc7ac1cd16bbeb0",
+        "promptIdx": 0,
+        "provider": {
+          "id": "exec:python3 skill_llm_with_mapping_provider.py",
+          "label": "T2 LLM + Skill + OS Mapping"
+        },
+        "response": {
+          "output": "{\"output\": \"## Migration Analysis \\u2014 ecommerce schema\\n\\n### Step 1 \\u2014 Schema Review\\n\\nYour pre-converted mapping is a good start but has a gap. The `copyField` directive (`title` \\u2192 `title_sort`) is missing. Since `title_sort` is used for sorting, it needs to be a `keyword` field. The idiomatic OpenSearch approach is `copy_to` or a multi-field.\\n\\n**Corrected mapping:**\\n\\n```json\\n{\\n  \\\"mappings\\\": {\\n    \\\"properties\\\": {\\n      \\\"id\\\":         { \\\"type\\\": \\\"keyword\\\" },\\n      \\\"title\\\":      { \\\"type\\\": \\\"text\\\", \\\"copy_to\\\": \\\"title_sort\\\" },\\n      \\\"title_sort\\\": { \\\"type\\\": \\\"keyword\\\", \\\"doc_values\\\": true },\\n      \\\"price\\\":      { \\\"type\\\": \\\"integer\\\" },\\n      \\\"location\\\":   { \\\"type\\\": \\\"geo_point\\\" },\\n      \\\"created_at\\\": { \\\"type\\\": \\\"date\\\" }\\n    }\\n  }\\n}\\n```\\n\\n**Field-by-field notes:**\\n\\n| Solr Field | Solr Type | OpenSearch Type | Notes |\\n|---|---|---|---|\\n| `id` | `solr.StrField` | `keyword` | Correct. Also used as `_id` at index time. |\\n| `title` | `text_general` (standard + lowercase) | `text` | OpenSearch `standard` analyzer = standard tokenizer + lowercase filter. Equivalent \\u2014 no custom analyzer needed. |\\n| `title_sort` | (copyField target, undefined type) | `keyword` | **Missing from your mapping.** Added via `copy_to`. Must be `keyword` for sorting. |\\n| `price` | `solr.IntPointField` | `integer` | Correct. `doc_values` enabled by default in OpenSearch. |\\n| `location` | `solr.LatLonPointSpatialField` | `geo_point` | Correct. Note coordinate order difference: Solr uses `lat,lon`; OpenSearch accepts `{\\\"lat\\\":x,\\\"lon\\\":y}` object or `[lon,lat]` GeoJSON array. |\\n| `created_at` | `solr.DatePointField` | `date` | Correct. ISO 8601 format. |\\n\\n**Analyzer verification:** Your Solr `text_general` defines only an index-time analyzer (standard tokenizer + lowercase). When Solr has only one analyzer type, the same chain is used for queries. OpenSearch's built-in `standard` analyzer is standard tokenizer + lowercase filter \\u2014 an exact match. No custom analyzer definition needed.\\n\\n---\\n\\n### Step 2 \\u2014 Incompatibility Analysis\\n\\n| # | Category | Severity | Description | Recommendation |\\n|---|---|---|---|---|\\n| 1 | Schema | **Breaking** | `copyField source=\\\"title\\\" dest=\\\"title_sort\\\"` is not represented in the pre-converted mapping. `title_sort` is absent entirely. Any sort-by-title operation will fail. | Add `title_sort` as a `keyword` field with `copy_to` on `title` (shown in corrected mapping above). |\\n| 2 | Schema | **Behavioral** | `title_sort` has no explicit field type in the Solr schema \\u2014 it inherits from whatever field definition matches, or falls back to the default. Verify what type `title_sort` resolves to in your running Solr instance (`GET /solr/<collection>/schema/fields/title_sort`). If it's `text_general`, sorting on it in Solr uses `SortableTextField` semantics; in OpenSearch, sorting requires `keyword`. | Confirm field type; `keyword` is the correct OpenSearch equivalent for a sort field. |\\n| 3 | Query | **Behavioral** | Solr defaults to TF-IDF (ClassicSimilarity); OpenSearch defaults to BM25. Expect ranking differences \\u2014 BM25 saturates term frequency, so documents with repeated terms score lower. Typical impact: 30\\u201340% top-10 result set difference without tuning. | Run shadow queries comparing top-10 overlap. Tune BM25 `k1`/`b` per field if needed. See relevance section below. |\\n| 4 | Feature | **Behavioral** | `copy_to` target fields are not included in `_source` by default \\u2014 they are index-only. If your application reads `title_sort` from stored fields in Solr, it won't appear in OpenSearch `_source`. | If you need `title_sort` in responses, add `\\\"store\\\": true` or read from `title` directly. |\\n| 5 | Infra | **Behavioral** | Solr coordinate format is `lat,lon` string. OpenSearch `geo_point` accepts `{\\\"lat\\\":x,\\\"lon\\\":y}` or GeoJSON `[lon,lat]`. If your indexing pipeline sends `\\\"lat,lon\\\"` strings, OpenSearch will parse them \\u2014 but verify order. | Audit your indexing code. OpenSearch accepts `\\\"41.12,-71.34\\\"` (lat,lon) as a string, which matches Solr convention. |\\n\\n**Summary:** 1 Breaking, 4 Behavioral, 0 Unsupported. The breaking issue (missing `title_sort`) is resolved by the corrected mapping above.\\n\\n---\\n\\n### Step 3 \\u2014 Query Translation\\n\\n**Query: `title:opensearch AND price:[10 TO 100]`**\\n\\nSolr standard parser, two clauses joined by AND.\\n\\n```json\\n{\\n  \\\"query\\\": {\\n    \\\"bool\\\": {\\n      \\\"must\\\": [\\n        { \\\"match\\\": { \\\"title\\\": \\\"opensearch\\\" } },\\n        { \\\"range\\\": { \\\"price\\\": { \\\"gte\\\": 10, \\\"lte\\\": 100 } } }\\n      ]\\n    }\\n  }\\n}\\n```\\n\\n**Translation notes:**\\n\\n- `title:opensearch` \\u2192 `match` query (single term, analyzed). Since the `standard` analyzer lowercases, this is equivalent.\\n- `price:[10 TO 100]` \\u2192 `range` with `gte`/`lte` (Solr `[` = inclusive = `gte`/`lte`).\\n- The `price` range filter doesn't affect scoring \\u2014 consider moving it to `bool.filter` for better performance (enables filter cache, skips scoring):\\n\\n```json\\n{\\n  \\\"query\\\": {\\n    \\\"bool\\\": {\\n      \\\"must\\\": [\\n        { \\\"match\\\": { \\\"title\\\": \\\"opensearch\\\" } }\\n      ],\\n      \\\"filter\\\": [\\n        { \\\"range\\\": { \\\"price\\\": { \\\"gte\\\": 10, \\\"lte\\\": 100 } } }\\n      ]\\n    }\\n  }\\n}\\n```\\n\\nThis is semantically superior: the price constraint doesn't contribute to relevance, so `filter` context is correct.\\n\\n**Query-level incompatibilities:** None specific to this query beyond the BM25 vs TF-IDF scoring difference (already flagged as incompatibility #3).\\n\\n---\\n\\n### Step 4 \\u2014 Client Migration: SolrJ \\u2192 opensearch-java\\n\\n**Dependency change:**\\n\\n```xml\\n<!-- Remove -->\\n<dependency>\\n  <groupId>org.apache.solr</groupId>\\n  <artifactId>solr-solrj</artifactId>\\n</dependency>\\n\\n<!-- Add -->\\n<dependency>\\n  <groupId>org.opensearch.client</groupId>\\n  <artifactId>opensearch-java</artifactId>\\n  <version>2.18.0</version>\\n</dependency>\\n```\\n\\n**Client init \\u2014 before (SolrJ):**\\n```java\\nSolrClient solrClient = new HttpSolrClient.Builder(\\n    \\\"http://localhost:8983/solr/ecommerce\\\"\\n).build();\\n```\\n\\n**Client init \\u2014 after (opensearch-java):**\\n```java\\nRestClientTransport transport = new RestClientTransport(\\n    RestClient.builder(new HttpHost(\\\"localhost\\\", 9200)).build(),\\n    new JacksonJsonpMapper()\\n);\\nOpenSearchClient client = new OpenSearchClient(transport);\\n```\\n\\n**Query \\u2014 before (SolrJ):**\\n```java\\nSolrQuery query = new SolrQuery(\\\"title:opensearch AND price:[10 TO 100]\\\");\\nQueryResponse response = solrClient.query(query);\\n```\\n\\n**Query \\u2014 after (opensearch-java):**\\n```java\\nSearchResponse<Product> response = client.search(s -> s\\n    .index(\\\"ecommerce\\\")\\n    .query(q -> q.bool(b -> b\\n        .must(m -> m.match(mp -> mp.field(\\\"title\\\").query(\\\"opensearch\\\")))\\n        .filter(f -> f.range(r -> r.field(\\\"price\\\").gte(JsonData.of(10)).lte(JsonData.of(100))))\\n    )),\\n    Product.class\\n);\\n```\\n\\n**Key differences:**\\n- SolrJ uses query strings; opensearch-java uses type-safe DSL builders \\u2014 full rewrite required.\\n- No ZooKeeper dependency. Point the client at the OpenSearch cluster endpoint directly.\\n- Response model changes: `SolrDocumentList` \\u2192 `SearchResponse<T>` with typed hits.\\n- Connection pooling: explicitly configure `maxConnPerRoute` and `maxConnTotal` on the `RestClient` builder to match or exceed your application's concurrency.\\n\\n---\\n\\n### Step 5 \\u2014 Cluster Sizing\\n\\nYou haven't provided your current Solr topology details (node count, document count, index size, peak throughput). I'll provide the framework \\u2014 fill in the specifics and I can refine.\\n\\n**Shard sizing formula:**\\n```\\nprimary_shards = ceil((data_GB \\u00d7 1.5) / 25)\\n```\\nUsing 25 GB target shard size for e-commerce search, with 50% growth factor.\\n\\n**Baseline recommendations for a typical e-commerce catalog:**\\n\\n| Component | Recommendation |\\n|---|---|\\n| Data nodes | Start with 3 (one per AZ), scale based on data size |\\n| Master nodes | 3 dedicated (m6g.large or equivalent) |\\n| Replicas | 1 (2 total copies) for HA |\\n| JVM heap | 50% of RAM, max 32 GB |\\n| Bulk migration | `refresh_interval: -1`, `replicas: 0` during load; restore after |\\n\\n**Action needed:** Tell me your approximate document count, index size, and peak QPS so I can give specific node/instance type recommendations.\\n\\n---\\n\\n### Migration Report\\n\\n#### Executive Risk Summary\\n\\n| Severity | Count | Status |\\n|---|---|---|\\n| Breaking | 1 | Resolved (missing `title_sort` field) |\\n| Behavioral | 4 | Documented with mitigations |\\n| Unsupported | 0 | \\u2014 |\\n\\n#### Staged Migration Plan\\n\\n**Stage 1 \\u2014 Foundation (Week 1\\u20132)**\\n- Deploy OpenSearch cluster (3 data nodes, 3 dedicated masters, multi-AZ)\\n- Create index with corrected mapping (including `title_sort` and `copy_to`)\\n- Deploy synonym/stopword files if any exist (none identified in this schema)\\n- Set up monitoring: cluster health, JVM heap, search/index latency\\n\\n**Stage 2 \\u2014 Data Migration (Week 2\\u20133)**\\n- Bulk index from Solr with tuned settings (`refresh_interval: -1`, `replicas: 0`, bulk batches 5\\u201315 MB)\\n- Validate document count match (100% \\u2014 zero loss tolerance)\\n- Validate field content integrity: spot-check `id`, `title`, `price`, `location`, `created_at`\\n- Restore `refresh_interval: 1s` and `replicas: 1`\\n- Run `_forcemerge?max_num_segments=1`\\n\\n**Stage 3 \\u2014 Relevance Baseline (Week 3\\u20134)**\\n- Run your top 100\\u2013200 production queries against both Solr and OpenSearch\\n- Measure top-10 overlap using nDCG@10 (primary) and P@5 (secondary)\\n- If overlap < 95%, tune BM25 `k1`/`b` parameters per field\\n- Use the Explain API (`GET /ecommerce/_explain/<doc_id>`) to debug score differences\\n- **Tool recommendation:** Use [Quepid](https://quepid.com) for side-by-side comparison and judgment collection\\n\\n**Stage 4 \\u2014 Client Migration (Week 4\\u20135)**\\n- Replace SolrJ with opensearch-java (2.18.0)\\n- Rewrite query construction from string-based to type-safe DSL builders\\n- Update response parsing (`SolrDocumentList` \\u2192 `SearchResponse<T>`)\\n- Update connection configuration (remove ZooKeeper, point to OpenSearch endpoint)\\n- Configure connection pool sizes to match application concurrency\\n\\n**Stage 5 \\u2014 Cutover (Week 5\\u20136)**\\n- Dual-write to both Solr and OpenSearch during transition\\n- Route 1% \\u2192 10% \\u2192 25% \\u2192 50% \\u2192 100% of search traffic to OpenSearch\\n- Monitor search latency p50/p95/p99 against Solr baseline at each step\\n- Maintain Solr as fallback for 1 week post-full-cutover\\n- Decommission Solr after validation period\\n\\n#### Blockers\\n1. ~~Missing `title_sort` field~~ \\u2014 **Resolved** in corrected mapping\\n2. **Cluster sizing TBD** \\u2014 need your document count, index size, and peak QPS to finalize node/instance recommendations\\n\\n#### Cost Estimate\\nInfrastructure cost depends on cluster sizing (pending your topology details). Client migration effort: **1\\u20132 days** for the SolrJ \\u2192 opensearch-java rewrite given the simple query surface. Relevance tuning: budget **1 week** for baseline measurement and BM25 tuning if needed.\\n\\n---\\n\\nWant me to drill into any section? The most impactful next step would be providing your Solr cluster topology (node count, doc count, index size, peak QPS) so I can finalize the sizing recommendation.\"}"
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "Schema + queries → complete migration report with stage plan",
+          "vars": {
+            "query": "I am a Search Engineer migrating from Solr to OpenSearch.\n\nHere is my Solr schema:\n<schema name=\"ecommerce\" version=\"1.6\">\n  <fieldType name=\"string\" class=\"solr.StrField\" sortMissingLast=\"true\"/>\n  <fieldType name=\"pint\" class=\"solr.IntPointField\" docValues=\"true\"/>\n  <fieldType name=\"text_general\" class=\"solr.TextField\" positionIncrementGap=\"100\">\n    <analyzer type=\"index\">\n      <tokenizer class=\"solr.StandardTokenizerFactory\"/>\n      <filter class=\"solr.LowerCaseFilterFactory\"/>\n    </analyzer>\n  </fieldType>\n  <fieldType name=\"location\" class=\"solr.LatLonPointSpatialField\" docValues=\"true\"/>\n  <fieldType name=\"pdate\" class=\"solr.DatePointField\" docValues=\"true\"/>\n\n  <field name=\"id\" type=\"string\" indexed=\"true\" stored=\"true\" required=\"true\"/>\n  <field name=\"title\" type=\"text_general\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"price\" type=\"pint\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"location\" type=\"location\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"created_at\" type=\"pdate\" indexed=\"true\" stored=\"true\"/>\n  <copyField source=\"title\" dest=\"title_sort\"/>\n</schema>\n\nHere are my representative queries:\n- title:opensearch AND price:[10 TO 100]\n\nI use SolrJ as my client library.\n\nPlease convert the schema, translate the queries, and generate\na complete migration report including the stage plan.\n"
+          },
+          "assert": [
+            {
+              "type": "contains",
+              "value": "geo_point",
+              "metric": "spatial_mapping"
+            },
+            {
+              "type": "contains",
+              "value": "keyword",
+              "metric": "string_mapping"
+            },
+            {
+              "type": "icontains",
+              "value": "integer",
+              "metric": "int_mapping"
+            },
+            {
+              "type": "contains",
+              "value": "date",
+              "metric": "date_mapping"
+            },
+            {
+              "type": "icontains",
+              "value": "migration report",
+              "metric": "report_present"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "incompatibilities",
+                "incompatibility",
+                "breaking"
+              ],
+              "metric": "has_incompatibilities_section"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "client",
+                "SolrJ",
+                "opensearch-java"
+              ],
+              "metric": "has_client_section"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "stage plan",
+                "staged migration",
+                "migration stage",
+                "migration plan",
+                "cutover"
+              ],
+              "metric": "has_migration_plan"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "milestones",
+                "milestone",
+                "phase",
+                "week",
+                "timeline"
+              ],
+              "metric": "has_phased_plan"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "blockers",
+                "blocker",
+                "risk",
+                "open items"
+              ],
+              "metric": "has_blockers_or_risks"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "implementation",
+                "action",
+                "effort",
+                "checklist"
+              ],
+              "metric": "has_actionable_items"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "cost",
+                "effort",
+                "infrastructure",
+                "estimated"
+              ],
+              "metric": "has_cost_or_effort"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "target validation",
+                "schema",
+                "mapping",
+                "index created"
+              ],
+              "metric": "plan_has_validation_step"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "success criteria",
+                "validated",
+                "verified",
+                "document count",
+                "smoke"
+              ],
+              "metric": "plan_has_verification"
+            },
+            {
+              "type": "icontains-any",
+              "value": [
+                "stop conditions",
+                "rollback",
+                "revert",
+                "fail"
+              ],
+              "metric": "plan_has_rollback_awareness"
+            },
+            {
+              "type": "icontains",
+              "value": "copy_to",
+              "metric": "copyfield_flagged"
+            },
+            {
+              "type": "icontains",
+              "value": "SolrJ",
+              "metric": "client_integration_mentioned"
+            }
+          ],
+          "options": {},
+          "metadata": {}
+        },
+        "testIdx": 0,
+        "vars": {
+          "query": "I am a Search Engineer migrating from Solr to OpenSearch.\n\nHere is my Solr schema:\n<schema name=\"ecommerce\" version=\"1.6\">\n  <fieldType name=\"string\" class=\"solr.StrField\" sortMissingLast=\"true\"/>\n  <fieldType name=\"pint\" class=\"solr.IntPointField\" docValues=\"true\"/>\n  <fieldType name=\"text_general\" class=\"solr.TextField\" positionIncrementGap=\"100\">\n    <analyzer type=\"index\">\n      <tokenizer class=\"solr.StandardTokenizerFactory\"/>\n      <filter class=\"solr.LowerCaseFilterFactory\"/>\n    </analyzer>\n  </fieldType>\n  <fieldType name=\"location\" class=\"solr.LatLonPointSpatialField\" docValues=\"true\"/>\n  <fieldType name=\"pdate\" class=\"solr.DatePointField\" docValues=\"true\"/>\n\n  <field name=\"id\" type=\"string\" indexed=\"true\" stored=\"true\" required=\"true\"/>\n  <field name=\"title\" type=\"text_general\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"price\" type=\"pint\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"location\" type=\"location\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"created_at\" type=\"pdate\" indexed=\"true\" stored=\"true\"/>\n  <copyField source=\"title\" dest=\"title_sort\"/>\n</schema>\n\nHere are my representative queries:\n- title:opensearch AND price:[10 TO 100]\n\nI use SolrJ as my client library.\n\nPlease convert the schema, translate the queries, and generate\na complete migration report including the stage plan.\n"
+        },
+        "metadata": {
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      }
+    ],
+    "stats": {
+      "successes": 1,
+      "failures": 0,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 0,
+        "completion": 0,
+        "cached": 0,
+        "total": 0,
+        "numRequests": 1,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0
+          }
+        }
+      },
+      "durationMs": 87052,
+      "evaluationDurationMs": 87052
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "Migration Advisor — 4-Tier Report Quality Eval",
+    "prompts": [
+      {
+        "id": "migration-report",
+        "label": "Full migration report request",
+        "raw": "{{query}}"
+      }
+    ],
+    "providers": [
+      {
+        "id": "exec:python3 mcp_provider.py",
+        "label": "T1 Deterministic (MCP stdio)"
+      },
+      {
+        "id": "exec:python3 skill_llm_with_mapping_provider.py",
+        "label": "T2 LLM + Skill + OS Mapping"
+      },
+      {
+        "id": "exec:python3 skill_llm_no_mapping_provider.py",
+        "label": "T3 LLM + Skill, No OS Mapping"
+      },
+      {
+        "id": "exec:python3 claude_provider.py",
+        "label": "T4 LLM + MCP Tools"
+      }
+    ],
+    "tests": [
+      {
+        "description": "Schema + queries → complete migration report with stage plan",
+        "vars": {
+          "query": "I am a Search Engineer migrating from Solr to OpenSearch.\n\nHere is my Solr schema:\n<schema name=\"ecommerce\" version=\"1.6\">\n  <fieldType name=\"string\" class=\"solr.StrField\" sortMissingLast=\"true\"/>\n  <fieldType name=\"pint\" class=\"solr.IntPointField\" docValues=\"true\"/>\n  <fieldType name=\"text_general\" class=\"solr.TextField\" positionIncrementGap=\"100\">\n    <analyzer type=\"index\">\n      <tokenizer class=\"solr.StandardTokenizerFactory\"/>\n      <filter class=\"solr.LowerCaseFilterFactory\"/>\n    </analyzer>\n  </fieldType>\n  <fieldType name=\"location\" class=\"solr.LatLonPointSpatialField\" docValues=\"true\"/>\n  <fieldType name=\"pdate\" class=\"solr.DatePointField\" docValues=\"true\"/>\n\n  <field name=\"id\" type=\"string\" indexed=\"true\" stored=\"true\" required=\"true\"/>\n  <field name=\"title\" type=\"text_general\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"price\" type=\"pint\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"location\" type=\"location\" indexed=\"true\" stored=\"true\"/>\n  <field name=\"created_at\" type=\"pdate\" indexed=\"true\" stored=\"true\"/>\n  <copyField source=\"title\" dest=\"title_sort\"/>\n</schema>\n\nHere are my representative queries:\n- title:opensearch AND price:[10 TO 100]\n\nI use SolrJ as my client library.\n\nPlease convert the schema, translate the queries, and generate\na complete migration report including the stage plan.\n"
+        },
+        "assert": [
+          {
+            "type": "contains",
+            "value": "geo_point",
+            "metric": "spatial_mapping"
+          },
+          {
+            "type": "contains",
+            "value": "keyword",
+            "metric": "string_mapping"
+          },
+          {
+            "type": "icontains",
+            "value": "integer",
+            "metric": "int_mapping"
+          },
+          {
+            "type": "contains",
+            "value": "date",
+            "metric": "date_mapping"
+          },
+          {
+            "type": "icontains",
+            "value": "migration report",
+            "metric": "report_present"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "incompatibilities",
+              "incompatibility",
+              "breaking"
+            ],
+            "metric": "has_incompatibilities_section"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "client",
+              "SolrJ",
+              "opensearch-java"
+            ],
+            "metric": "has_client_section"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "stage plan",
+              "staged migration",
+              "migration stage",
+              "migration plan",
+              "cutover"
+            ],
+            "metric": "has_migration_plan"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "milestones",
+              "milestone",
+              "phase",
+              "week",
+              "timeline"
+            ],
+            "metric": "has_phased_plan"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "blockers",
+              "blocker",
+              "risk",
+              "open items"
+            ],
+            "metric": "has_blockers_or_risks"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "implementation",
+              "action",
+              "effort",
+              "checklist"
+            ],
+            "metric": "has_actionable_items"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "cost",
+              "effort",
+              "infrastructure",
+              "estimated"
+            ],
+            "metric": "has_cost_or_effort"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "target validation",
+              "schema",
+              "mapping",
+              "index created"
+            ],
+            "metric": "plan_has_validation_step"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "success criteria",
+              "validated",
+              "verified",
+              "document count",
+              "smoke"
+            ],
+            "metric": "plan_has_verification"
+          },
+          {
+            "type": "icontains-any",
+            "value": [
+              "stop conditions",
+              "rollback",
+              "revert",
+              "fail"
+            ],
+            "metric": "plan_has_rollback_awareness"
+          },
+          {
+            "type": "icontains",
+            "value": "copy_to",
+            "metric": "copyfield_flagged"
+          },
+          {
+            "type": "icontains",
+            "value": "SolrJ",
+            "metric": "client_integration_mentioned"
+          }
+        ]
+      }
+    ],
+    "scenarios": [],
+    "env": {},
+    "outputPath": [
+      "eval-reports/eval-t2-results.json",
+      "eval-reports/eval-t2-results.html"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.121.2",
+    "nodeVersion": "v22.22.1",
+    "platform": "linux",
+    "arch": "x64",
+    "exportedAt": "2026-03-31T15:35:23.853Z",
+    "evaluationCreatedAt": "2026-03-31T15:33:56.724Z"
+  }
+}

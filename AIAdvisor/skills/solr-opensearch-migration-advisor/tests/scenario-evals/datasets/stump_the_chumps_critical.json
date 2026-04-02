@@ -1,0 +1,145 @@
+[
+  {
+    "id": "lucene-underneath-fallacy",
+    "title": "Lucene-Underneath Fallacy",
+    "scenario": "During a migration planning review, a client dismisses concerns about Solr-to-OpenSearch behavioral differences by stating: 'Lucene is Lucene.' when asked where they accounted for parser, scoring, and operational differences between the two engines.",
+    "expectations": [
+      "Response should explain that shared Lucene lineage does not mean behavioral parity — query parsers, scoring defaults, analyzer behavior, and operational model diverge in ways that require explicit audit, not assumption."
+    ],
+    "keyword_assertions": [
+      "query parser",
+      "BM25"
+    ],
+    "rejected_keywords": [
+      "same foundation",
+      "basically the same"
+    ]
+  },
+  {
+    "id": "no-equivalent-core-workload",
+    "title": "No Equivalent for Core Workload",
+    "scenario": "A client planning a Solr-to-OpenSearch migration says 'We'll emulate everything later.' when asked which features require redesign because no direct OpenSearch equivalent exists.",
+    "expectations": [
+      "Response should name specific Solr features that have no direct OpenSearch equivalent, push for explicit redesign decisions before cutover, and treat 'emulate later' as a scope risk that will block go-live if unresolved."
+    ],
+    "keyword_assertions": [
+      "no equivalent",
+      "redesign"
+    ],
+    "rejected_keywords": [
+      "emulate"
+    ]
+  },
+  {
+    "id": "security-model-translation",
+    "title": "Security Model Translation",
+    "scenario": "A client states 'The app already filters results.' when asked where authorization is enforced and how it has been penetration-tested in their Solr-to-OpenSearch migration.",
+    "expectations": [
+      "Response should distinguish between application-layer result filtering and search-engine-layer access control, explain that OpenSearch supports document-level and field-level security as enforceable mechanisms, and flag that 'app filters results' does not prevent direct index API access."
+    ],
+    "keyword_assertions": [
+      "document-level",
+      "access control"
+    ],
+    "rejected_keywords": [
+      "app filtering is sufficient",
+      "application handles"
+    ]
+  },
+  {
+    "id": "pii-regulatory-indexing-risk",
+    "title": "PII/Regulatory Indexing Risk",
+    "scenario": "A client says 'We indexed everything for flexibility.' when asked which sensitive fields are excluded, masked, or separately governed in their OpenSearch migration.",
+    "expectations": [
+      "Response should treat 'indexed everything for flexibility' as a serious compliance risk, push for a field-by-field data classification review, name relevant regulatory frameworks as applicable (GDPR, HIPAA, CCPA), and ask about deletion and retention obligations for indexed sensitive fields."
+    ],
+    "keyword_assertions": [
+      "data classification",
+      "regulatory"
+    ],
+    "rejected_keywords": [
+      "indexed everything is fine"
+    ]
+  },
+  {
+    "id": "plugin-custom-handler-dependency",
+    "title": "Plugin/Custom Handler Dependency",
+    "scenario": "A client says 'We didn't think any were important.' when asked which custom Solr components were found and what replaced each one.",
+    "expectations": [
+      "Response should reject 'didn't think any were important' as due diligence, insist on an explicit component inventory (request handlers, update processors, search components, custom query parsers), and explain that hidden business logic in plugins is one of the most common sources of post-cutover incidents."
+    ],
+    "keyword_assertions": [
+      "inventory",
+      "request handler"
+    ],
+    "rejected_keywords": [
+      "probably fine",
+      "shouldn't matter"
+    ]
+  },
+  {
+    "id": "mechanical-translation-fantasy",
+    "title": "Mechanical Translation Fantasy",
+    "scenario": "A client says 'Most of it ports directly.' when asked which parts of their Solr-to-OpenSearch migration were redesigned rather than translated.",
+    "expectations": [
+      "Response should distinguish between mechanical conversion work (field type mapping, basic query structure) and areas requiring genuine redesign (relevance scoring, analyzer behavior, aggregation semantics, operational model), and push back on 'ports directly' as a framing that leads to missed redesign scope."
+    ],
+    "keyword_assertions": [
+      "redesign",
+      "relevance"
+    ],
+    "rejected_keywords": [
+      "ports directly",
+      "direct translation"
+    ]
+  },
+  {
+    "id": "rollback-plan-not-real",
+    "title": "Rollback Plan Not Real",
+    "scenario": "A client says 'We can always point back to Solr.' when asked what exact steps restore traffic and data trust if the OpenSearch cutover fails.",
+    "expectations": [
+      "Response should treat 'point back to Solr' as an incomplete plan, probe the actual rollback mechanics (traffic switching steps, write divergence window, data trust verification, who has rollback authority), and push for a documented, rehearsed runbook — not a verbal assurance."
+    ],
+    "keyword_assertions": [
+      "write divergence",
+      "runbook"
+    ],
+    "rejected_keywords": [
+      "point back to Solr",
+      "rollback is straightforward"
+    ]
+  },
+  {
+    "id": "no-go-nogo-authority",
+    "title": "No Go/No-Go Authority",
+    "scenario": "A client says 'Leadership wants the date held.' when asked who can stop the launch if search quality is not acceptable after their Solr-to-OpenSearch migration.",
+    "expectations": [
+      "Response should flag that schedule pressure from leadership and launch-stop authority are different roles, push for a named individual with explicit authority to delay or cancel the launch on quality grounds, and make clear that 'leadership wants the date held' is a risk signal, not a governance structure."
+    ],
+    "keyword_assertions": [
+      "authority",
+      "quality gate"
+    ],
+    "rejected_keywords": [
+      "date is the gate",
+      "leadership approval is sufficient"
+    ]
+  },
+  {
+    "id": "missing-stale-leaked-docs",
+    "title": "Missing vs Stale vs Leaked Docs",
+    "scenario": "A client states 'If search looks wrong, we reindex.' when asked how they prove whether a document is missing, stale, duplicated, or improperly visible after their OpenSearch migration.",
+    "expectations": [
+      "Response should explain that 'reindex if wrong' conflates four distinct failure modes (missing, stale, duplicated, improperly visible) that have different root causes, different diagnostic paths, and different fixes — and that reflexive reindexing can mask bugs and delay real root-cause analysis."
+    ],
+    "keyword_assertions": [
+      "missing",
+      "stale",
+      "root cause"
+    ],
+    "rejected_keywords": [
+      "reindex solves",
+      "just reindex"
+    ]
+  }
+]

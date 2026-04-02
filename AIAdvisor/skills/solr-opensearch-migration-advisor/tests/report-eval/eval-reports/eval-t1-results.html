@@ -1,0 +1,392 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Migration Advisor — 4-Tier Report Quality Eval</title>
+    <style>
+      body {
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        text-align: left;
+        word-break: break-all;
+      }
+      th,
+      td {
+        padding: 5px;
+        min-width: 200px;
+        white-space: pre-wrap;
+        vertical-align: top;
+      }
+
+      tr > td[data-content^='[PASS]'] {
+        color: green;
+      }
+      tr > td[data-content^='[FAIL]'] {
+        color: #ad0000;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        
+        <th>query</th>
+        
+        <th>[T1 Deterministic (MCP stdio)] Full migration report request</th>
+        
+      </thead>
+      <tbody>
+        
+        <tr>
+          
+          <td data-content="I am a Search Engineer migrating from Solr to OpenSearch.
+
+Here is my Solr schema:
+&lt;schema name=&quot;ecommerce&quot; version=&quot;1.6&quot;&gt;
+  &lt;fieldType name=&quot;string&quot; class=&quot;solr.StrField&quot; sortMissingLast=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pint&quot; class=&quot;solr.IntPointField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;text_general&quot; class=&quot;solr.TextField&quot; positionIncrementGap=&quot;100&quot;&gt;
+    &lt;analyzer type=&quot;index&quot;&gt;
+      &lt;tokenizer class=&quot;solr.StandardTokenizerFactory&quot;/&gt;
+      &lt;filter class=&quot;solr.LowerCaseFilterFactory&quot;/&gt;
+    &lt;/analyzer&gt;
+  &lt;/fieldType&gt;
+  &lt;fieldType name=&quot;location&quot; class=&quot;solr.LatLonPointSpatialField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pdate&quot; class=&quot;solr.DatePointField&quot; docValues=&quot;true&quot;/&gt;
+
+  &lt;field name=&quot;id&quot; type=&quot;string&quot; indexed=&quot;true&quot; stored=&quot;true&quot; required=&quot;true&quot;/&gt;
+  &lt;field name=&quot;title&quot; type=&quot;text_general&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;price&quot; type=&quot;pint&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;location&quot; type=&quot;location&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;created_at&quot; type=&quot;pdate&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;copyField source=&quot;title&quot; dest=&quot;title_sort&quot;/&gt;
+&lt;/schema&gt;
+
+Here are my representative queries:
+- title:opensearch AND price:[10 TO 100]
+
+I use SolrJ as my client library.
+
+Please convert the schema, translate the queries, and generate
+a complete migration report including the stage plan.
+">I am a Search Engineer migrating from Solr to OpenSearch.
+
+Here is my Solr schema:
+&lt;schema name=&quot;ecommerce&quot; version=&quot;1.6&quot;&gt;
+  &lt;fieldType name=&quot;string&quot; class=&quot;solr.StrField&quot; sortMissingLast=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pint&quot; class=&quot;solr.IntPointField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;text_general&quot; class=&quot;solr.TextField&quot; positionIncrementGap=&quot;100&quot;&gt;
+    &lt;analyzer type=&quot;index&quot;&gt;
+      &lt;tokenizer class=&quot;solr.StandardTokenizerFactory&quot;/&gt;
+      &lt;filter class=&quot;solr.LowerCaseFilterFactory&quot;/&gt;
+    &lt;/analyzer&gt;
+  &lt;/fieldType&gt;
+  &lt;fieldType name=&quot;location&quot; class=&quot;solr.LatLonPointSpatialField&quot; docValues=&quot;true&quot;/&gt;
+  &lt;fieldType name=&quot;pdate&quot; class=&quot;solr.DatePointField&quot; docValues=&quot;true&quot;/&gt;
+
+  &lt;field name=&quot;id&quot; type=&quot;string&quot; indexed=&quot;true&quot; stored=&quot;true&quot; required=&quot;true&quot;/&gt;
+  &lt;field name=&quot;title&quot; type=&quot;text_general&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;price&quot; type=&quot;pint&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;location&quot; type=&quot;location&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;field name=&quot;created_at&quot; type=&quot;pdate&quot; indexed=&quot;true&quot; stored=&quot;true&quot;/&gt;
+  &lt;copyField source=&quot;title&quot; dest=&quot;title_sort&quot;/&gt;
+&lt;/schema&gt;
+
+Here are my representative queries:
+- title:opensearch AND price:[10 TO 100]
+
+I use SolrJ as my client library.
+
+Please convert the schema, translate the queries, and generate
+a complete migration report including the stage plan.
+</td>
+          
+          <td data-content="[PASS] (1.00, spatial_mapping: 1.00, string_mapping: 1.00, int_mapping: 1.00, date_mapping: 1.00, report_present: 1.00, has_incompatibilities_section: 1.00, has_client_section: 1.00, has_migration_plan: 1.00, has_phased_plan: 1.00, has_blockers_or_risks: 1.00, has_actionable_items: 1.00, has_cost_or_effort: 1.00, plan_has_validation_step: 1.00, plan_has_verification: 1.00, plan_has_rollback_awareness: 1.00, copyfield_flagged: 1.00, client_integration_mentioned: 1.00)
+
+{&quot;output&quot;: &quot;{
+  &#92;&quot;mappings&#92;&quot;: {
+    &#92;&quot;properties&#92;&quot;: {
+      &#92;&quot;id&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;keyword&#92;&quot;
+      },
+      &#92;&quot;title&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;text&#92;&quot;
+      },
+      &#92;&quot;price&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;integer&#92;&quot;
+      },
+      &#92;&quot;location&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;geo_point&#92;&quot;
+      },
+      &#92;&quot;created_at&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;date&#92;&quot;
+      }
+    }
+  }
+}
+
+---
+
+# Solr to OpenSearch Migration Report
+
+## Incompatibilities
+- No incompatibilities identified.
+
+## Client &amp; Front-end Impact
+- No client or front-end integrations recorded.
+
+## Stage Plan
+
+### Stage 1: Target Validation
+**Objective:** Confirm mappings and query translations work against sample data
+**Prerequisites:**
+- Schema conversion reviewed and agreed
+**Actions:**
+- Create OpenSearch index with converted mapping
+- Load a representative data sample (e.g. 250k documents)
+- Run smoke queries and inspect results
+**Success criteria:**
+- No index creation errors or unexpected dynamic mappings
+- Smoke queries return expected results
+**Stop conditions:**
+- Mappings require redesign
+- Critical query class cannot be translated
+
+### Stage 2: Sample Backfill
+**Objective:** Exercise indexing on enough real data to find failures early
+**Prerequisites:**
+- Target Validation stage completed successfully
+**Actions:**
+- Index a meaningful subset of production data
+- Validate document counts and spot-check field values
+- Profile indexing throughput and identify bottlenecks
+**Success criteria:**
+- No indexing errors or rejected documents
+- Document counts match expected subset size
+**Stop conditions:**
+- Systematic indexing failures on a field type or document class
+- Throughput is insufficient for the full backfill timeline
+
+### Stage 3: Full Backfill
+**Objective:** Populate the target index at safe throughput
+**Prerequisites:**
+- Sample Backfill stage completed successfully
+- Sufficient cluster capacity provisioned
+**Actions:**
+- Run full data migration from source to OpenSearch
+- Monitor indexing throughput, bulk rejections, and merge pressure
+- Validate total document count and freshness
+**Success criteria:**
+- Document count matches source
+- No unresolved indexing errors
+- Index freshness within acceptable window
+**Stop conditions:**
+- Sustained bulk rejection rate above threshold
+- Storage or memory pressure exceeds safe limits
+
+### Stage 4: Application Integration Validation
+**Objective:** Prove applications can query OpenSearch correctly
+**Prerequisites:**
+- Full Backfill stage completed successfully
+**Actions:**
+- Validate application queries against OpenSearch
+- Update endpoint URLs from /solr/&lt;collection&gt;/select to /&lt;index&gt;/_search
+**Success criteria:**
+- All application smoke tests pass against OpenSearch
+- Query latency within acceptable thresholds
+**Stop conditions:**
+- Application-level errors that cannot be resolved by query changes
+- Unacceptable latency regression
+
+### Stage 5: Staged Cutover
+**Objective:** Move production traffic to OpenSearch in controlled increments
+**Prerequisites:**
+- Application Integration Validation stage completed
+- Rollback procedure tested and documented
+- Monitoring dashboards and alerts in place
+**Actions:**
+- Route 5% of traffic to OpenSearch and monitor
+- Increase to 25%, 50%, 100% with monitoring at each step
+- Confirm rollback capability at each increment
+**Success criteria:**
+- No increase in error rates or latency at any traffic level
+- Relevance metrics stable or improved
+- Rollback successfully tested at least once
+**Stop conditions:**
+- Error rate or latency exceeds pre-defined thresholds
+- Unresolved relevance regressions on critical queries
+
+## Major Milestones
+1. Infrastructure setup and sizing
+2. Schema and analysis chain migration
+3. Data re-indexing and validation
+4. Application query and client migration
+5. Parallel testing and cutover
+
+## Potential Blockers
+- No immediate blockers identified.
+
+## Implementation Points
+- Map Solr field types to OpenSearch equivalents (see steering documents).
+- Replace Solr copyField with OpenSearch copy_to.
+- Update client libraries from SolrJ/SolrPy to OpenSearch clients.
+
+## Cost Estimates
+- **Infrastructure**: Estimated 10% increase over Solr due to shard management overhead.
+- **Effort**: Moderate (2-4 weeks for typical mid-sized workload).&quot;}
+
+Pass Reason: All assertions passed">[PASS] (1.00, spatial_mapping: 1.00, string_mapping: 1.00, int_mapping: 1.00, date_mapping: 1.00, report_present: 1.00, has_incompatibilities_section: 1.00, has_client_section: 1.00, has_migration_plan: 1.00, has_phased_plan: 1.00, has_blockers_or_risks: 1.00, has_actionable_items: 1.00, has_cost_or_effort: 1.00, plan_has_validation_step: 1.00, plan_has_verification: 1.00, plan_has_rollback_awareness: 1.00, copyfield_flagged: 1.00, client_integration_mentioned: 1.00)
+
+{&quot;output&quot;: &quot;{
+  &#92;&quot;mappings&#92;&quot;: {
+    &#92;&quot;properties&#92;&quot;: {
+      &#92;&quot;id&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;keyword&#92;&quot;
+      },
+      &#92;&quot;title&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;text&#92;&quot;
+      },
+      &#92;&quot;price&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;integer&#92;&quot;
+      },
+      &#92;&quot;location&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;geo_point&#92;&quot;
+      },
+      &#92;&quot;created_at&#92;&quot;: {
+        &#92;&quot;type&#92;&quot;: &#92;&quot;date&#92;&quot;
+      }
+    }
+  }
+}
+
+---
+
+# Solr to OpenSearch Migration Report
+
+## Incompatibilities
+- No incompatibilities identified.
+
+## Client &amp; Front-end Impact
+- No client or front-end integrations recorded.
+
+## Stage Plan
+
+### Stage 1: Target Validation
+**Objective:** Confirm mappings and query translations work against sample data
+**Prerequisites:**
+- Schema conversion reviewed and agreed
+**Actions:**
+- Create OpenSearch index with converted mapping
+- Load a representative data sample (e.g. 250k documents)
+- Run smoke queries and inspect results
+**Success criteria:**
+- No index creation errors or unexpected dynamic mappings
+- Smoke queries return expected results
+**Stop conditions:**
+- Mappings require redesign
+- Critical query class cannot be translated
+
+### Stage 2: Sample Backfill
+**Objective:** Exercise indexing on enough real data to find failures early
+**Prerequisites:**
+- Target Validation stage completed successfully
+**Actions:**
+- Index a meaningful subset of production data
+- Validate document counts and spot-check field values
+- Profile indexing throughput and identify bottlenecks
+**Success criteria:**
+- No indexing errors or rejected documents
+- Document counts match expected subset size
+**Stop conditions:**
+- Systematic indexing failures on a field type or document class
+- Throughput is insufficient for the full backfill timeline
+
+### Stage 3: Full Backfill
+**Objective:** Populate the target index at safe throughput
+**Prerequisites:**
+- Sample Backfill stage completed successfully
+- Sufficient cluster capacity provisioned
+**Actions:**
+- Run full data migration from source to OpenSearch
+- Monitor indexing throughput, bulk rejections, and merge pressure
+- Validate total document count and freshness
+**Success criteria:**
+- Document count matches source
+- No unresolved indexing errors
+- Index freshness within acceptable window
+**Stop conditions:**
+- Sustained bulk rejection rate above threshold
+- Storage or memory pressure exceeds safe limits
+
+### Stage 4: Application Integration Validation
+**Objective:** Prove applications can query OpenSearch correctly
+**Prerequisites:**
+- Full Backfill stage completed successfully
+**Actions:**
+- Validate application queries against OpenSearch
+- Update endpoint URLs from /solr/&lt;collection&gt;/select to /&lt;index&gt;/_search
+**Success criteria:**
+- All application smoke tests pass against OpenSearch
+- Query latency within acceptable thresholds
+**Stop conditions:**
+- Application-level errors that cannot be resolved by query changes
+- Unacceptable latency regression
+
+### Stage 5: Staged Cutover
+**Objective:** Move production traffic to OpenSearch in controlled increments
+**Prerequisites:**
+- Application Integration Validation stage completed
+- Rollback procedure tested and documented
+- Monitoring dashboards and alerts in place
+**Actions:**
+- Route 5% of traffic to OpenSearch and monitor
+- Increase to 25%, 50%, 100% with monitoring at each step
+- Confirm rollback capability at each increment
+**Success criteria:**
+- No increase in error rates or latency at any traffic level
+- Relevance metrics stable or improved
+- Rollback successfully tested at least once
+**Stop conditions:**
+- Error rate or latency exceeds pre-defined thresholds
+- Unresolved relevance regressions on critical queries
+
+## Major Milestones
+1. Infrastructure setup and sizing
+2. Schema and analysis chain migration
+3. Data re-indexing and validation
+4. Application query and client migration
+5. Parallel testing and cutover
+
+## Potential Blockers
+- No immediate blockers identified.
+
+## Implementation Points
+- Map Solr field types to OpenSearch equivalents (see steering documents).
+- Replace Solr copyField with OpenSearch copy_to.
+- Update client libraries from SolrJ/SolrPy to OpenSearch clients.
+
+## Cost Estimates
+- **Infrastructure**: Estimated 10% increase over Solr due to shard management overhead.
+- **Effort**: Moderate (2-4 weeks for typical mid-sized workload).&quot;}
+
+Pass Reason: All assertions passed</td>
+          
+        </tr>
+        
+      </tbody>
+    </table>
+  </body>
+</html>

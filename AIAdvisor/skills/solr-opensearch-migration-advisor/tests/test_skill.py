@@ -1,12 +1,9 @@
 """Tests for skill.py"""
-import sys
-import os
 import json
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 from skill import SolrToOpenSearchMigrationSkill
-from storage import InMemoryStorage
+from storage import InMemoryStorage, SessionState, Incompatibility
 
 
 @pytest.fixture
@@ -118,6 +115,36 @@ def test_handle_message_checklist(skill):
     assert "PREPARATION" in response or "checklist" in response.lower()
 
 
+def test_handle_message_checklist_update(skill):
+    response = skill.handle_message(
+        "checklist update:\n- [x] Convert schema\n- [ ] Translate fq\n- [ ] Review analyzers",
+        "checklist-session",
+    )
+    assert "Checklist `default` progress: 1/3 items complete." in response
+    assert "Still open: Translate fq, Review analyzers." in response
+
+
+def test_handle_message_checklist_status_after_update(skill):
+    skill.handle_message(
+        "checklist update:\n- [x] Convert schema\n- [ ] Translate fq",
+        "checklist-status",
+    )
+    response = skill.handle_message("checklist status", "checklist-status")
+    assert "Checklist `default` progress: 1/2 items complete." in response
+    assert "Still open: Translate fq." in response
+
+
+def test_handle_message_named_checklist_update_and_status(skill):
+    response = skill.handle_message(
+        "checklist release:\n1. [x] Convert schema\n2. [ ] Translate fq",
+        "named-checklist",
+    )
+    assert "Checklist `release` progress: 1/2 items complete." in response
+    response = skill.handle_message("checklist status release", "named-checklist")
+    assert "Checklist `release` progress: 1/2 items complete." in response
+    assert "Still open: Translate fq." in response
+
+
 def test_handle_message_report(skill):
     response = skill.handle_message("generate report", "s4")
     assert "Migration Report" in response
@@ -158,6 +185,62 @@ def test_session_resumes_across_calls(skill):
     skill.handle_message("world", "resume-test")
     state = skill._storage.load("resume-test")
     assert len(state.history) == 2
+
+
+def test_update_checklist_persists_in_session(skill):
+    summary = skill.update_checklist(
+        "persist-checklist",
+        "- [x] Intake\n- [ ] Query translation\n- [ ] Cutover plan",
+    )
+    assert summary["completed_items"] == 1
+    state = skill._storage.load("persist-checklist")
+    checklists = state.get_fact("checklists")
+    assert checklists["default"]["summary"]["remaining_titles"] == [
+        "Query translation",
+        "Cutover plan",
+    ]
+
+
+def test_get_checklist_status_without_saved_checklist(skill):
+    response = skill.get_checklist_status("no-checklist")
+    assert "don't have a tracked checklist" in response.lower()
+
+
+def test_parse_markdown_checklist_supports_numbered_items(skill):
+    summary = skill._parse_markdown_checklist(
+        "1. [x] Intake\n2. [ ] Query translation\n3. [ ] Cutover"
+    )
+    assert summary["completed_items"] == 1
+    assert summary["remaining_titles"] == ["Query translation", "Cutover"]
+
+
+def test_update_checklist_from_file(skill, tmp_path):
+    checklist_path = tmp_path / "demo-checklist.md"
+    checklist_path.write_text("- [x] Intake\n- [ ] Query translation\n", encoding="utf-8")
+    summary = skill.update_checklist_from_file(
+        "file-checklist",
+        str(checklist_path),
+        checklist_name="demo",
+    )
+    assert summary["completed_items"] == 1
+    response = skill.get_checklist_status("file-checklist", checklist_name="demo")
+    assert "Checklist `demo` progress: 1/2 items complete." in response
+    assert f"Source file: {checklist_path}" in response
+
+
+def test_handle_message_loads_named_checklist_file(skill, tmp_path):
+    checklist_path = tmp_path / "release.md"
+    checklist_path.write_text("1. [x] Intake\n2. [ ] Validate ranking\n", encoding="utf-8")
+    response = skill.handle_message(
+        f"checklist file release: {checklist_path}",
+        "file-checklist-message",
+    )
+    assert "Checklist `release` progress: 1/2 items complete." in response
+    response = skill.handle_message(
+        "checklist status release",
+        "file-checklist-message",
+    )
+    assert "Still open: Validate ranking." in response
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,1192 @@
+[
+  {
+    "id": "scope-timeline-pressure",
+    "title": "PM asks for timeline estimate with incomplete info",
+    "category": "scoping",
+    "persona": "project-manager",
+    "context": "Mid-discovery. You know they have Solr 7.x, ~50 collections, but haven't inventoried custom components or query patterns yet.",
+    "scenario": "The VP wants a timeline for the board deck next week. Can you give me a rough estimate for migrating our Solr infrastructure to OpenSearch?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must NOT give a specific timeline without component inventory and query pattern analysis",
+      "Must explain what unknowns block a credible estimate (custom components, query complexity, relevance sensitivity, consumer count)",
+      "Must ask about custom components, query complexity, and relevance requirements before committing to any range",
+      "May offer a very wide range with explicit caveats if pressed, but must make the uncertainty visible"
+    ],
+    "keyword_assertions": ["custom components", "inventory"],
+    "anti_patterns": [
+      "Giving a firm date like '6-8 weeks'",
+      "Estimating without asking about unknowns",
+      "Saying 'it depends' without explaining what it depends on specifically"
+    ]
+  },
+  {
+    "id": "scope-budget-minimizer",
+    "title": "Client minimizes budget to get a lower estimate",
+    "category": "scoping",
+    "persona": "business-owner",
+    "context": "Initial consultation. Client has a mid-size Solr deployment (~100GB, 10 collections) with custom relevance tuning.",
+    "scenario": "We just need to swap out Solr for OpenSearch. The schema is pretty standard and we don't use anything exotic. Can we keep this under $10K and done in two weeks?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must probe what 'pretty standard' and 'nothing exotic' actually means — these are red flags for hidden complexity",
+      "Must ask about custom relevance tuning, query patterns, and consumer applications",
+      "Must explain that the cost and timeline depend on what 'standard' means in their context",
+      "Must NOT agree to $10K/two weeks without understanding the actual scope"
+    ],
+    "keyword_assertions": ["relevance", "scope"],
+    "anti_patterns": [
+      "Agreeing to the budget/timeline",
+      "Taking 'pretty standard' at face value",
+      "Not probing for hidden complexity"
+    ]
+  },
+  {
+    "id": "scope-phased-vs-bigbang",
+    "title": "CTO asks whether to phase or big-bang the migration",
+    "category": "scoping",
+    "persona": "cto",
+    "context": "Enterprise with 30 collections, 3 applications consuming Solr (web search, internal admin, batch reporting). CTO has experience with database migrations.",
+    "scenario": "Should we migrate everything at once or do it in phases? With our last database migration we did a big-bang cutover over a weekend and it worked fine.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must recommend phased migration for 30 collections with 3 consumers",
+      "Must explain why search migration differs from database migration — relevance validation, behavioral differences, and user-facing impact make big-bang riskier",
+      "Must recommend starting with the lowest-risk collection as a pilot",
+      "Must suggest dual-running or shadow traffic before each phase cutover",
+      "Must acknowledge the CTO's database migration experience while explaining why the analogy breaks down"
+    ],
+    "keyword_assertions": ["phased", "pilot", "relevance"],
+    "anti_patterns": [
+      "Recommending big-bang without qualification",
+      "Not explaining why search differs from database migration",
+      "Being dismissive of the CTO's prior experience"
+    ]
+  },
+  {
+    "id": "risk-incomplete-info-custom-plugins",
+    "title": "Client is vague about custom Solr plugins",
+    "category": "risk-discovery",
+    "persona": "developer",
+    "context": "Technical discovery call. Developer has been with the company 2 years; the Solr setup predates them.",
+    "scenario": "I think there might be some custom JARs in the Solr lib directory but I'm not sure what they do. The person who set it up left the company. We don't really use them I think.",
+    "expected_response_type": "follow_up_question",
+    "expectations": [
+      "Must NOT accept 'I think' or 'not sure' as sufficient — unknown custom components are a top migration risk",
+      "Must provide a concrete action plan to inventory the JARs (list lib/*.jar, check solrconfig.xml for component registrations)",
+      "Must explain that custom components are one of the most common sources of post-cutover incidents",
+      "Must ask the developer to check solrconfig.xml for searchComponent, requestHandler, and updateRequestProcessorChain entries that reference custom classes"
+    ],
+    "keyword_assertions": ["inventory", "solrconfig.xml", "risk"],
+    "anti_patterns": [
+      "Accepting 'we don't really use them' at face value",
+      "Moving forward without resolving the unknown",
+      "Being confrontational about the knowledge gap"
+    ]
+  },
+  {
+    "id": "risk-hidden-consumers",
+    "title": "Discover secondary Solr consumers mid-migration",
+    "category": "risk-discovery",
+    "persona": "project-manager",
+    "context": "Migration underway. Web search app has been migrated and is running on OpenSearch. Client just discovered that their batch reporting job queries Solr directly.",
+    "scenario": "We just found out that our nightly analytics pipeline has been querying Solr directly this whole time. We were about to decommission the Solr cluster next week. What do we do?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must recommend immediately pausing the Solr decommission",
+      "Must ask about the analytics pipeline's query patterns — are they aggregation-heavy, full-export, or specific queries?",
+      "Must recommend a full consumer audit before proceeding — if one hidden consumer was found, there may be more",
+      "Must provide a concrete plan: (1) audit all Solr access logs for unique client IPs/user-agents, (2) migrate the analytics pipeline, (3) re-validate, (4) then decommission",
+      "Must frame this as a process failure (consumer inventory should have caught this) without blaming the PM"
+    ],
+    "keyword_assertions": ["pause", "decommission", "audit", "consumer"],
+    "anti_patterns": [
+      "Proceeding with decommission",
+      "Blaming the project manager",
+      "Not recommending a broader consumer audit"
+    ]
+  },
+  {
+    "id": "risk-relevance-regression-detected",
+    "title": "Relevance scores dropped after migration",
+    "category": "risk-discovery",
+    "persona": "search-engineer",
+    "context": "Post-migration. OpenSearch is live. Search team noticed that several high-value queries return different result ordering.",
+    "scenario": "Our top 50 revenue-driving queries have significantly different result ordering after migration. Some products that were in the top 3 are now on page 2. We're seeing a 12% drop in search-to-cart conversion since the switch. Stakeholders are panicking.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must prioritize: is there a rollback plan? Should we rollback now while investigating?",
+      "Must identify BM25 vs TF-IDF scoring difference as the most likely root cause for ranking changes",
+      "Must recommend specific diagnostic steps: compare explain output for affected queries on both systems",
+      "Must recommend BM25 parameter tuning (k1, b) as the first remediation, not re-engineering queries",
+      "Must address the stakeholder communication angle — frame the 12% drop as quantifiable and fixable, not catastrophic"
+    ],
+    "keyword_assertions": ["BM25", "rollback", "explain", "k1"],
+    "anti_patterns": [
+      "Dismissing the ranking changes as expected",
+      "Not asking about rollback readiness",
+      "Recommending wholesale query rewriting before simpler BM25 tuning"
+    ]
+  },
+  {
+    "id": "risk-security-gap",
+    "title": "Client assumes app-layer auth is sufficient",
+    "category": "risk-discovery",
+    "persona": "developer",
+    "context": "Security review phase. Client has Solr behind a reverse proxy with app-level authentication.",
+    "scenario": "Our app handles all the authentication. Users can only see search results through our UI, so we don't need to worry about search-level security in OpenSearch, right?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must challenge the assumption — app-layer auth doesn't prevent direct API access to the OpenSearch cluster",
+      "Must explain OpenSearch fine-grained access control (document-level security, field-level security)",
+      "Must ask whether any fields contain PII or sensitive data that shouldn't be in search results for all users",
+      "Must recommend network-level controls (VPC, security groups) in addition to app-level auth",
+      "Must distinguish between authentication (who are you) and authorization (what can you see)"
+    ],
+    "keyword_assertions": ["document-level security", "VPC", "access control"],
+    "anti_patterns": [
+      "Agreeing that app-layer auth is sufficient",
+      "Not asking about sensitive data in the index",
+      "Ignoring network-level security"
+    ]
+  },
+  {
+    "id": "gonogo-conditional-approval",
+    "title": "Go/no-go with unresolved relevance gap",
+    "category": "go-no-go",
+    "persona": "project-manager",
+    "context": "Cutover decision meeting. 90% of queries match baseline. 10% show degraded relevance. Deadline is next week.",
+    "scenario": "We've validated 90% of our query patterns and they meet baseline. The remaining 10% show some degradation but nothing catastrophic. The business wants to go live next week. Should we proceed?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must ask what the 10% degraded queries represent — are they high-revenue, high-traffic, or long-tail?",
+      "Must frame the go/no-go decision around business impact of the 10%, not just the percentage",
+      "Must recommend conditional go with explicit monitoring and rollback trigger criteria",
+      "Must insist on defining what 'not catastrophic' means quantitatively (nDCG threshold, conversion impact)",
+      "Must recommend a rollback plan with a named decision-maker who can pull the trigger"
+    ],
+    "keyword_assertions": ["rollback", "monitoring", "business impact"],
+    "anti_patterns": [
+      "Saying '90% is good enough' without analyzing the 10%",
+      "Recommending hard no-go without analyzing business impact",
+      "Not asking who has rollback authority"
+    ]
+  },
+  {
+    "id": "gonogo-schedule-vs-quality",
+    "title": "Leadership pressuring launch date despite quality concerns",
+    "category": "go-no-go",
+    "persona": "project-manager",
+    "context": "Two weeks before planned cutover. Relevance validation is incomplete. Load testing hasn't been done.",
+    "scenario": "Leadership says the migration date is firm because it's tied to a larger platform release. But we haven't finished relevance testing and haven't done load testing yet. They're saying we can fix issues after go-live. What's your recommendation?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must clearly state that skipping relevance validation and load testing is high-risk for a search migration",
+      "Must NOT simply agree with leadership's timeline without flagging the risk explicitly",
+      "Must frame the trade-off concretely: what specific failures could occur (ranking regression, performance degradation under load, outage)",
+      "Must recommend a compromise: phased rollout (canary at 5-10% traffic) that meets the date while limiting blast radius",
+      "Must recommend documenting the risk acceptance — if leadership overrides, it should be a recorded decision, not an implied one"
+    ],
+    "keyword_assertions": ["canary", "risk", "load testing", "phased"],
+    "anti_patterns": [
+      "Agreeing to skip testing",
+      "Being so rigid that no compromise is offered",
+      "Not providing a middle-ground option"
+    ]
+  },
+  {
+    "id": "gonogo-rollback-readiness",
+    "title": "Testing rollback plan before cutover",
+    "category": "go-no-go",
+    "persona": "devops-engineer",
+    "context": "Pre-cutover planning. Dual-write is active. Both Solr and OpenSearch have current data.",
+    "scenario": "We have dual-write running and both clusters are in sync. Our rollback plan is to just switch the load balancer back to Solr. Do we need to actually test the rollback or is that sufficient?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must recommend testing the rollback — an untested rollback plan is not a plan",
+      "Must identify specific rollback risks: write divergence during the cutover window, cache invalidation, session state",
+      "Must ask about write path during rollback — if writes go to OpenSearch only during cutover, rolling back means data loss",
+      "Must recommend a rehearsal: switch to OpenSearch, verify, switch back, verify data consistency",
+      "Must address timing — how long does the LB switch take? What's the acceptable downtime window?"
+    ],
+    "keyword_assertions": ["rehearsal", "write divergence", "data consistency"],
+    "anti_patterns": [
+      "Saying LB switch is sufficient without testing",
+      "Not asking about write path during cutover",
+      "Skipping data consistency verification"
+    ]
+  },
+  {
+    "id": "persona-cto-vs-pm-same-question",
+    "title": "CTO asks about migration risk (technical depth expected)",
+    "category": "persona",
+    "persona": "cto",
+    "context": "Initial executive briefing. CTO has strong technical background, architected the original Solr deployment 5 years ago.",
+    "scenario": "What are the top three technical risks in moving our Solr deployment to OpenSearch? I designed the original architecture so don't hold back on the technical details.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must provide technically detailed risk analysis appropriate for someone who understands Solr internals",
+      "Must use specific Solr terminology (eDisMax, configsets, SolrCloud) without over-explaining basics",
+      "Must focus on architectural risks, not project management risks",
+      "Must mention scoring model differences (BM25 vs TF-IDF), query parser behavioral gaps, and operational model differences",
+      "Must respect the CTO's request for depth — shallow summaries would be insulting to someone who built the system"
+    ],
+    "keyword_assertions": ["BM25", "query parser", "operational"],
+    "anti_patterns": [
+      "Over-explaining basic Solr concepts to a CTO",
+      "Giving a project management answer instead of technical answer",
+      "Being vague or hedging when depth was explicitly requested"
+    ]
+  },
+  {
+    "id": "persona-business-owner-same-risk",
+    "title": "Business owner asks about migration risk (accessible framing expected)",
+    "category": "persona",
+    "persona": "business-owner",
+    "context": "Same deployment as CTO scenario, but now the non-technical business owner is asking.",
+    "scenario": "I hear the search migration has some risks. Can you explain what could go wrong and how it would affect our customers?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must explain risks in terms of customer impact, not engine internals",
+      "Must NOT use unexplained jargon (BM25, eDisMax, configsets)",
+      "Must frame risks as: 'customers might see different search results', 'search might be slower during transition', 'some features might not work the same way'",
+      "Must provide clear mitigation framing: 'we test before switching, we can switch back quickly if needed'",
+      "Must connect risks to business metrics the owner cares about (conversion, customer complaints, revenue)"
+    ],
+    "keyword_assertions": ["customer", "test", "switch back"],
+    "anti_patterns": [
+      "Using technical jargon without explanation",
+      "Describing risks in engine terms rather than business terms",
+      "Being condescending or over-simplifying to the point of inaccuracy"
+    ]
+  },
+  {
+    "id": "persona-devops-operational",
+    "title": "DevOps engineer asks about operational differences",
+    "category": "persona",
+    "persona": "devops-engineer",
+    "context": "DevOps team manages the Solr infrastructure. They handle ZooKeeper, backups, monitoring, and deployments.",
+    "scenario": "I manage our SolrCloud cluster — ZooKeeper ensemble, rolling restarts, configset deployments, the works. What's going to change for my team operationally when we move to AWS OpenSearch?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must address ZooKeeper elimination — no ZK management in OpenSearch (managed cluster coordination)",
+      "Must explain that configset deployment is replaced by index templates and PUT settings/mappings API",
+      "Must address monitoring differences — CloudWatch metrics vs Solr JMX/Prometheus",
+      "Must discuss backup changes — snapshot to S3 vs Solr backup API",
+      "Must be practical and specific about what the DevOps team stops doing, starts doing, and does differently"
+    ],
+    "keyword_assertions": ["ZooKeeper", "CloudWatch", "snapshot", "index templates"],
+    "anti_patterns": [
+      "Focusing on query or relevance topics instead of operations",
+      "Being too abstract — DevOps needs concrete operational differences",
+      "Not acknowledging the significant operational simplification that managed OpenSearch provides"
+    ]
+  },
+  {
+    "id": "persona-qa-testing-strategy",
+    "title": "QA engineer asks how to test the migration",
+    "category": "persona",
+    "persona": "qa-engineer",
+    "context": "QA team needs to build a test plan for the migration. They've never tested a search engine migration before.",
+    "scenario": "I need to build a test plan for this migration. I've tested API migrations before but never a search engine. What should I be testing and how do I know if search is 'correct' after migration?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must explain that search correctness is not binary — it's about result quality (relevance), not just response code 200",
+      "Must recommend a judgment-based evaluation approach: curated queries with expected results scored by humans or domain experts",
+      "Must suggest specific test categories: functional (queries return results), relevance (right results in right order), performance (latency under load), edge cases (empty results, special characters)",
+      "Must recommend tools or approaches: Quepid for relevance testing, side-by-side comparison scripts, A/B testing",
+      "Must frame success criteria: nDCG score baseline, P@10 comparison, zero broken queries"
+    ],
+    "keyword_assertions": ["relevance", "judgment", "nDCG"],
+    "anti_patterns": [
+      "Treating search testing like API testing (just check status codes)",
+      "Not mentioning relevance/ranking as a test dimension",
+      "Overwhelming a QA engineer with search theory instead of practical test plan steps"
+    ]
+  },
+  {
+    "id": "bad-assumption-lift-and-shift",
+    "title": "Client assumes schema.xml can be directly converted",
+    "category": "bad-assumptions",
+    "persona": "developer",
+    "context": "Early technical planning. Developer has a large schema.xml and expects 1:1 conversion.",
+    "scenario": "I exported our schema.xml from Solr. Can you convert it to an OpenSearch index mapping? It should be mostly a mechanical translation, right?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must challenge 'mostly mechanical' — while field types map reasonably well, analyzer chains, similarity configs, and dynamic field patterns require interpretation",
+      "Must explain what IS mechanical (field type mapping: string->keyword, text_general->text, pint->integer) vs what requires judgment (analyzer chain ordering, similarity selection, copyField semantics)",
+      "Must ask about which fields are actually used in queries vs. just defined in schema",
+      "Must warn about the gap between schema translation and behavioral equivalence — the schema can convert but results may differ"
+    ],
+    "keyword_assertions": ["analyzer", "behavioral", "judgment"],
+    "anti_patterns": [
+      "Converting the schema without questioning the approach",
+      "Saying it's fully mechanical",
+      "Not distinguishing between schema syntax and search behavior"
+    ]
+  },
+  {
+    "id": "bad-assumption-lucene-is-lucene",
+    "title": "Client dismisses differences because 'both use Lucene'",
+    "category": "bad-assumptions",
+    "persona": "architect",
+    "context": "Architecture review. Architect has done research and knows both engines are Lucene-based.",
+    "scenario": "Both Solr and OpenSearch are built on Lucene, so the core search behavior should be the same. The differences are mainly in the REST API and management layer, correct?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must respectfully correct this misconception without being dismissive of the architect's knowledge",
+      "Must list concrete behavioral differences despite shared Lucene: default scoring model (TF-IDF vs BM25), query parser differences (eDisMax vs Query DSL), analyzer defaults, pagination semantics",
+      "Must acknowledge what IS similar (core inverted index, basic text analysis) while being clear about what diverges",
+      "Must provide a concrete example: the same document set with the same query can return different rankings"
+    ],
+    "keyword_assertions": ["BM25", "TF-IDF", "query parser", "ranking"],
+    "anti_patterns": [
+      "Agreeing with the premise",
+      "Being dismissive or condescending about the misconception",
+      "Listing only surface-level API differences instead of behavioral differences"
+    ]
+  },
+  {
+    "id": "bad-assumption-weekend-cutover",
+    "title": "Client wants to do cutover in a single weekend",
+    "category": "bad-assumptions",
+    "persona": "project-manager",
+    "context": "Large deployment: 20 collections, 500GB, 3 consumer applications, no dual-write infrastructure yet.",
+    "scenario": "We're planning to do the cutover over a long weekend. Friday night we switch writes to OpenSearch, Saturday we reindex any stragglers, Sunday we test, Monday we're live. Does that work?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must flag that 500GB reindex + 3 consumer application testing in one weekend is extremely aggressive",
+      "Must ask about dual-write — if there's no dual-write, the Friday night switch creates a point of no return",
+      "Must recommend a dual-running period (weeks, not hours) where both systems receive writes",
+      "Must address each consumer application — all 3 need independent validation, not just one smoke test",
+      "Must offer a safer alternative timeline that still meets the spirit of a quick cutover"
+    ],
+    "keyword_assertions": ["dual-write", "reindex", "consumer", "rollback"],
+    "anti_patterns": [
+      "Agreeing the weekend plan is feasible without caveats",
+      "Not asking about rollback if Monday morning goes wrong",
+      "Ignoring the 3 consumer applications"
+    ]
+  },
+  {
+    "id": "bad-assumption-same-hardware",
+    "title": "Client plans to use identical infrastructure sizing",
+    "category": "bad-assumptions",
+    "persona": "devops-engineer",
+    "context": "Infrastructure planning. Current Solr: 6 nodes, 32GB RAM each, 500GB SSD, running on EC2 m5.2xlarge.",
+    "scenario": "We currently run 6 Solr nodes on m5.2xlarge. We're planning to set up 6 OpenSearch data nodes on the same instance type. Should be equivalent, right?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must explain that OpenSearch and Solr have different memory and storage profiles — direct instance mapping isn't reliable",
+      "Must recommend OpenSearch-specific instance types (r6g family for memory-optimized, or r6gd for instance storage)",
+      "Must ask about the workload profile: read-heavy vs write-heavy, aggregation-heavy, etc.",
+      "Must explain that OpenSearch JVM heap should be ~50% of RAM (but no more than ~32GB to stay in compressed oops)",
+      "Must recommend load testing the target cluster before committing to sizing"
+    ],
+    "keyword_assertions": ["r6g", "heap", "load testing"],
+    "anti_patterns": [
+      "Confirming same instance type is fine",
+      "Not mentioning OpenSearch-specific sizing guidance",
+      "Ignoring workload profile differences"
+    ]
+  },
+  {
+    "id": "cost-stay-on-solr",
+    "title": "Client questions whether migration is worth it",
+    "category": "cost-tradeoffs",
+    "persona": "cto",
+    "context": "Early evaluation. Solr is working fine but the company wants to reduce operational burden. CTO is skeptical of the migration value.",
+    "scenario": "Honestly, Solr is working fine for us. We're considering this mainly because management heard 'cloud' and 'managed service.' Is the migration actually worth the cost and risk for us?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must NOT assume migration is always the right answer — sometimes staying on Solr IS the right call",
+      "Must honestly assess the trade-offs: operational simplification vs migration cost and risk",
+      "Must ask about their current pain points — if there are none, the case for migration is weaker",
+      "Must mention legitimate reasons TO migrate: ZooKeeper maintenance burden, security patching, scaling elasticity, AWS integration",
+      "Must mention legitimate reasons NOT to migrate: working system, custom components that need redesign, relevance risk",
+      "Must respect the CTO's skepticism as valid, not dismiss it"
+    ],
+    "keyword_assertions": ["operational", "trade-off", "risk"],
+    "anti_patterns": [
+      "Always recommending migration regardless of context",
+      "Dismissing the CTO's skepticism",
+      "Not acknowledging that staying on Solr can be valid"
+    ]
+  },
+  {
+    "id": "cost-managed-vs-selfhosted",
+    "title": "Managed OpenSearch Service vs self-hosted",
+    "category": "cost-tradeoffs",
+    "persona": "devops-engineer",
+    "context": "Client is migrating to OpenSearch but hasn't decided between AWS managed and self-hosted on EC2/EKS.",
+    "scenario": "Should we use AWS OpenSearch Service or run OpenSearch ourselves on EKS? We have a strong Kubernetes team and we're worried about the managed service limitations.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must present honest trade-offs, not just recommend managed",
+      "Must address specific managed service limitations: plugin restrictions, no custom JVM flags, limited instance types, version lag",
+      "Must address self-hosted advantages: full control, custom plugins, faster version adoption",
+      "Must address self-hosted costs: operational burden, patching, backup management, monitoring setup, cluster scaling",
+      "Must ask what specific limitations concern them — if they need custom plugins, that's a real managed-service blocker"
+    ],
+    "keyword_assertions": ["managed", "limitations", "operational burden"],
+    "anti_patterns": [
+      "Always recommending managed without considering their context",
+      "Dismissing self-hosted as always wrong",
+      "Not asking about specific limitations they're concerned about"
+    ]
+  },
+  {
+    "id": "cost-right-sizing-small",
+    "title": "Small deployment cost optimization",
+    "category": "cost-tradeoffs",
+    "persona": "business-owner",
+    "context": "Small e-commerce site, ~5GB index, <100 QPS, currently running Solr on a $20/month VPS.",
+    "scenario": "I'm paying $20/month for the VPS that runs Solr. What will OpenSearch cost me on AWS? I keep seeing recommendations for multi-AZ setups with 3 nodes but that seems like overkill for my little shop.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must validate that multi-AZ with 3 nodes IS overkill for this workload",
+      "Must recommend the smallest viable option: t3.small.search single-node (~$25-35/month)",
+      "Must honestly acknowledge this will cost more than the $20 VPS — and explain what they get for the premium (managed patching, backups, monitoring)",
+      "Must mention the option of running single-node OpenSearch on a small EC2 instance if cost is paramount",
+      "Must NOT recommend production-grade HA architecture for a 5GB / <100 QPS workload"
+    ],
+    "keyword_assertions": ["t3.small", "single-node"],
+    "anti_patterns": [
+      "Recommending multi-AZ or r6g instances for 5GB",
+      "Not acknowledging the cost increase",
+      "Over-engineering the infrastructure recommendation"
+    ]
+  },
+  {
+    "id": "postcutover-performance-degradation",
+    "title": "Search latency increased after migration",
+    "category": "post-cutover",
+    "persona": "devops-engineer",
+    "context": "One week post-cutover. OpenSearch is live. P95 latency went from 80ms to 250ms.",
+    "scenario": "Our search P95 latency tripled after migrating to OpenSearch. It was 80ms on Solr and now it's 250ms. The index size is the same. What should we look at?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must provide a systematic diagnostic checklist, not just one guess",
+      "Must check: shard count and sizing (over-sharding is the #1 cause), JVM heap allocation, segment count (force merge may help)",
+      "Must ask about query patterns — are there aggregation-heavy queries that might behave differently?",
+      "Must check cluster health: are there relocating shards, pending tasks, high CPU?",
+      "Must recommend specific tools: _nodes/hot_threads, _cat/thread_pool, slow query log, _search with profile=true"
+    ],
+    "keyword_assertions": ["shard", "heap", "profile", "slow query"],
+    "anti_patterns": [
+      "Jumping to one conclusion without systematic diagnosis",
+      "Recommending scaling up hardware before checking configuration",
+      "Not asking about query patterns"
+    ]
+  },
+  {
+    "id": "postcutover-missing-documents",
+    "title": "Documents missing after migration",
+    "category": "post-cutover",
+    "persona": "developer",
+    "context": "Post-migration. Users report some products aren't appearing in search results.",
+    "scenario": "We migrated 2 million documents but some products aren't showing up in search. We spot-checked and the document count looks right (_count shows 2M), but specific products that users search for aren't being returned.",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must distinguish between 'missing from index' and 'not matching queries' — doc count is correct, so documents are there",
+      "Must recommend checking if the specific documents exist: GET /{index}/_doc/{id}",
+      "Must suggest the real issue is likely query/analyzer behavior, not missing data — the document exists but doesn't match",
+      "Must recommend using _analyze API to compare how terms are tokenized in Solr vs OpenSearch",
+      "Must ask about the specific queries and fields involved — analyzer differences cause invisible mismatches"
+    ],
+    "keyword_assertions": ["_analyze", "analyzer", "tokenized"],
+    "anti_patterns": [
+      "Assuming documents are actually missing when count is correct",
+      "Recommending reindex before diagnosing",
+      "Not checking query/analyzer behavior"
+    ]
+  },
+  {
+    "id": "postcutover-stakeholder-complaints",
+    "title": "Managing stakeholder complaints about search changes",
+    "category": "post-cutover",
+    "persona": "project-manager",
+    "context": "Two days post-cutover. Customer support has received 15 tickets about search results being 'wrong' or 'different.'",
+    "scenario": "Customer support is getting tickets that search results are different. Our CEO saw one of the tickets and is asking if we need to roll back. But our relevance metrics actually show a slight improvement overall. How do I handle this?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must distinguish between 'different' and 'worse' — users notice change but that doesn't mean regression",
+      "Must recommend triaging the specific complaints: are they about the same queries? Same product categories?",
+      "Must address the CEO communication: present the quantitative metrics (overall improvement) alongside acknowledgment of specific complaints",
+      "Must recommend investigating the specific ticket queries to see if there are targeted fixes needed",
+      "Must advise AGAINST rolling back if overall metrics are positive — but recommend monitoring specific complaint patterns for the next 1-2 weeks"
+    ],
+    "keyword_assertions": ["metrics", "triage", "different vs worse"],
+    "anti_patterns": [
+      "Recommending immediate rollback based on 15 tickets",
+      "Dismissing user complaints because aggregate metrics are good",
+      "Not helping the PM with the CEO communication"
+    ]
+  },
+  {
+    "id": "multiturn-discovery-to-recommendation",
+    "title": "Multi-turn: discovery question leads to follow-up",
+    "category": "multi-turn",
+    "persona": "developer",
+    "context": "First interaction. No prior information about the deployment.",
+    "scenario": "We want to migrate from Solr to OpenSearch. Where do we start?",
+    "expected_response_type": "follow_up_question",
+    "expectations": [
+      "Must NOT launch into a generic migration plan without understanding the deployment",
+      "Must ask targeted discovery questions: Solr version, number of collections, index size, query patterns, custom components, number of consuming applications",
+      "Must prioritize questions — ask the 3-5 most important ones, not a 20-item questionnaire",
+      "Must frame questions as a natural conversation, not an interrogation",
+      "Must briefly explain why each question matters for the migration approach"
+    ],
+    "keyword_assertions": ["version", "collections", "custom"],
+    "anti_patterns": [
+      "Giving a generic migration plan without asking anything",
+      "Asking too many questions at once (overwhelming)",
+      "Not explaining why the questions matter"
+    ]
+  },
+  {
+    "id": "multiturn-client-changes-scope",
+    "title": "Multi-turn: client expands scope mid-engagement",
+    "category": "multi-turn",
+    "persona": "project-manager",
+    "context": "Migration is planned for 5 collections. Client just revealed 3 more collections that 'should be easy to add.'",
+    "scenario": "Oh, I forgot to mention — we also have 3 more collections for our internal tools. They're small and simple though, so we should be able to add them to the current migration scope without changing the timeline, right?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must NOT automatically agree that adding 3 collections won't change the timeline",
+      "Must ask about the 'small and simple' collections: what fields, what query patterns, who consumes them?",
+      "Must flag this as scope creep that needs explicit assessment before accepting",
+      "Must offer to assess the additional collections and provide a revised estimate",
+      "Must be diplomatic — don't make the PM feel bad for the late addition, but be firm about proper scoping"
+    ],
+    "keyword_assertions": ["scope", "assess", "timeline"],
+    "anti_patterns": [
+      "Agreeing to add without assessment",
+      "Accepting 'small and simple' at face value",
+      "Being hostile about the scope change"
+    ]
+  },
+  {
+    "id": "multiturn-conflicting-stakeholders",
+    "title": "Multi-turn: stakeholders disagree on migration approach",
+    "category": "multi-turn",
+    "persona": "project-manager",
+    "context": "The CTO wants a phased migration. The VP Engineering wants big-bang to 'get it done.' PM is caught in the middle.",
+    "scenario": "Our CTO wants to do this in phases over 3 months. The VP of Engineering says that's too slow and wants to do everything in one sprint. I need to present a recommendation to both of them next week. Can you help me frame this?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must provide an objective framework for the decision, not just pick a side",
+      "Must present the risk/reward trade-off for each approach clearly",
+      "Must recommend the phased approach for a multi-collection deployment but frame it in terms the VP will accept (faster value delivery per phase, reduced blast radius)",
+      "Must help the PM present a unified recommendation with compromise elements (e.g., aggressive phase 1 timeline to show speed, then measured phases 2-3)",
+      "Must acknowledge both perspectives as having valid concerns"
+    ],
+    "keyword_assertions": ["phased", "risk", "blast radius"],
+    "anti_patterns": [
+      "Picking one executive's side without framework",
+      "Not helping the PM with the presentation framing",
+      "Ignoring the political dynamics"
+    ]
+  },
+  {
+    "id": "escalation-blocker-discovered",
+    "title": "Critical blocker found mid-migration",
+    "category": "escalation",
+    "persona": "search-engineer",
+    "context": "Migration is 60% complete. Just discovered that a core feature relies on Solr Streaming Expressions for nightly batch analytics.",
+    "scenario": "We just found that our analytics team uses Streaming Expressions to join data across 3 collections every night for reporting. This is apparently business-critical — the CFO uses these reports. No one mentioned this during discovery. What do we do?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must acknowledge this is a significant blocker — Streaming Expressions have no OpenSearch equivalent",
+      "Must NOT suggest 'we'll figure it out later' — this needs a concrete plan before proceeding",
+      "Must recommend an alternative: external pipeline (Spark, Python, Logstash) to replace the Streaming Expressions logic",
+      "Must address the project impact: this likely adds scope and timeline, and the PM/stakeholders need to know",
+      "Must recommend a process improvement: better discovery checklist for future engagements to catch batch/analytics consumers"
+    ],
+    "keyword_assertions": ["no equivalent", "pipeline", "scope", "timeline"],
+    "anti_patterns": [
+      "Downplaying the impact",
+      "Suggesting Streaming Expressions can be converted to aggregations (they can't for joins)",
+      "Not addressing the communication/escalation to stakeholders"
+    ]
+  },
+  {
+    "id": "escalation-vendor-lock-in-concern",
+    "title": "Client worried about AWS vendor lock-in",
+    "category": "escalation",
+    "persona": "cto",
+    "context": "CTO is evaluating AWS OpenSearch Service but has concerns about multi-cloud strategy.",
+    "scenario": "If we move to AWS OpenSearch Service, aren't we locked into AWS? What happens if we want to move to GCP or Azure later? Or if Amazon decides to change pricing or features?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must acknowledge the concern as valid — vendor lock-in is a real strategic risk",
+      "Must explain that OpenSearch is open source — the engine itself runs anywhere, the lock-in is in the managed service features",
+      "Must identify specific lock-in points: AWS-specific security features, CloudWatch integration, VPC configuration, snapshot storage in S3",
+      "Must explain portability: the OpenSearch engine, index data, and queries are portable; the operational wrapper is not",
+      "Must present mitigation strategies: avoid AWS-only features where possible, keep infrastructure-as-code, design for portability at the application layer"
+    ],
+    "keyword_assertions": ["open source", "portable", "managed service"],
+    "anti_patterns": [
+      "Dismissing vendor lock-in concerns",
+      "Claiming there's zero lock-in because OpenSearch is open source",
+      "Not identifying specific lock-in points"
+    ]
+  },
+  {
+    "id": "report-completeness-multiturn",
+    "title": "Full migration report after multi-turn conversation",
+    "category": "multi-turn",
+    "persona": "project-manager",
+    "context": "Multi-turn engagement. Over several exchanges the advisor has learned: Solr 8.x, 5 collections, 200GB total, eDisMax queries, custom update processor for geocoding, SolrJ + pysolr clients, basic auth, dual-write feasible, 3-month timeline target. PM now asks for the complete report.",
+    "scenario": "OK, I think you have a good picture of our setup now. Can you generate the full migration report? I need something I can present to the steering committee next week. It should cover everything we discussed.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must produce a structured report with clear sections, not a wall of text",
+      "Must include an incompatibilities section listing specific issues found (geocoding processor, scoring model, etc.) with severity ratings",
+      "Must include a migration plan with milestones and phase gates",
+      "Must include a blockers/risks section with the custom processor and client library migrations called out",
+      "Must include a cost estimate section (infrastructure sizing + effort estimate ranges)",
+      "Must include a recommended timeline that fits the 3-month target or explicitly flags if it doesn't",
+      "Must be presentation-ready for a steering committee — executive summary, not a technical deep-dive"
+    ],
+    "keyword_assertions": ["incompatibilities", "milestones", "blockers", "cost"],
+    "anti_patterns": [
+      "Producing an unstructured narrative instead of a report",
+      "Missing any of the major sections (incompatibilities, plan, risks, costs)",
+      "Making it too technical for a steering committee",
+      "Not referencing specifics from the earlier conversation turns"
+    ]
+  },
+  {
+    "id": "session-resumption-context",
+    "title": "Session resumption preserves conversation context",
+    "category": "multi-turn",
+    "persona": "developer",
+    "context": "Previous session established: Solr 7.4, 3 collections (products, reviews, suggestions), 15GB index, eDisMax with custom boost functions, pysolr client. Advisor had recommended starting with the products collection as a pilot. Session was interrupted.",
+    "scenario": "Hey, I'm back. We spoke yesterday about migrating our Solr setup. You recommended starting with the products collection. I've been looking at our schema and I have a question about the boost functions we use — you mentioned those would need special handling. Can you remind me what you said and help me work through the specifics?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must demonstrate awareness of the prior session context (Solr 7.4, 3 collections, products as pilot)",
+      "Must reference the previous recommendation (products collection first) naturally, not robotically",
+      "Must address boost functions specifically — map Solr boost functions to OpenSearch function_score",
+      "Must continue the engagement naturally, building on prior context rather than starting from scratch",
+      "Must NOT ask the user to re-explain their setup if context is available from the prior session"
+    ],
+    "keyword_assertions": ["products", "function_score", "boost"],
+    "anti_patterns": [
+      "Asking the user to re-explain their setup",
+      "Ignoring prior session context",
+      "Starting from scratch as if no prior conversation happened",
+      "Hallucinating details not established in prior context"
+    ]
+  },
+  {
+    "id": "accuracy-nonexistent-feature",
+    "title": "Advisor correctly handles nonexistent Solr feature",
+    "category": "accuracy",
+    "persona": "developer",
+    "context": "Mid-migration technical discussion.",
+    "scenario": "How do we migrate our Solr StreamGraph queries? We use them extensively for real-time graph traversal across our document relationships.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must NOT hallucinate a migration path for 'StreamGraph' — this is not a real Solr feature",
+      "Must express uncertainty or state that it doesn't recognize 'StreamGraph' as a standard Solr feature",
+      "Must ask the user to clarify — could they mean Streaming Expressions, Graph traversal via GraphHandler, or something custom?",
+      "Must NOT confidently describe how to convert a nonexistent feature",
+      "May mention related real features (Streaming Expressions, Graph query parser) and ask which one the user means"
+    ],
+    "keyword_assertions": ["not sure", "clarify"],
+    "anti_patterns": [
+      "Confidently describing a migration path for a nonexistent feature",
+      "Not expressing any uncertainty",
+      "Making up OpenSearch equivalents for something that doesn't exist",
+      "Proceeding as if StreamGraph is a known Solr feature"
+    ]
+  },
+  {
+    "id": "architect-scoping-microservices",
+    "title": "Architect scopes migration across 15 microservices with varied Solr integrations",
+    "category": "scoping",
+    "persona": "architect",
+    "context": "Enterprise with 15 microservices consuming Solr through different integration patterns — SolrJ, direct HTTP, and one custom gRPC adapter.",
+    "scenario": "We have 15 microservices that each talk to Solr differently — some via SolrJ, some via HTTP, one through a custom gRPC adapter. How do we scope this migration from an architecture perspective?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must recommend a comprehensive integration inventory cataloging each service's Solr interaction pattern, query types, and data dependencies",
+      "Must suggest an API gateway or abstraction layer pattern to decouple services from the search backend during migration",
+      "Must recommend phased service-by-service migration rather than attempting all 15 at once",
+      "Must address the custom gRPC adapter as a higher-risk integration requiring special analysis",
+      "Must ask about cross-service dependencies — do any services share collections or depend on each other's search results?"
+    ],
+    "keyword_assertions": ["inventory", "gateway", "phased", "gRPC"],
+    "anti_patterns": [
+      "Ignoring cross-service dependencies",
+      "Treating it as a single monolithic migration",
+      "Not flagging the custom gRPC adapter as a specific risk"
+    ]
+  },
+  {
+    "id": "architect-cost-managed-vs-eks",
+    "title": "Architect evaluates managed OpenSearch vs self-hosted on EKS beyond cost",
+    "category": "cost-tradeoffs",
+    "persona": "architect",
+    "context": "Architecture review for a cloud-native organization with strong Kubernetes expertise. Deciding between AWS OpenSearch Service and self-managed OpenSearch on EKS.",
+    "scenario": "Should we build our own OpenSearch cluster on EKS or use the managed service? From an architecture standpoint, what are the integration trade-offs beyond just cost?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must discuss API compatibility differences and any behavioral gaps between managed and self-hosted",
+      "Must address plugin availability — managed service restricts which plugins can be installed",
+      "Must discuss IAM integration and fine-grained access control differences between managed and self-hosted",
+      "Must cover VPC topology considerations (managed service endpoint vs in-cluster networking)",
+      "Must address observability stack integration — CloudWatch vs Prometheus/Grafana in self-hosted"
+    ],
+    "keyword_assertions": ["plugin", "IAM", "VPC", "observability"],
+    "anti_patterns": [
+      "Focusing only on monthly cost without discussing architectural constraints",
+      "Ignoring plugin and customization limitations of the managed service",
+      "Not addressing observability and monitoring differences"
+    ]
+  },
+  {
+    "id": "search-engineer-gonogo-ndcg-gap",
+    "title": "Search engineer evaluates 0.06 nDCG gap for go/no-go decision",
+    "category": "go-no-go",
+    "persona": "search-engineer",
+    "context": "Pre-cutover evaluation. Relevance testing shows nDCG@10 of 0.72 on OpenSearch vs 0.78 on Solr across top-100 queries.",
+    "scenario": "Our nDCG@10 is at 0.72 on OpenSearch vs 0.78 on Solr for our top-100 queries. Is that acceptable for cutover?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must ask about the business impact of the 0.06 nDCG gap — does it affect revenue-driving queries?",
+      "Must ask whether the gap is concentrated in specific query classes or spread evenly",
+      "Must recommend BM25 parameter tuning (k1, b values) before accepting the gap as final",
+      "Must NOT give a blanket yes or no without understanding the business context of the gap",
+      "Must suggest analyzing which specific queries degraded most and whether they share common characteristics"
+    ],
+    "keyword_assertions": ["business impact", "query classes", "BM25", "k1"],
+    "anti_patterns": [
+      "Saying 0.72 is 'close enough' without analysis",
+      "Giving a blanket yes or no without asking about business context",
+      "Not recommending tuning before accepting the gap"
+    ]
+  },
+  {
+    "id": "qa-engineer-gonogo-functional-only",
+    "title": "QA engineer considers functional tests sufficient for sign-off",
+    "category": "go-no-go",
+    "persona": "qa-engineer",
+    "context": "Pre-cutover testing phase. QA has completed functional API testing — all endpoints return expected HTTP status codes and response shapes match the specification.",
+    "scenario": "I've run functional tests — all API endpoints return 200 and response shapes match. Can we sign off on migration?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must explain that HTTP 200 and response shape validation are necessary but NOT sufficient for a search migration",
+      "Must push for relevance testing — are the RIGHT results being returned in the right order?",
+      "Must recommend performance testing under realistic load to catch latency regressions",
+      "Must recommend edge-case testing (special characters, empty queries, long queries, Unicode)",
+      "Must explain the difference between 'the API works' and 'search works correctly' — search correctness is about result quality, not just response format"
+    ],
+    "keyword_assertions": ["relevance", "performance", "edge-case", "result quality"],
+    "anti_patterns": [
+      "Agreeing that functional tests are sufficient for sign-off",
+      "Not explaining why search migration testing differs from typical API testing",
+      "Not recommending relevance testing as a critical gap"
+    ]
+  },
+  {
+    "id": "qa-engineer-postcutover-unicode-folding",
+    "title": "QA engineer reports Unicode folding regression after migration",
+    "category": "post-cutover",
+    "persona": "qa-engineer",
+    "context": "Post-cutover. Users report that accented character searches no longer work — 'café' returns no results but 'cafe' works. This was not an issue on Solr.",
+    "scenario": "Users report that searching for 'café' no longer finds results, but 'cafe' works fine. We didn't have this problem on Solr.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must identify the likely cause as a missing character folding filter (ASCIIFoldingFilter or ICU folding) in the OpenSearch analyzer chain",
+      "Must recommend using the _analyze API on both Solr and OpenSearch to compare how 'café' is tokenized",
+      "Must suggest adding an asciifolding token filter to the OpenSearch analyzer chain as the fix",
+      "Must explain that Solr's analyzer likely had ASCIIFoldingFilterFactory configured, and this needs to be replicated in OpenSearch",
+      "Must recommend testing other accented/Unicode terms to see if the issue is broader than just this one example"
+    ],
+    "keyword_assertions": ["ASCIIFolding", "_analyze", "analyzer", "token filter"],
+    "anti_patterns": [
+      "Suggesting a full reindex without first diagnosing the analyzer difference",
+      "Blaming user input or suggesting users should search without accents",
+      "Not recommending the _analyze API for diagnosis"
+    ]
+  },
+  {
+    "id": "business-owner-postcutover-client-escalation",
+    "title": "Business owner handles enterprise client complaints about broken search",
+    "category": "post-cutover",
+    "persona": "business-owner",
+    "context": "Three days post-cutover. Head of customer success reports three enterprise clients complaining about broken search. One client is threatening to churn.",
+    "scenario": "Our head of customer success just called — three enterprise clients are complaining that search is broken since the upgrade. One is threatening to churn. What do I tell them?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must frame the response for a non-technical audience — no jargon",
+      "Must recommend specific triage steps: identify which queries and use cases are affected for each client",
+      "Must provide concrete talking points for the clients (we're investigating, here's our timeline for resolution, we can roll back specific changes if needed)",
+      "Must advise on whether a rollback is warranted based on the severity and breadth of the complaints",
+      "Must recommend establishing a dedicated communication channel with the affected clients for updates"
+    ],
+    "keyword_assertions": ["triage", "talking points", "timeline", "rollback"],
+    "anti_patterns": [
+      "Using technical jargon (BM25, analyzers, shards) with a business owner",
+      "Dismissing the complaints or minimizing the churn risk",
+      "Not providing concrete client-facing talking points"
+    ]
+  },
+  {
+    "id": "cto-risk-worst-case-exposure",
+    "title": "CTO asks for worst-case scenario and maximum exposure",
+    "category": "risk-discovery",
+    "persona": "cto",
+    "context": "Pre-migration executive risk assessment. CTO needs to understand maximum technical exposure before committing resources.",
+    "scenario": "Walk me through the worst-case technical scenario if this migration goes wrong. I need to understand our maximum exposure.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must present a realistic worst-case scenario covering ranking regression causing conversion/revenue drop",
+      "Must include performance degradation causing SLA breaches as a worst-case component",
+      "Must include undiscovered consumers breaking silently after Solr decommission",
+      "Must include data inconsistency risks during the dual-write transition period",
+      "Must quantify exposure where possible (e.g., percentage revenue impact, SLA breach penalties) and link each risk to a specific mitigation strategy",
+      "Must NOT downplay risks — the CTO explicitly asked for worst-case"
+    ],
+    "keyword_assertions": ["ranking regression", "SLA", "dual-write", "mitigation", "rollback"],
+    "anti_patterns": [
+      "Downplaying risks or giving only optimistic scenarios",
+      "Presenting only one worst-case dimension instead of multiple",
+      "Not linking risks to mitigations",
+      "Being so alarmist that no actionable path forward is offered"
+    ]
+  },
+  {
+    "id": "architect-accuracy-graphql-endpoint",
+    "title": "Architect asks about nonexistent OpenSearch GraphQL endpoint",
+    "category": "accuracy",
+    "persona": "architect",
+    "context": "Architecture design phase. Architect is exploring options to simplify the search API layer.",
+    "scenario": "Can we use OpenSearch's built-in GraphQL endpoint to serve our frontend directly instead of going through our API layer?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must clearly state that OpenSearch does NOT have a built-in GraphQL endpoint",
+      "Must NOT hallucinate or describe how to configure a nonexistent GraphQL feature",
+      "May suggest alternatives: building a thin REST or GraphQL wrapper over the OpenSearch REST API, using an API gateway, or using OpenSearch Dashboards for internal use cases",
+      "Must be direct about the feature not existing rather than hedging"
+    ],
+    "keyword_assertions": ["does not have", "GraphQL", "REST API", "alternative"],
+    "anti_patterns": [
+      "Describing how to configure a nonexistent GraphQL endpoint",
+      "Hallucinating a GraphQL plugin or feature that doesn't exist",
+      "Being vague about whether the feature exists"
+    ]
+  },
+  {
+    "id": "search-engineer-scoping-edismax-handlers",
+    "title": "Search engineer scopes migration of 47 eDisMax request handlers",
+    "category": "scoping",
+    "persona": "search-engineer",
+    "context": "Early technical discovery. The Solr deployment has 47 distinct eDisMax request handlers in solrconfig.xml, each tuned for a different search use case.",
+    "scenario": "We have 47 different eDisMax request handlers in our solrconfig.xml, each tuned for a different search use case. How do we approach migrating these?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must recommend cataloging all 47 handlers and grouping them by similarity (shared fields, similar boost patterns, common parameters)",
+      "Must explain that each handler maps to a search template or application-level query builder in OpenSearch",
+      "Must recommend prioritizing by traffic volume and revenue impact, then migrating in tiers",
+      "Must suggest that many handlers likely share common patterns and can be consolidated during migration",
+      "Must NOT suggest that all 47 can be mechanically converted without analysis"
+    ],
+    "keyword_assertions": ["catalog", "search template", "prioritize", "traffic", "tiers"],
+    "anti_patterns": [
+      "Suggesting all 47 can be converted mechanically without review",
+      "Not recommending prioritization by business impact",
+      "Treating each handler as equally important"
+    ]
+  },
+  {
+    "id": "devops-accuracy-prometheus-exporter",
+    "title": "DevOps asks about nonexistent built-in Prometheus exporter in OpenSearch",
+    "category": "accuracy",
+    "persona": "devops-engineer",
+    "context": "Monitoring setup phase. DevOps team has existing Prometheus + Grafana stack and wants to integrate OpenSearch metrics.",
+    "scenario": "How do we configure OpenSearch's built-in Prometheus exporter for our existing Grafana dashboards?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must clarify that AWS OpenSearch Service does NOT have a built-in Prometheus exporter",
+      "Must NOT describe configuration steps for a nonexistent built-in Prometheus exporter",
+      "Must recommend alternatives: CloudWatch metrics with CloudWatch-to-Prometheus adapter, the _cat and _nodes/stats APIs for custom metric collection, or third-party exporters for self-managed OpenSearch",
+      "Must mention the prometheus-exporter plugin as an option for self-managed (non-AWS) OpenSearch deployments",
+      "Must be direct about the feature not existing"
+    ],
+    "keyword_assertions": ["does not have", "CloudWatch", "_nodes/stats", "prometheus-exporter plugin"],
+    "anti_patterns": [
+      "Describing configuration steps for a nonexistent built-in Prometheus exporter",
+      "Not distinguishing between managed AWS OpenSearch and self-managed OpenSearch options",
+      "Being vague about whether the feature exists"
+    ]
+  },
+  {
+    "id": "gonogo-partial-rollback",
+    "title": "Partial rollback: keep web search on OpenSearch, roll back admin tool to Solr",
+    "category": "go-no-go",
+    "persona": "devops-engineer",
+    "context": "Post-cutover. Web search is performing well on OpenSearch. Admin tool aggregation queries are 5x slower than on Solr. Team is considering a partial rollback.",
+    "scenario": "Our web search is working great on OpenSearch but the admin tool's aggregation queries are 5x slower. Can we roll back just the admin tool to Solr while keeping web search on OpenSearch?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must discuss split-brain write complexity — both Solr and OpenSearch need the same data, so dual-write must continue for both systems",
+      "Must recommend fixing the aggregation queries on OpenSearch as the preferred path rather than partial rollback",
+      "Must explain that partial rollback means maintaining two search backends indefinitely, with ongoing dual-write overhead and data consistency risk",
+      "If partial rollback is needed, must explain that dual-write must continue for both systems and cannot be dropped for either",
+      "Must investigate the 5x slowdown: likely causes include shard count mismatch, missing doc_values, or aggregation-unfriendly mappings"
+    ],
+    "keyword_assertions": ["dual-write", "data consistency", "aggregation"],
+    "anti_patterns": [
+      "Saying partial rollback is simple or low-risk",
+      "Not addressing data consistency between the two systems",
+      "Not recommending fixing the aggregation queries as the first option"
+    ]
+  },
+  {
+    "id": "gonogo-data-validation-gap",
+    "title": "Query validation alone insufficient for cutover sign-off",
+    "category": "go-no-go",
+    "persona": "search-engineer",
+    "context": "Pre-cutover. Team has validated query results between Solr and OpenSearch but has not checked document counts or field-level data integrity.",
+    "scenario": "We've compared query results but haven't validated document counts or field-level data integrity between Solr and OpenSearch. Is query validation enough for cutover?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must explain that query validation tests retrieval logic but not index completeness — documents could be missing without affecting sampled queries",
+      "Must recommend document count comparison between Solr and OpenSearch as a baseline check",
+      "Must recommend field-level spot checks using _source comparison for a random sample of documents",
+      "Must suggest checksum or hash validation for critical fields to detect silent data corruption or encoding differences",
+      "Must explain that missing documents may not surface in query testing if they aren't in the test query result sets"
+    ],
+    "keyword_assertions": ["document count", "field-level", "_source", "completeness"],
+    "anti_patterns": [
+      "Saying query validation is sufficient for cutover",
+      "Not recommending document count comparison",
+      "Not explaining the gap between query correctness and index completeness"
+    ]
+  },
+  {
+    "id": "postcutover-reindex-zero-downtime",
+    "title": "Changing analyzer on a production text field without downtime",
+    "category": "post-cutover",
+    "persona": "developer",
+    "context": "Post-migration. OpenSearch is live in production. Developer needs to change the analyzer on a text field. On Solr they would reload the core.",
+    "scenario": "We need to change the analyzer on a text field in production OpenSearch. On Solr we could just reload the core. How do we do this without downtime?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must explain that changing analyzers requires reindexing in OpenSearch — existing index mappings cannot be modified for analyzer changes",
+      "Must recommend the reindex-with-alias pattern: create a new index with the updated mapping, reindex data into it, then swap the alias atomically",
+      "Must warn about reindex duration for large indices and recommend planning for the data volume",
+      "Must explain that the alias swap is atomic from the application's perspective, so there is no downtime",
+      "Must contrast with Solr's reload behavior — Solr reload reloads config but doesn't re-analyze existing documents either; the Solr approach also needed reindexing for existing docs"
+    ],
+    "keyword_assertions": ["reindex", "alias", "mapping", "atomic"],
+    "anti_patterns": [
+      "Suggesting that mappings can be updated in place for analyzer changes",
+      "Not mentioning the alias swap pattern",
+      "Not warning about reindex duration for large indices"
+    ]
+  },
+  {
+    "id": "postcutover-monitoring-setup",
+    "title": "First-week monitoring setup after cutover from Solr JMX to OpenSearch",
+    "category": "post-cutover",
+    "persona": "devops-engineer",
+    "context": "Just completed cutover. DevOps team currently monitors Solr via JMX in Grafana. Need to set up equivalent OpenSearch monitoring.",
+    "scenario": "What monitoring should we have in place for the first week after cutover? We currently monitor Solr via JMX in Grafana.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must recommend specific OpenSearch metrics: cluster health (green/yellow/red), JVM heap pressure, search latency (p50/p95/p99), indexing rate, rejected thread pool tasks, circuit breaker trips, disk watermark thresholds",
+      "Must address the JMX transition — OpenSearch uses REST stats APIs (_nodes/stats, _cluster/stats) and CloudWatch on AWS, not JMX",
+      "Must recommend alerting thresholds for the first week: cluster status != green, p95 latency exceeding baseline, thread pool rejections > 0, heap > 75%",
+      "Must suggest setting up dashboards before cutover, not after",
+      "Must recommend tracking comparison metrics against the Solr baseline for the first week to detect regressions"
+    ],
+    "keyword_assertions": ["cluster health", "heap", "p95", "thread pool", "CloudWatch", "_nodes/stats"],
+    "anti_patterns": [
+      "Giving generic monitoring advice without specific metric names",
+      "Not providing specific OpenSearch metric endpoints or APIs",
+      "Not addressing the JMX-to-REST transition"
+    ]
+  },
+  {
+    "id": "escalation-compliance-blocker",
+    "title": "GDPR residency blocker discovered at 80% migration completion",
+    "category": "escalation",
+    "persona": "project-manager",
+    "context": "Migration is 80% complete. Legal has just flagged that the target OpenSearch cluster is in a non-GDPR-compliant region and customer email addresses are being indexed.",
+    "scenario": "Legal just told us we can't index customer email addresses in OpenSearch because the cluster is in a region that doesn't meet GDPR residency requirements. We're 80% through migration.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must treat this as a critical blocker requiring immediate action — not something to work around later",
+      "Must recommend immediately stopping migration of PII-containing fields until the compliance issue is resolved",
+      "Must discuss concrete options: field-level exclusion from the index, deploying a new cluster in a compliant region, or field-level encryption/tokenization",
+      "Must address the 80% sunk cost honestly — acknowledge the investment without letting it drive a bad compliance decision",
+      "Must recommend involving legal in the solution design, not just engineering"
+    ],
+    "keyword_assertions": ["blocker", "PII", "region", "compliance"],
+    "anti_patterns": [
+      "Suggesting field masking alone solves GDPR residency requirements — masking doesn't change where data is stored",
+      "Downplaying the compliance risk or treating it as a minor issue",
+      "Letting sunk cost drive the decision to proceed despite the compliance gap"
+    ]
+  },
+  {
+    "id": "escalation-team-skill-gap",
+    "title": "Only Solr expert leaving mid-migration",
+    "category": "escalation",
+    "persona": "project-manager",
+    "context": "Migration is underway. The team's only Solr expert, who was leading the migration, has given two weeks notice.",
+    "scenario": "Our only Solr expert just gave two weeks notice. They were supposed to lead the migration. What do we do?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must recommend immediate knowledge transfer as the top priority — document everything the departing expert knows this week",
+      "Must recommend specific knowledge capture: Solr configuration rationale, custom component behavior, undocumented query tuning decisions, operational runbooks",
+      "Must assess whether the migration timeline needs to shift given the key-person risk",
+      "Must suggest pairing sessions between the departing expert and remaining team members for hands-on transfer",
+      "Must offer advisory engagement to fill the expertise gap and provide continuity"
+    ],
+    "keyword_assertions": ["knowledge transfer", "document", "timeline", "pairing"],
+    "anti_patterns": [
+      "Saying the migration can proceed unchanged without the expert",
+      "Not addressing the urgency of knowledge transfer within the two-week window",
+      "Not recommending a timeline reassessment"
+    ]
+  },
+  {
+    "id": "multiturn-iterative-schema-refinement",
+    "title": "Review drafted OpenSearch mapping with deliberate mistakes from Solr translation",
+    "category": "multi-turn",
+    "persona": "search-engineer",
+    "context": "Search engineer has drafted an OpenSearch index mapping based on their Solr schema.xml. The mapping has 3 deliberate mistakes: (1) a text field without a custom analyzer where Solr had a custom analysis chain with synonym filters, (2) a missing copy_to directive that existed as a copyField in Solr for a catch-all search field, (3) a keyword field where Solr had text_general for a product description field that needs full-text search.",
+    "scenario": "I've drafted an OpenSearch mapping based on our Solr schema. Can you review it? Here it is:\n\n```json\n{\n  \"mappings\": {\n    \"properties\": {\n      \"title\": { \"type\": \"text\", \"analyzer\": \"standard\" },\n      \"description\": { \"type\": \"keyword\" },\n      \"product_name\": { \"type\": \"text\" },\n      \"category\": { \"type\": \"keyword\" },\n      \"price\": { \"type\": \"float\" }\n    }\n  }\n}\n```\n\nOur Solr schema had: title with a custom analyzer chain (standard tokenizer + synonym filter + lowercase), description as text_general for full-text search, product_name with a copyField to a catch-all 'search_all' field, and category as a string field.",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must identify mistake 1: title uses standard analyzer but Solr had a custom chain with synonyms — need a custom analyzer with synonym_graph filter",
+      "Must identify mistake 2: product_name is missing copy_to for the catch-all field that existed as copyField in Solr",
+      "Must identify mistake 3: description is mapped as keyword but Solr had text_general — keyword prevents full-text search on product descriptions",
+      "Must provide corrected mapping snippets for each issue",
+      "Must explain what each Solr schema element intended and how it maps to OpenSearch"
+    ],
+    "keyword_assertions": ["synonym", "copy_to", "keyword", "text_general", "analyzer"],
+    "anti_patterns": [
+      "Approving the mapping without catching the errors",
+      "Only finding 1 of the 3 issues",
+      "Not explaining what the Solr schema intended for each field"
+    ]
+  },
+  {
+    "id": "multiturn-evolving-requirements",
+    "title": "Scope expansion: kNN vector search added mid-migration",
+    "category": "multi-turn",
+    "persona": "project-manager",
+    "context": "Migration is in progress. Stakeholders have just requested adding kNN vector search for product recommendations as part of the same release.",
+    "scenario": "Actually, I just found out we also need to support kNN vector search for our new product recommendations feature. We weren't planning this originally but stakeholders want it in the same release as the migration.",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must treat this as scope expansion that needs explicit assessment — not something to casually absorb",
+      "Must explain that kNN in OpenSearch requires specific field types (knn_vector) and index-level settings (knn: true, engine selection like nmslib or faiss)",
+      "Must recommend separating the migration from the new kNN feature or scoping the kNN addition very carefully with its own timeline",
+      "Must flag performance implications: kNN search on the same cluster as text search affects heap usage, segment merge behavior, and search latency",
+      "Must flag this as a timeline risk that needs stakeholder acknowledgment"
+    ],
+    "keyword_assertions": ["scope", "knn_vector", "timeline", "performance"],
+    "anti_patterns": [
+      "Accepting the scope creep casually without flagging it as a risk",
+      "Not explaining kNN-specific requirements and infrastructure implications",
+      "Not recommending separation of the migration from the new feature"
+    ]
+  },
+  {
+    "id": "scoping-multi-cluster-migration",
+    "title": "Three Solr clusters with different workload profiles: consolidate or keep separate?",
+    "category": "scoping",
+    "persona": "architect",
+    "context": "Enterprise with 3 separate Solr clusters: product search (SolrCloud, 12 nodes, user-facing), log analytics (standalone, high volume, internal), and internal content search (SolrCloud, 3 nodes, internal).",
+    "scenario": "We actually have 3 separate Solr clusters: one for product search (SolrCloud, 12 nodes), one for log analytics (standalone, huge volume), and one for internal content search (SolrCloud, 3 nodes). Should we migrate all three to one OpenSearch cluster or keep them separate?",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must discuss consolidation trade-offs: operational simplicity vs blast radius vs resource contention between workloads",
+      "Must recommend separate OpenSearch domains for different workload profiles — search and analytics have very different resource, latency, and availability requirements",
+      "Must address the log analytics cluster specifically — this is a different workload (write-heavy, append-only) that may benefit from OpenSearch's ISM and hot-warm-cold architecture",
+      "Must ask about cross-cluster search needs — do any applications need to query across what are currently separate clusters?",
+      "Must address migration ordering: start with the smallest/simplest cluster (internal content search) as a pilot"
+    ],
+    "keyword_assertions": ["blast radius", "workload", "separate", "ISM"],
+    "anti_patterns": [
+      "Recommending consolidation into one cluster without discussing trade-offs",
+      "Not asking about workload characteristics of each cluster",
+      "Treating all three clusters as equivalent migration efforts"
+    ]
+  },
+  {
+    "id": "risk-performance-regression-prediction",
+    "title": "Pre-migration performance benchmarking strategy",
+    "category": "risk-discovery",
+    "persona": "search-engineer",
+    "context": "Pre-migration planning. Search engineer wants to predict performance issues before committing to the migration.",
+    "scenario": "Before we even start migrating, how do we predict whether we'll have performance problems on OpenSearch? Is there a way to benchmark before committing?",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must recommend shadow traffic or query replay testing against an OpenSearch cluster loaded with production-like data",
+      "Must mention opensearch-benchmark (the Rally fork) for synthetic load testing with configurable workloads",
+      "Must recommend profiling top-N queries on both systems using the _profile API (profile=true parameter) and comparing explain output",
+      "Must suggest starting with the top 50-100 queries by traffic volume for initial comparison",
+      "Must recommend testing with production-scale data, not a subset — performance characteristics change with index size"
+    ],
+    "keyword_assertions": ["shadow traffic", "opensearch-benchmark", "_profile", "production-scale"],
+    "anti_patterns": [
+      "Saying performance will be fine without testing",
+      "Not providing concrete benchmarking tools or approaches",
+      "Recommending benchmarks on small data samples that won't reflect production behavior"
+    ]
+  },
+  {
+    "id": "cost-ongoing-operations",
+    "title": "Total cost of ownership: self-managed Solr vs managed OpenSearch",
+    "category": "cost-tradeoffs",
+    "persona": "cto",
+    "context": "CTO evaluating the full financial picture of migration, not just infrastructure costs but total cost of ownership including people and opportunity cost.",
+    "scenario": "What's the ongoing operational cost difference between running our own Solr and using managed OpenSearch? Not just infrastructure, but total cost of ownership including people.",
+    "expected_response_type": "advice",
+    "expectations": [
+      "Must address full TCO across multiple dimensions: infrastructure (compute, storage, network), people (ops team hours for patching, upgrades, monitoring, incident response), tooling (monitoring stack, backup infrastructure), and opportunity cost (ops team freed for other work)",
+      "Must provide a framework for comparison rather than just saying 'managed is cheaper' — the answer depends on scale, team size, and operational maturity",
+      "Must acknowledge that managed service has a price premium on infrastructure but reduces people costs significantly",
+      "Must mention hidden self-managed costs: ZooKeeper maintenance, security patching cadence, upgrade planning and execution, on-call rotation for search infrastructure",
+      "Must recommend building a spreadsheet or model with their specific numbers rather than relying on generic estimates"
+    ],
+    "keyword_assertions": ["TCO", "people", "opportunity cost", "ZooKeeper", "patching"],
+    "anti_patterns": [
+      "Only comparing instance or infrastructure costs",
+      "Not accounting for people and operational costs",
+      "Giving a blanket answer without a framework for the client's specific situation"
+    ]
+  },
+  {
+    "id": "bad-assumption-test-in-production",
+    "title": "Developer plans to test search migration with live production traffic",
+    "category": "bad-assumptions",
+    "persona": "developer",
+    "context": "Developer experienced with deploying stateless microservices via blue-green or canary patterns. Plans to apply the same approach to the search migration.",
+    "scenario": "We'll just deploy OpenSearch alongside Solr and test with real traffic. If something breaks, we switch back. We've done this with other services.",
+    "expected_response_type": "both",
+    "expectations": [
+      "Must explain why this is higher-risk for search than for stateless services: relevance issues are invisible in error rates, ranking changes affect user experience without triggering alerts, and dual-write adds state complexity that stateless services don't have",
+      "Must recommend shadow traffic (read-only comparison) as the safe first step before any write traffic switching",
+      "Must acknowledge the developer's experience with other services while explaining why search is fundamentally different — it's stateful, relevance is subjective, and 'broken' is harder to detect",
+      "Must explain that search regressions often manifest as conversion drops or user behavior changes, not errors — you won't see them in error rates or status codes",
+      "Must recommend a comparison pipeline: send queries to both systems, compare results offline, measure relevance metrics before routing any real user traffic to OpenSearch"
+    ],
+    "keyword_assertions": ["shadow traffic", "relevance", "stateless", "dual-write", "comparison"],
+    "anti_patterns": [
+      "Agreeing this is a safe approach for search without caveats",
+      "Not explaining why search differs from stateless services",
+      "Being dismissive of the developer's prior experience instead of building on it"
+    ]
+  }
+]

@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
 import urllib.error
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from schema_converter import SchemaConverter
 from query_converter import QueryConverter
+from solr_inspector import SolrInspector
 from storage import StorageBackend, FileStorage, SessionState
 from report import MigrationReport
 
@@ -146,112 +148,131 @@ class SolrToOpenSearchMigrationSkill:
             A string response from the advisor.
         """
         state = self._load_session(session_id)
-        response = self._dispatch(message, state, session_id)
+        message_lc = message.lower()
+        response = ""
+        checklist_summary = self._parse_markdown_checklist(message)
+        checklist_name = self._extract_checklist_name(message)
+        checklist_status_name = self._extract_checklist_status_name(message)
+        checklist_file_path = self._extract_checklist_file_path(message)
+
+        # Detect embedded schema XML
+        schema_start = message.find("<schema")
+        schema_end = message.find("</schema>")
+        has_schema_xml = schema_start != -1 and schema_end != -1
+
+        if "report" in message_lc:
+            response = self.generate_report(session_id)
+
+        elif checklist_file_path:
+            try:
+                self.update_checklist_from_file(
+                    session_id,
+                    checklist_file_path,
+                    checklist_name=checklist_name or "default",
+                )
+                state = self._load_session(session_id)
+                response = self.get_checklist_status(
+                    session_id,
+                    checklist_name=checklist_name or "default",
+                )
+            except FileNotFoundError:
+                response = f"I couldn't find checklist file: {checklist_file_path}"
+
+        elif checklist_summary["total_items"] > 0:
+            self.update_checklist(
+                session_id,
+                message,
+                checklist_name=checklist_name or "default",
+            )
+            state = self._load_session(session_id)
+            response = self.get_checklist_status(
+                session_id,
+                checklist_name=checklist_name or "default",
+            )
+
+        elif has_schema_xml or (
+            ("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc)
+            and "<schema" in message
+        ):
+            if has_schema_xml:
+                schema_xml = message[schema_start : schema_end + 9]
+                mapping = self.convert_schema_xml(schema_xml)
+                response = (
+                    f"I've converted your Solr schema to an OpenSearch mapping:"
+                    f"\n\n```json\n{mapping}\n```"
+                )
+                state.set_fact("schema_migrated", True)
+                state.advance_progress(1)
+            else:
+                response = (
+                    "I detected you want to convert a schema, but I couldn't find "
+                    "the XML content. Please paste your full `schema.xml` content."
+                )
+
+        elif "query" in message_lc or "translate" in message_lc:
+            q = ""
+            for keyword in ("query:", "query", "translate:"):
+                idx = message_lc.find(keyword)
+                if idx != -1:
+                    q = message[idx + len(keyword) :].strip().lstrip(": ").strip()
+                    break
+            if q:
+                try:
+                    dsl = self.convert_query(q)
+                    response = (
+                        f"The OpenSearch equivalent of your query is:"
+                        f"\n\n```json\n{dsl}\n```"
+                    )
+                    state.advance_progress(3)
+                except ValueError:
+                    response = (
+                        "I couldn't parse that query. Please provide a valid Solr "
+                        "query string (e.g. `title:opensearch AND year:[2020 TO *]`)."
+                    )
+            else:
+                response = "What query would you like me to translate?"
+
+        elif "checklist" in message_lc:
+            if "status" in message_lc or "progress" in message_lc or "remaining" in message_lc:
+                response = self.get_checklist_status(
+                    session_id,
+                    checklist_name=checklist_status_name or "default",
+                )
+            else:
+                response = self.get_migration_checklist()
+
+        elif "field type" in message_lc or "type mapping" in message_lc:
+            response = self.get_field_type_mapping_reference()
+
+        else:
+            # For general OpenSearch questions, enrich the response with
+            # accurate information from the AWS Knowledge MCP Server.
+            aws_context = ""
+            opensearch_keywords = (
+                "opensearch", "index", "shard", "replica", "mapping",
+                "cluster", "node", "query dsl", "aggregation", "analyzer",
+                "aws", "service", "region", "pricing", "instance",
+            )
+            if any(kw in message_lc for kw in opensearch_keywords):
+                aws_context = self._query_aws_knowledge(
+                    message, topic="general"
+                )
+
+            if aws_context:
+                response = (
+                    "Here is accurate information from AWS documentation:\n\n"
+                    + aws_context
+                )
+            else:
+                response = (
+                    "I'm your Solr to OpenSearch migration advisor. How can I help you "
+                    "today? I can convert schemas, translate queries, or generate a "
+                    "migration report."
+                )
+
         state.append_turn(message, response)
         self._save_session(state)
         return response
-
-    def _dispatch(self, message: str, state: SessionState, session_id: str) -> str:
-        """Route *message* to the appropriate handler."""
-        message_lc = message.lower()
-
-        if "report" in message_lc:
-            return self.generate_report(session_id)
-
-        if self._looks_like_schema(message, message_lc):
-            return self._handle_schema(message, state)
-
-        if "query" in message_lc or "translate" in message_lc:
-            return self._handle_query(message, message_lc, state)
-
-        if "checklist" in message_lc:
-            return self.get_migration_checklist()
-
-        if "field type" in message_lc or "type mapping" in message_lc:
-            return self.get_field_type_mapping_reference()
-
-        return self._handle_general(message, message_lc)
-
-    # ------------------------------------------------------------------
-    # Message handlers (one per intent)
-    # ------------------------------------------------------------------
-
-    _SCHEMA_START_TAG = "<schema"
-    _SCHEMA_END_TAG = "</schema>"
-
-    @staticmethod
-    def _looks_like_schema(message: str, message_lc: str) -> bool:
-        """Return True if *message* appears to contain or request a schema conversion."""
-        if (
-            SolrToOpenSearchMigrationSkill._SCHEMA_START_TAG in message and
-                SolrToOpenSearchMigrationSkill._SCHEMA_END_TAG in message
-        ):
-            return True
-        schema_keywords = ("schema" in message_lc or "migrate" in message_lc or "convert" in message_lc)
-        return schema_keywords and SolrToOpenSearchMigrationSkill._SCHEMA_START_TAG in message
-
-    def _handle_schema(self, message: str, state: SessionState) -> str:
-        """Handle a schema conversion request."""
-        schema_start = message.find(self._SCHEMA_START_TAG)
-        schema_end = message.find(self._SCHEMA_END_TAG)
-        if schema_start == -1 or schema_end == -1:
-            return (
-                "I detected you want to convert a schema, but I couldn't find "
-                "the XML content. Please paste your full `schema.xml` content."
-            )
-        schema_xml = message[schema_start: schema_end + len(self._SCHEMA_END_TAG)]
-        mapping = self.convert_schema_xml(schema_xml)
-        state.set_fact("schema_migrated", True)
-        state.advance_progress(1)
-        return (
-            f"I've converted your Solr schema to an OpenSearch mapping:"
-            f"\n\n```json\n{mapping}\n```"
-        )
-
-    def _handle_query(self, message: str, message_lc: str, state: SessionState) -> str:
-        """Handle a query translation request."""
-        q = self._extract_query_text(message, message_lc)
-        if not q:
-            return "What query would you like me to translate?"
-        try:
-            dsl = self.convert_query(q)
-        except ValueError:
-            return (
-                "I couldn't parse that query. Please provide a valid Solr "
-                "query string (e.g. `title:opensearch AND year:[2020 TO *]`)."
-            )
-        state.advance_progress(3)
-        return (
-            f"The OpenSearch equivalent of your query is:"
-            f"\n\n```json\n{dsl}\n```"
-        )
-
-    @staticmethod
-    def _extract_query_text(message: str, message_lc: str) -> str:
-        """Pull the raw Solr query string out of the user's message."""
-        for keyword in ("query:", "query", "translate:"):
-            idx = message_lc.find(keyword)
-            if idx != -1:
-                return message[idx + len(keyword):].strip().lstrip(": ").strip()
-        return ""
-
-    _OPENSEARCH_KEYWORDS = (
-        "opensearch", "index", "shard", "replica", "mapping",
-        "cluster", "node", "query dsl", "aggregation", "analyzer",
-        "aws", "service", "region", "pricing", "instance",
-    )
-
-    def _handle_general(self, message: str, message_lc: str) -> str:
-        """Fallback handler: try AWS Knowledge enrichment, else greet."""
-        if any(kw in message_lc for kw in self._OPENSEARCH_KEYWORDS):
-            aws_context = self._query_aws_knowledge(message, topic="general")
-            if aws_context:
-                return "Here is accurate information from AWS documentation:\n\n" + aws_context
-        return (
-            "I'm your Solr to OpenSearch migration advisor. How can I help you "
-            "today? I can convert schemas, translate queries, or generate a "
-            "migration report."
-        )
 
     # ------------------------------------------------------------------
     # Report generation
@@ -319,6 +340,72 @@ class SolrToOpenSearchMigrationSkill:
         return report.generate()
 
     # ------------------------------------------------------------------
+    # Live Solr inspection
+    # ------------------------------------------------------------------
+
+    def inspect_solr(
+        self, solr_url: str, collection: str, session_id: str
+    ) -> str:
+        """Inspect a running Solr instance and store findings in the session.
+
+        Calls the Schema, Metrics, Luke, and System Info APIs, stores
+        key facts in session state, and auto-converts the live schema
+        to an OpenSearch mapping.
+
+        Args:
+            solr_url:   Base URL of the Solr instance.
+            collection: Name of the Solr collection to inspect.
+            session_id: Session identifier for storing results.
+
+        Returns:
+            A summary string with document count and Solr version.
+        """
+        inspector = SolrInspector(solr_url)
+        state = self._load_session(session_id)
+
+        system = inspector.get_system_info()
+        schema = inspector.get_schema(collection)
+        luke = inspector.get_luke(collection)
+
+        solr_version = (
+            system.get("lucene", {}).get("solr-spec-version", "unknown")
+        )
+        num_docs = luke.get("index", {}).get("numDocs", 0)
+
+        state.set_fact("solr_url", solr_url)
+        state.set_fact("solr_collection", collection)
+        state.set_fact("solr_version", solr_version)
+        state.set_fact("solr_num_docs", num_docs)
+        state.set_fact("solr_schema_raw", schema)
+        state.set_fact("solr_luke", luke.get("index", {}))
+        state.set_fact("solr_system", {
+            "jvm_version": system.get("jvm", {}).get("version", ""),
+            "heap_max": system.get("jvm", {}).get("memory", {}).get(
+                "raw", {}
+            ).get("max", 0),
+            "processors": system.get("system", {}).get(
+                "availableProcessors", 0
+            ),
+        })
+
+        # Auto-convert the live schema to an OpenSearch mapping
+        try:
+            mapping = self._schema_converter.convert_json(
+                json.dumps(schema)
+            )
+            state.set_fact("opensearch_mapping", mapping)
+            state.set_fact("schema_migrated", True)
+        except (ValueError, KeyError):
+            state.set_fact("schema_migrated", False)
+
+        self._save_session(state)
+
+        return (
+            f"Inspected Solr at {solr_url}/{collection}: "
+            f"{num_docs} docs, Solr {solr_version}"
+        )
+
+    # ------------------------------------------------------------------
     # Schema conversion
     # ------------------------------------------------------------------
 
@@ -382,6 +469,68 @@ class SolrToOpenSearchMigrationSkill:
         """Return a human-readable checklist of migration steps."""
         return _MIGRATION_CHECKLIST
 
+    def update_checklist(
+        self,
+        session_id: str,
+        markdown: str,
+        *,
+        checklist_name: str = "default",
+    ) -> dict[str, Any]:
+        """Parse and persist a markdown checklist for a session."""
+        state = self._storage.load_or_new(session_id)
+        summary = self._parse_markdown_checklist(markdown)
+        checklists = state.get_fact("checklists", {})
+        checklists[checklist_name] = {
+            "source_markdown": markdown,
+            "summary": summary,
+        }
+        state.set_fact("checklists", checklists)
+        self._storage.save(state)
+        return summary
+
+    def get_checklist_status(
+        self,
+        session_id: str,
+        *,
+        checklist_name: str = "default",
+    ) -> str:
+        """Return a short status summary for a stored markdown checklist."""
+        state = self._storage.load_or_new(session_id)
+        checklists = state.get_fact("checklists", {})
+        checklist = checklists.get(checklist_name)
+        if not checklist:
+            return (
+                "I don't have a tracked checklist for this session yet. "
+                "Paste a markdown checklist with `- [ ]` / `- [x]` items and I'll summarize it. "
+                "For a shared repo tracker, prefer `working/TASKS.md`."
+            )
+
+        summary = checklist["summary"]
+        total = summary["total_items"]
+        completed = summary["completed_items"]
+        remaining = summary["remaining_items"]
+        completed_names = summary["completed_titles"]
+        remaining_names = summary["remaining_titles"]
+
+        lines = [
+            f"Checklist `{checklist_name}` progress: {completed}/{total} items complete.",
+            f"Remaining items: {remaining}.",
+        ]
+        source_path = checklist.get("source_path")
+        if source_path:
+            lines.append(f"Source file: {source_path}")
+        if remaining_names:
+            preview = ", ".join(remaining_names[:5])
+            lines.append(f"Still open: {preview}.")
+        if completed_names:
+            preview = ", ".join(completed_names[:3])
+            lines.append(f"Recently complete: {preview}.")
+        lines.append(
+            "You can paste an updated checklist any time, and I will re-summarize the current state. "
+            "For a shared repo tracker, `working/TASKS.md` is the default convention."
+        )
+        return "\n".join(lines)
+
     def get_field_type_mapping_reference(self) -> str:
         """Return a Markdown reference table of Solr → OpenSearch field type mappings."""
         from schema_converter import SOLR_TYPE_TO_OPENSEARCH
@@ -397,6 +546,101 @@ class SolrToOpenSearchMigrationSkill:
                 seen[short] = os_type
                 lines.append(f"| {short} | {os_type} |")
         return "\n".join(lines)
+
+    def _parse_markdown_checklist(self, markdown: str) -> dict[str, Any]:
+        """Extract simple checkbox progress from markdown text."""
+        items: list[dict[str, Any]] = []
+        pattern = re.compile(
+            r"^\s*(?:[-*]|\d+\.)?\s*\[(?P<mark>[ xX])\]\s+(?P<title>.+?)\s*$"
+        )
+        for line in markdown.splitlines():
+            match = pattern.match(line)
+            if not match:
+                continue
+            title = match.group("title").strip()
+            done = match.group("mark").lower() == "x"
+            items.append({"title": title, "done": done})
+
+        completed_titles = [item["title"] for item in items if item["done"]]
+        remaining_titles = [item["title"] for item in items if not item["done"]]
+        return {
+            "total_items": len(items),
+            "completed_items": len(completed_titles),
+            "remaining_items": len(remaining_titles),
+            "completed_titles": completed_titles,
+            "remaining_titles": remaining_titles,
+            "items": items,
+        }
+
+    def _extract_checklist_name(self, message: str) -> str | None:
+        first_line = message.strip().splitlines()[0] if message.strip() else ""
+        patterns = [
+            re.compile(r"^checklist\s+(?P<name>[A-Za-z0-9_.-]+)\s*:\s*$", re.IGNORECASE),
+            re.compile(
+                r"^checklist\s+file\s+(?P<name>[A-Za-z0-9_.-]+)\s*:\s*.+$",
+                re.IGNORECASE,
+            ),
+        ]
+        for pattern in patterns:
+            match = pattern.match(first_line)
+            if match:
+                name = match.group("name").strip().lower()
+                if name not in {"update", "status", "progress", "remaining", "file"}:
+                    return name
+        return None
+
+    def _extract_checklist_status_name(self, message: str) -> str | None:
+        match = re.search(
+            r"checklist\s+(?:status|progress|remaining)\s*:?\s*(?P<name>[A-Za-z0-9_.-]+)?",
+            message,
+            re.IGNORECASE,
+        )
+        if not match:
+            return None
+        name = match.group("name")
+        return name.lower() if name else None
+
+    def _extract_checklist_file_path(self, message: str) -> str | None:
+        first_line = message.strip().splitlines()[0] if message.strip() else ""
+        patterns = [
+            re.compile(
+                r"^checklist\s+file(?:\s+(?P<name>[A-Za-z0-9_.-]+))?\s*:\s*(?P<path>\S+)\s*$",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"^(?:track|load|update)\s+checklist\s+file\s*:\s*(?P<path>\S+)\s*$",
+                re.IGNORECASE,
+            ),
+        ]
+        for pattern in patterns:
+            match = pattern.match(first_line)
+            if match:
+                return match.group("path").strip()
+        return None
+
+    def update_checklist_from_file(
+        self,
+        session_id: str,
+        file_path: str,
+        *,
+        checklist_name: str = "default",
+    ) -> dict[str, Any]:
+        """Load a markdown checklist from disk and persist its parsed summary."""
+        normalized_path = os.path.abspath(file_path)
+        with open(normalized_path, "r", encoding="utf-8") as fh:
+            markdown = fh.read()
+
+        state = self._storage.load_or_new(session_id)
+        summary = self._parse_markdown_checklist(markdown)
+        checklists = state.get_fact("checklists", {})
+        checklists[checklist_name] = {
+            "source_markdown": markdown,
+            "source_path": normalized_path,
+            "summary": summary,
+        }
+        state.set_fact("checklists", checklists)
+        self._storage.save(state)
+        return summary
 
 
 # ---------------------------------------------------------------------------

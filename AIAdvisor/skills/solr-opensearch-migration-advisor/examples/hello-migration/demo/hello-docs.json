@@ -1,0 +1,122 @@
+[
+  {
+    "id": "hello-1",
+    "title": "Hello Search Quickstart",
+    "body": "A small starter guide for teams building their first OpenSearch demo from a Solr migration sketch.",
+    "category": "guide",
+    "author": "OSC",
+    "publishedDate": "2026-03-01T09:00:00Z",
+    "tags": ["quickstart", "opensearch", "migration"],
+    "score": 9.7
+  },
+  {
+    "id": "hello-2",
+    "title": "Troubleshooting Relevance Drift",
+    "body": "BM25 scoring may reorder short titles compared with Solr. Start by validating field boosts and analyzer behavior.",
+    "category": "guide",
+    "author": "Pat",
+    "publishedDate": "2026-03-02T10:30:00Z",
+    "tags": ["relevance", "bm25", "solr"],
+    "score": 8.9
+  },
+  {
+    "id": "hello-3",
+    "title": "OpenSearch Cluster Checklist",
+    "body": "Verify cluster health, create the target index, and load a toy corpus before discussing production cutover.",
+    "category": "operations",
+    "author": "Riley",
+    "publishedDate": "2026-03-03T12:00:00Z",
+    "tags": ["cluster", "health", "checklist"],
+    "score": 8.4
+  },
+  {
+    "id": "hello-4",
+    "title": "Facet Design for Content Search",
+    "body": "Categories, authors, and tags are common facet fields. Keep them keyword typed unless you need full text search.",
+    "category": "design",
+    "author": "Jordan",
+    "publishedDate": "2026-03-04T08:45:00Z",
+    "tags": ["facets", "taxonomy", "design"],
+    "score": 7.8
+  },
+  {
+    "id": "hello-5",
+    "title": "Migration Risks You Should Resolve First",
+    "body": "Custom analyzers, nested documents, and unclear relevance goals are the three assumptions most likely to invalidate a migration plan.",
+    "category": "planning",
+    "author": "OSC",
+    "publishedDate": "2026-03-05T14:15:00Z",
+    "tags": ["risk", "planning", "analyzers"],
+    "score": 9.4
+  },
+  {
+    "id": "hello-6",
+    "title": "Dual Write Without Drama",
+    "body": "Keep the old Solr system warm, write to both engines briefly, and use shadow queries to compare real responses safely.",
+    "category": "operations",
+    "author": "Alex",
+    "publishedDate": "2026-03-06T11:20:00Z",
+    "tags": ["dual-write", "shadow", "cutover"],
+    "score": 8.1
+  },
+  {
+    "id": "hello-7",
+    "title": "Simple Demo Dataset for Hello Search",
+    "body": "A toy dataset should be boring on purpose. You want obvious fields, obvious queries, and no mystery behavior.",
+    "category": "guide",
+    "author": "Morgan",
+    "publishedDate": "2026-03-07T15:00:00Z",
+    "tags": ["demo", "dataset", "hello-search"],
+    "score": 7.6
+  },
+  {
+    "id": "hello-8",
+    "title": "Query Translation Examples",
+    "body": "Translate Solr q and fq patterns into OpenSearch bool, multi_match, term, and range clauses before you touch application code.",
+    "category": "design",
+    "author": "Sam",
+    "publishedDate": "2026-03-08T16:10:00Z",
+    "tags": ["query", "dsl", "edismax"],
+    "score": 8.7
+  },
+  {
+    "id": "hello-9",
+    "title": "Authoritative Product Decisions",
+    "body": "If stakeholders really want better relevance instead of parity, say that early and rewrite the validation plan around that goal.",
+    "category": "planning",
+    "author": "Pat",
+    "publishedDate": "2026-03-09T09:40:00Z",
+    "tags": ["stakeholders", "relevance", "validation"],
+    "score": 8.8
+  },
+  {
+    "id": "hello-10",
+    "title": "Date Filters and Recent Content",
+    "body": "Date range filters are usually easy to port, but timezone mistakes make demos look broken fast.",
+    "category": "guide",
+    "author": "Taylor",
+    "publishedDate": "2026-03-10T07:25:00Z",
+    "tags": ["date", "filters", "timezone"],
+    "score": 7.9
+  },
+  {
+    "id": "hello-11",
+    "title": "Hello Search Architecture Notes",
+    "body": "The target index keeps a catch all text field so simple keyword search can hit title, body, and author together.",
+    "category": "design",
+    "author": "OSC",
+    "publishedDate": "2026-03-11T13:35:00Z",
+    "tags": ["architecture", "copy_to", "mapping"],
+    "score": 8.6
+  },
+  {
+    "id": "hello-12",
+    "title": "Operational Sanity Checks",
+    "body": "Green cluster health is not enough. Confirm document counts, mappings, and a few exact queries before declaring success.",
+    "category": "operations",
+    "author": "Riley",
+    "publishedDate": "2026-03-12T18:05:00Z",
+    "tags": ["verification", "health", "operations"],
+    "score": 8.3
+  }
+]

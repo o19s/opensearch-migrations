@@ -1,0 +1,97 @@
+TECHPRODUCTS DEMO: SOLR → OPENSEARCH MIGRATION SPECIFICATION
+Generated: 2026-03-17
+
+Complete Kiro-Format Specification Package
+==========================================
+
+FILE MANIFEST:
+
+1. README.md (102 lines)
+   Entry point. Overview of what the demo is, complexity score (2/5), how to use all files.
+   
+2. steering/ (Scope & Architecture Documents)
+   
+   product.md (129 lines)
+   - Project goal: teaching example, not production
+   - Scope: what's in (7 products, facets, geo) and out (Tika, CDCR, payloads)
+   - Success criteria: schema fidelity, query equivalence, indexing correctness
+   - Key decisions made, open decisions for real migrations
+   
+   tech.md (105 lines)
+   - Source stack: Solr 9.x, 15 explicit fields, 7 dynamic patterns
+   - Target stack: AWS OpenSearch 2.x, Spring Boot 3.5, Kotlin
+   - Compatibility matrix (ZooKeeper vs Raft, XML vs JSON, DisMax vs Query DSL)
+   - Risks & mitigations, success metrics
+   
+   structure.md (234 lines)
+   - Spring Boot/Kotlin project layout (12 directories, 8 key classes)
+   - Class responsibilities: ProductDocument, ProductSearchService, MigrationService
+   - Package conventions, build.gradle.kts snippet, testing strategy with TestContainers
+   - Local development steps (Docker + app)
+
+3. requirements.md (356 lines)
+   - 17 functional requirements (FR-1 through FR-17) in EARS format
+   - Each: user story + GIVEN/WHEN/THEN acceptance criteria
+   - Covers: keyword search, filtering, faceting, geo, bulk indexing, schema fidelity, parity
+   - Acceptance criteria summary table
+
+4. design.md (714 lines)
+   - Complete OpenSearch mapping JSON (copy-pasteable, production-ready)
+   - Mapping notes: copyField patterns, dynamic templates, analyzer chains
+   - 8 concrete query translations (Solr → OpenSearch Query DSL)
+   - Data flow diagram (ASCII art)
+   - Single-pass reindex strategy
+   - Relevance baseline comparison
+   - Performance targets
+
+5. tasks.md (355 lines)
+   - 22 implementation tasks grouped into 5 phases
+   - Phase 1: Setup (3 tasks, 3 days)
+   - Phase 2: Indexing (5 tasks, 3 days)
+   - Phase 3: Queries (8 tasks, 6 days)
+   - Phase 4: Testing (4 tasks, 4 days)
+   - Phase 5: Validation (7 tasks, 2 days)
+   - Each task: effort estimate, owner, "good first issue" flag
+   - Dependencies graph, risk mitigations
+
+TOTAL: 1,995 lines of technical specification
+
+KEY FEATURES:
+
+✓ Concrete - All field names, query parameters, JSON mappings are real, copy-pasteable
+✓ Methodical - Follows O19s consulting methodology (scope → requirements → design → build → test)
+✓ Teachable - Simple enough for learning (7 products, standard analyzers) yet realistic
+✓ Complete - Everything you need to build and validate the migration
+✓ Progressive - Steering docs before requirements, design before tasks
+✓ Proportional - Complexity score (2/5) matches the scope
+✓ Extensible - Patterns scale to real migrations with larger datasets
+
+AUDIENCE:
+
+- Migration engineers building their first Solr→OpenSearch migration
+- Technical architects planning search platform modernization
+- Search relevance engineers validating query equivalence
+- DevOps engineers provisioning AWS OpenSearch Service
+- Junior engineers onboarding to search infrastructure work
+
+NEXT STEPS:
+
+1. Read README.md for orientation
+2. Review steering/ docs to understand scope
+3. Study requirements.md to see what "done" means
+4. Read design.md for technical implementation details
+5. Follow tasks.md to implement in phases
+6. Adapt patterns to your own Solr collection
+
+REUSE GUIDELINES:
+
+For your own migration:
+- Replace field names (15 explicit + 7 dynamic patterns remain the same)
+- Adjust complexity score based on your features (nested? CDCR? custom analyzers?)
+- Use mapping template as starting point; extend for your schema
+- Use query translation examples as pattern reference
+- Expand tasks.md for your data volume and team size
+- Adapt to your deployment target (ECS, Kubernetes, EC2, etc.)
+
+---
+End of Manifest

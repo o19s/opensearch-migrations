@@ -1,0 +1,277 @@
+{
+  "_comment": "Solr query parameters → OpenSearch Query DSL patterns. Used by query_converter.py.",
+  "_version": "1.0.0",
+
+  "dismax_parameters": {
+    "qf": {
+      "opensearch_path": "multi_match.fields",
+      "description": "Query fields with optional boosts",
+      "example_solr": "qf=title^3 body^1 tags^0.5",
+      "example_opensearch": { "multi_match": { "fields": ["title^3", "body^1", "tags^0.5"], "type": "best_fields" } },
+      "complexity": "medium"
+    },
+    "pf": {
+      "opensearch_path": "bool.should → match_phrase",
+      "description": "Phrase fields — boost documents where query terms appear as a phrase",
+      "example_solr": "pf=title^10 body^2",
+      "example_opensearch": { "bool": { "should": [
+        { "match_phrase": { "title": { "query": "USER_QUERY", "boost": 10 } } },
+        { "match_phrase": { "body": { "query": "USER_QUERY", "boost": 2 } } }
+      ] } },
+      "complexity": "medium"
+    },
+    "pf2": {
+      "opensearch_path": null,
+      "description": "Bigram phrase fields — no direct OpenSearch equivalent",
+      "flag_as": "Behavioral",
+      "recommendation": "Approximate with match_phrase + slop:1, or accept loss. Most deployments don't rely on pf2/pf3 precision.",
+      "complexity": "flag_only"
+    },
+    "pf3": {
+      "opensearch_path": null,
+      "description": "Trigram phrase fields — no direct OpenSearch equivalent",
+      "flag_as": "Behavioral",
+      "recommendation": "Same as pf2. Approximate or accept loss.",
+      "complexity": "flag_only"
+    },
+    "mm": {
+      "opensearch_path": "multi_match.minimum_should_match",
+      "description": "Minimum should match — percentage or absolute count",
+      "example_solr": "mm=75%",
+      "example_opensearch": { "multi_match": { "minimum_should_match": "75%" } },
+      "gotcha": "Solr eDisMax evaluates mm per-document across fields. OpenSearch evaluates per-field. Use type:cross_fields for Solr-like behavior.",
+      "complexity": "low"
+    },
+    "bq": {
+      "opensearch_path": "bool.should with boost",
+      "description": "Boost query — additive relevance boost for matching documents",
+      "example_solr": "bq=featured:true^5",
+      "example_opensearch": { "bool": { "should": { "term": { "featured": { "value": true, "boost": 5 } } } } },
+      "complexity": "medium"
+    },
+    "bf": {
+      "opensearch_path": "function_score.functions",
+      "description": "Boost function — numeric function applied to score",
+      "example_solr": "bf=sqrt(popularity)",
+      "example_opensearch": { "function_score": { "functions": [{ "field_value_factor": { "field": "popularity", "modifier": "sqrt" } }] } },
+      "gotcha": "Solr allows arbitrary math expressions. OpenSearch limited to fixed functions: weight, field_value_factor, script_score, decay, random_score. Complex expressions need script_score with Painless.",
+      "complexity": "high"
+    },
+    "ps": {
+      "opensearch_path": "match_phrase.slop",
+      "description": "Phrase slop — distance between phrase terms",
+      "example_solr": "ps=2",
+      "example_opensearch": { "match_phrase": { "FIELD": { "query": "USER_QUERY", "slop": 2 } } },
+      "complexity": "low"
+    },
+    "qs": {
+      "opensearch_path": null,
+      "description": "Query phrase slop — slop for user-entered phrases",
+      "flag_as": "Behavioral",
+      "recommendation": "Apply slop to match_phrase clauses generated from quoted user input.",
+      "complexity": "flag_only"
+    },
+    "tie": {
+      "opensearch_path": "multi_match.tie_breaker",
+      "description": "Tiebreaker multiplier for non-best-matching fields",
+      "example_solr": "tie=0.3",
+      "example_opensearch": { "multi_match": { "tie_breaker": 0.3 } },
+      "complexity": "low"
+    }
+  },
+
+  "edismax_extensions": {
+    "boost": {
+      "opensearch_path": "function_score",
+      "description": "Multiplicative boost function (eDisMax only)",
+      "example_solr": "boost=sqrt(views)",
+      "complexity": "high"
+    },
+    "qf_with_slop": {
+      "description": "eDisMax allows per-field slop: qf=title~2^3 body~5",
+      "opensearch_path": "bool.should → match_phrase per field",
+      "example_opensearch": { "bool": { "should": [
+        { "match_phrase": { "title": { "query": "USER_QUERY", "slop": 2, "boost": 3 } } },
+        { "match_phrase": { "body": { "query": "USER_QUERY", "slop": 5 } } }
+      ] } },
+      "complexity": "medium"
+    },
+    "sow": {
+      "description": "Split on whitespace — affects how mm is evaluated",
+      "opensearch_path": null,
+      "flag_as": "Behavioral",
+      "gotcha": "sow=true makes Solr analyze each whitespace-separated term independently. OpenSearch always does this in multi_match. sow=false (default) sends the full query to each field's analyzer.",
+      "recommendation": "If sow=false, consider using match query per-field instead of multi_match.",
+      "complexity": "flag_only"
+    },
+    "lowercaseOperators": {
+      "description": "Allow 'and'/'or' in addition to 'AND'/'OR'",
+      "opensearch_path": null,
+      "flag_as": "Behavioral",
+      "recommendation": "OpenSearch query_string supports 'default_operator' but not case-insensitive operators. Normalize query input in application layer.",
+      "complexity": "flag_only"
+    },
+    "stopwords": {
+      "description": "eDisMax stopword handling can affect mm calculation",
+      "opensearch_path": null,
+      "flag_as": "Behavioral",
+      "gotcha": "If eDisMax has stopwords=true, terms removed by stop filter reduce the clause count for mm. OpenSearch does not adjust minimum_should_match for stopped terms.",
+      "recommendation": "Test mm behavior with queries containing common stop words.",
+      "complexity": "flag_only"
+    }
+  },
+
+  "filter_queries": {
+    "fq": {
+      "opensearch_path": "bool.filter",
+      "description": "Filter query — cached, non-scoring constraint",
+      "example_solr": "fq=status:active&fq=price:[10 TO 100]",
+      "example_opensearch": { "bool": { "filter": [
+        { "term": { "status": "active" } },
+        { "range": { "price": { "gte": 10, "lte": 100 } } }
+      ] } },
+      "notes": "Multiple fq params become multiple filter clauses (AND logic). Each is cached independently."
+    }
+  },
+
+  "faceting": {
+    "facet.field": {
+      "opensearch_path": "aggs → terms",
+      "example_solr": "facet=true&facet.field=category&facet.limit=10",
+      "example_opensearch": { "aggs": { "category": { "terms": { "field": "category", "size": 10 } } } }
+    },
+    "facet.range": {
+      "opensearch_path": "aggs → range",
+      "example_solr": "facet.range=price&facet.range.start=0&facet.range.end=1000&facet.range.gap=100",
+      "example_opensearch": { "aggs": { "price_ranges": { "range": { "field": "price", "ranges": [
+        { "to": 100 }, { "from": 100, "to": 200 }, { "from": 200, "to": 300 }
+      ] } } } },
+      "notes": "OpenSearch range agg requires explicit ranges, not start/end/gap. Build ranges programmatically."
+    },
+    "facet.date": {
+      "opensearch_path": "aggs → date_histogram",
+      "example_solr": "facet.date=created_at&facet.date.gap=+1MONTH",
+      "example_opensearch": { "aggs": { "by_month": { "date_histogram": { "field": "created_at", "calendar_interval": "month" } } } },
+      "interval_mapping": {
+        "+1YEAR": "year",
+        "+1MONTH": "month",
+        "+1WEEK": "week",
+        "+1DAY": "day",
+        "+1HOUR": "hour",
+        "+1MINUTE": "minute",
+        "+1SECOND": "second"
+      }
+    },
+    "facet.pivot": {
+      "opensearch_path": "nested aggs",
+      "example_solr": "facet.pivot=category,brand",
+      "example_opensearch": { "aggs": { "by_category": { "terms": { "field": "category" }, "aggs": { "by_brand": { "terms": { "field": "brand" } } } } } }
+    },
+    "facet.query": {
+      "opensearch_path": "aggs → filter",
+      "example_solr": "facet.query=price:[0 TO 100]&facet.query=price:[100 TO 500]",
+      "example_opensearch": { "aggs": {
+        "cheap": { "filter": { "range": { "price": { "lte": 100 } } } },
+        "mid": { "filter": { "range": { "price": { "gt": 100, "lte": 500 } } } }
+      } }
+    }
+  },
+
+  "highlighting": {
+    "hl": {
+      "opensearch_path": "highlight",
+      "param_mapping": {
+        "hl.fl": "highlight.fields",
+        "hl.fragsize": "fragment_size",
+        "hl.snippets": "number_of_fragments",
+        "hl.simple.pre": "pre_tags",
+        "hl.simple.post": "post_tags",
+        "hl.requireFieldMatch": "require_field_match",
+        "hl.maxAnalyzedChars": "max_analyzed_offset"
+      },
+      "example_solr": "hl=true&hl.fl=title,body&hl.fragsize=150&hl.simple.pre=<em>&hl.simple.post=</em>",
+      "example_opensearch": { "highlight": {
+        "fields": { "title": {}, "body": { "fragment_size": 150, "number_of_fragments": 3 } },
+        "pre_tags": ["<em>"],
+        "post_tags": ["</em>"]
+      } }
+    }
+  },
+
+  "sorting": {
+    "sort": {
+      "opensearch_path": "sort",
+      "example_solr": "sort=price asc,date desc",
+      "example_opensearch": { "sort": [{ "price": "asc" }, { "date": "desc" }] },
+      "gotcha": "Cannot sort on text fields without keyword sub-field. Solr is more lenient."
+    }
+  },
+
+  "pagination": {
+    "start_rows": {
+      "opensearch_path": "from/size",
+      "example_solr": "start=20&rows=10",
+      "example_opensearch": { "from": 20, "size": 10 },
+      "gotcha": "OpenSearch default max_result_window is 10000. from+size > 10000 throws error. Use search_after for deep pagination."
+    },
+    "cursorMark": {
+      "opensearch_path": "search_after",
+      "description": "Solr cursor-based pagination → OpenSearch search_after",
+      "notes": "Different API but same concept. search_after requires consistent sort with tiebreaker."
+    }
+  },
+
+  "special_queries": {
+    "mlt": {
+      "opensearch_path": "more_like_this",
+      "description": "MoreLikeThis query",
+      "param_mapping": {
+        "mlt.fl": "fields",
+        "mlt.mintf": "min_term_freq",
+        "mlt.mindf": "min_doc_freq",
+        "mlt.maxdf": "max_doc_freq",
+        "mlt.minwl": "min_word_length",
+        "mlt.maxwl": "max_word_length"
+      }
+    },
+    "spellcheck": {
+      "opensearch_path": "suggest",
+      "description": "Spellcheck → OpenSearch suggesters",
+      "flag_as": "Behavioral",
+      "notes": "Different architecture. Solr uses in-memory lookup. OpenSearch requires completion field type or term/phrase suggesters. Index-time setup required."
+    }
+  },
+
+  "no_equivalent": {
+    "streaming_expressions": {
+      "flag_as": "Breaking",
+      "severity": "high",
+      "description": "Full data pipeline language — no OpenSearch equivalent",
+      "recommendation": "Use search_after for exports, external tools (Spark, Flink) for processing, OpenSearch SQL/PPL for analytics"
+    },
+    "graph_traversal": {
+      "flag_as": "Breaking",
+      "severity": "high",
+      "description": "Solr graph query — no OpenSearch equivalent",
+      "recommendation": "Redesign using application-level traversal or external graph database"
+    },
+    "xcjf": {
+      "flag_as": "Breaking",
+      "severity": "high",
+      "description": "Cross-collection join — no OpenSearch equivalent",
+      "recommendation": "Denormalize data, use nested documents, or application-side joins"
+    },
+    "payload_scoring": {
+      "flag_as": "Unsupported",
+      "severity": "medium",
+      "description": "Token payload scoring — limited OpenSearch support",
+      "recommendation": "Use script_score with stored payloads or redesign scoring"
+    },
+    "query_elevation": {
+      "flag_as": "Unsupported",
+      "severity": "medium",
+      "description": "Pinned/promoted results — no built-in OpenSearch equivalent",
+      "recommendation": "Implement via function_score with extreme weights or application logic"
+    }
+  }
+}

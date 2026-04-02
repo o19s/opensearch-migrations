@@ -1,0 +1,104 @@
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "1s"
+    },
+    "analysis": {
+      "filter": {
+        "english_stemmer": {
+          "type": "stemmer",
+          "language": "english"
+        }
+      },
+      "analyzer": {
+        "hello_text": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "stop",
+            "english_stemmer"
+          ]
+        },
+        "hello_text_search": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "stop",
+            "english_stemmer"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "dynamic_templates": [
+      {
+        "strings_as_keyword": {
+          "match": "*_s",
+          "mapping": {
+            "type": "keyword"
+          }
+        }
+      },
+      {
+        "dates_as_date": {
+          "match": "*_dt",
+          "mapping": {
+            "type": "date",
+            "format": "strict_date_optional_time||epoch_millis"
+          }
+        }
+      }
+    ],
+    "properties": {
+      "id": {
+        "type": "keyword"
+      },
+      "title": {
+        "type": "text",
+        "analyzer": "hello_text",
+        "search_analyzer": "hello_text_search",
+        "copy_to": "_text_",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "body": {
+        "type": "text",
+        "analyzer": "hello_text",
+        "search_analyzer": "hello_text_search",
+        "copy_to": "_text_"
+      },
+      "category": {
+        "type": "keyword"
+      },
+      "author": {
+        "type": "keyword",
+        "copy_to": "_text_"
+      },
+      "publishedDate": {
+        "type": "date",
+        "format": "strict_date_optional_time||epoch_millis"
+      },
+      "tags": {
+        "type": "keyword"
+      },
+      "score": {
+        "type": "float"
+      },
+      "_text_": {
+        "type": "text",
+        "analyzer": "hello_text",
+        "search_analyzer": "hello_text_search"
+      }
+    }
+  }
+}

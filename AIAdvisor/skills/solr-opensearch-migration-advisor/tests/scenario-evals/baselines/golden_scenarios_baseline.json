@@ -1,0 +1,181 @@
+{
+  "summary": {
+    "scenario_count": 7,
+    "scored_scenario_count": 7,
+    "pass_count": 7,
+    "fail_count": 0,
+    "pass_rate": 1.0,
+    "average_scores": {
+      "methodology_alignment": 4.4286,
+      "expert_judgement": 4.4286,
+      "heuristics": 4.1429,
+      "risk_identification": 4.7143,
+      "overall": 4.4286
+    },
+    "scenario_results": {
+      "legacy-solr4-custom-components": {
+        "title": "Legacy Solr 4.x with Custom Java Components",
+        "average_score": 4.75,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 5.0,
+          "expert_judgement": 5.0,
+          "heuristics": 4.0,
+          "risk_identification": 5.0
+        }
+      },
+      "drupal-search-api-low-resource": {
+        "title": "Drupal Search API with Low Operational Overhead",
+        "average_score": 4.0,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 4.0,
+          "expert_judgement": 4.0,
+          "heuristics": 4.0,
+          "risk_identification": 4.0
+        }
+      },
+      "commerce-relevance-critical": {
+        "title": "Relevance-Critical Commerce Migration",
+        "average_score": 4.75,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 5.0,
+          "expert_judgement": 5.0,
+          "heuristics": 4.0,
+          "risk_identification": 5.0
+        }
+      },
+      "multi-consumer-enterprise": {
+        "title": "Enterprise Migration with Hidden Consumers",
+        "average_score": 4.5,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 4.0,
+          "expert_judgement": 4.0,
+          "heuristics": 5.0,
+          "risk_identification": 5.0
+        }
+      },
+      "near-real-time-freshness": {
+        "title": "Near-Real-Time Freshness Sensitive Workload",
+        "average_score": 4.25,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 4.0,
+          "expert_judgement": 4.0,
+          "heuristics": 4.0,
+          "risk_identification": 5.0
+        }
+      },
+      "techproducts-full-workflow": {
+        "title": "TechProducts: Full 8-Step Technical Migration",
+        "average_score": 4.0,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 4.0,
+          "expert_judgement": 4.0,
+          "heuristics": 4.0,
+          "risk_identification": 4.0
+        }
+      },
+      "drupal-full-workflow": {
+        "title": "Drupal Solr->OpenSearch: Strategic Judgment & Module Swap",
+        "average_score": 4.75,
+        "final_decision": "PASS",
+        "scores": {
+          "methodology_alignment": 5.0,
+          "expert_judgement": 5.0,
+          "heuristics": 4.0,
+          "risk_identification": 5.0
+        }
+      }
+    }
+  },
+  "results": [
+    {
+      "scenario_id": "legacy-solr4-custom-components",
+      "title": "Legacy Solr 4.x with Custom Java Components",
+      "judge_output": {
+        "methodology_alignment": 5,
+        "expert_judgement": 5,
+        "heuristics": 4,
+        "risk_identification": 5,
+        "final_decision": "PASS",
+        "rationale": "Strong on refactor risk, staged validation, and migration caution."
+      }
+    },
+    {
+      "scenario_id": "drupal-search-api-low-resource",
+      "title": "Drupal Search API with Low Operational Overhead",
+      "judge_output": {
+        "methodology_alignment": 4,
+        "expert_judgement": 4,
+        "heuristics": 4,
+        "risk_identification": 4,
+        "final_decision": "PASS",
+        "rationale": "Appropriately bounded, cost-aware, and Drupal-aware."
+      }
+    },
+    {
+      "scenario_id": "commerce-relevance-critical",
+      "title": "Relevance-Critical Commerce Migration",
+      "judge_output": {
+        "methodology_alignment": 5,
+        "expert_judgement": 5,
+        "heuristics": 4,
+        "risk_identification": 5,
+        "final_decision": "PASS",
+        "rationale": "Strong on judged relevance process and BM25 framing."
+      }
+    },
+    {
+      "scenario_id": "multi-consumer-enterprise",
+      "title": "Enterprise Migration with Hidden Consumers",
+      "judge_output": {
+        "methodology_alignment": 4,
+        "expert_judgement": 4,
+        "heuristics": 5,
+        "risk_identification": 5,
+        "final_decision": "PASS",
+        "rationale": "Covers consumer inventory and hidden integration risks clearly."
+      }
+    },
+    {
+      "scenario_id": "near-real-time-freshness",
+      "title": "Near-Real-Time Freshness Sensitive Workload",
+      "judge_output": {
+        "methodology_alignment": 4,
+        "expert_judgement": 4,
+        "heuristics": 4,
+        "risk_identification": 5,
+        "final_decision": "PASS",
+        "rationale": "Separates freshness from backfill and stresses rollback guardrails."
+      }
+    },
+    {
+      "scenario_id": "techproducts-full-workflow",
+      "title": "TechProducts: Full 8-Step Technical Migration",
+      "judge_output": {
+        "methodology_alignment": 4,
+        "expert_judgement": 4,
+        "heuristics": 4,
+        "risk_identification": 4,
+        "final_decision": "PASS",
+        "rationale": "Covers the major technical expectations well enough for a first baseline."
+      }
+    },
+    {
+      "scenario_id": "drupal-full-workflow",
+      "title": "Drupal Solr->OpenSearch: Strategic Judgment & Module Swap",
+      "judge_output": {
+        "methodology_alignment": 5,
+        "expert_judgement": 5,
+        "heuristics": 4,
+        "risk_identification": 5,
+        "final_decision": "PASS",
+        "rationale": "Strong strategic judgment on module swap, cost, and business-owner framing."
+      }
+    }
+  ]
+}

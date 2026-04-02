@@ -1,0 +1,92 @@
+{
+  "_comment": "Solr analyzer component → OpenSearch equivalent. Used by schema_converter.py to translate analyzer chains.",
+  "_version": "1.0.0",
+
+  "tokenizers": {
+    "solr.StandardTokenizerFactory":              { "opensearch": "standard",        "notes": "Direct equivalent" },
+    "solr.WhitespaceTokenizerFactory":            { "opensearch": "whitespace",      "notes": "Direct equivalent" },
+    "solr.KeywordTokenizerFactory":               { "opensearch": "keyword",         "notes": "Direct equivalent" },
+    "solr.LetterTokenizerFactory":                { "opensearch": "letter",          "notes": "Direct equivalent" },
+    "solr.ClassicTokenizerFactory":               { "opensearch": "classic",         "notes": "Direct equivalent" },
+    "solr.PatternTokenizerFactory":               { "opensearch": "pattern",         "notes": "Check regex syntax; map 'pattern' param to 'pattern'" },
+    "solr.UAX29URLEmailTokenizerFactory":         { "opensearch": "uax_url_email",   "notes": "Direct equivalent" },
+    "solr.PathHierarchyTokenizerFactory":         { "opensearch": "path_hierarchy",  "notes": "Map 'delimiter' param" },
+    "solr.ICUTokenizerFactory":                   { "opensearch": "icu_tokenizer",   "notes": "Requires ICU analysis plugin" },
+    "solr.NGramTokenizerFactory":                 { "opensearch": "ngram",           "notes": "Map min_gram_size/max_gram_size → min_gram/max_gram" },
+    "solr.EdgeNGramTokenizerFactory":             { "opensearch": "edge_ngram",      "notes": "Map min_gram_size/max_gram_size → min_gram/max_gram" },
+    "solr.CJKBigramFilterFactory":                { "opensearch": "cjk_bigram",      "notes": "Requires CJK plugin; not a tokenizer in OS, use as filter" }
+  },
+
+  "filters": {
+    "solr.LowerCaseFilterFactory":                { "opensearch": "lowercase",            "notes": "Direct equivalent" },
+    "solr.UpperCaseFilterFactory":                { "opensearch": "uppercase",            "notes": "Direct equivalent" },
+    "solr.StopFilterFactory":                     { "opensearch": "stop",                 "notes": "Map 'words' param → 'stopwords_path' or use built-in '_english_' etc. Map 'ignoreCase' → 'ignore_case'" },
+    "solr.SynonymGraphFilterFactory":             { "opensearch": "synonym_graph",        "notes": "Map 'synonyms' → 'synonyms_path'; both Solr and WordNet formats supported. Test synonym expansion carefully" },
+    "solr.SynonymFilterFactory":                  { "opensearch": "synonym",              "notes": "Deprecated in both; recommend upgrading to synonym_graph" },
+    "solr.PorterStemFilterFactory":               { "opensearch": "porter_stem",          "notes": "Direct equivalent" },
+    "solr.SnowballPorterFilterFactory":           { "opensearch": "snowball",             "notes": "Map 'language' param → 'language'" },
+    "solr.KStemFilterFactory":                    { "opensearch": "kstem",                "notes": "Direct equivalent" },
+    "solr.StemmerOverrideFilterFactory":           { "opensearch": "stemmer_override",     "notes": "Map 'dictionary' → 'rules_path'" },
+    "solr.WordDelimiterGraphFilterFactory":       { "opensearch": "word_delimiter_graph",  "notes": "Map all boolean params (generateWordParts, splitOnCaseChange, etc.)" },
+    "solr.WordDelimiterFilterFactory":            { "opensearch": "word_delimiter",        "notes": "Deprecated; recommend upgrading to word_delimiter_graph" },
+    "solr.ASCIIFoldingFilterFactory":             { "opensearch": "asciifolding",          "notes": "Map 'preserveOriginal' → 'preserve_original'" },
+    "solr.TrimFilterFactory":                     { "opensearch": "trim",                  "notes": "Direct equivalent" },
+    "solr.PatternReplaceFilterFactory":           { "opensearch": "pattern_replace",       "notes": "Map 'pattern' and 'replacement' params" },
+    "solr.LengthFilterFactory":                   { "opensearch": "length",                "notes": "Map 'min'/'max' params → 'min'/'max'" },
+    "solr.NGramFilterFactory":                    { "opensearch": "ngram",                 "notes": "Map 'minGramSize'/'maxGramSize' → 'min_gram'/'max_gram'" },
+    "solr.EdgeNGramFilterFactory":                { "opensearch": "edge_ngram",            "notes": "Map 'minGramSize'/'maxGramSize' → 'min_gram'/'max_gram'; map 'side' param" },
+    "solr.ICUFoldingFilterFactory":               { "opensearch": "icu_folding",           "notes": "Requires ICU analysis plugin" },
+    "solr.ICUNormalizer2FilterFactory":           { "opensearch": "icu_normalizer",        "notes": "Requires ICU analysis plugin" },
+    "solr.ICUCollationKeyFilterFactory":          { "opensearch": "icu_collation",         "notes": "Requires ICU analysis plugin; map locale params" },
+    "solr.ElisionFilterFactory":                  { "opensearch": "elision",               "notes": "Map 'articles' param" },
+    "solr.HunspellStemFilterFactory":             { "opensearch": "hunspell",              "notes": "Map 'dictionary'/'affix' → 'locale' or 'dictionary'/'affix' paths" },
+    "solr.RemoveDuplicatesTokenFilterFactory":    { "opensearch": "remove_duplicates",     "notes": "Direct equivalent" },
+    "solr.ShingleFilterFactory":                  { "opensearch": "shingle",               "notes": "Map 'minShingleSize'/'maxShingleSize' → 'min_shingle_size'/'max_shingle_size'" },
+    "solr.FlattenGraphFilterFactory":             { "opensearch": "flatten_graph",         "notes": "Required after synonym_graph at index time" },
+    "solr.ReverseStringFilterFactory":            { "opensearch": "reverse",               "notes": "Direct equivalent" },
+    "solr.KeywordMarkerFilterFactory":            { "opensearch": "keyword_marker",        "notes": "Map 'protected' → 'keywords_path'" },
+    "solr.KeywordRepeatFilterFactory":            { "opensearch": "keyword_repeat",        "notes": "Direct equivalent" },
+    "solr.TypeTokenFilterFactory":                { "opensearch": "keep_types",            "notes": "Map 'types' param; 'useWhitelist' → 'mode: include/exclude'" },
+    "solr.KeepWordFilterFactory":                 { "opensearch": "keep",                  "notes": "Map 'words' → 'keep_words_path'" },
+    "solr.HyphenatedWordsFilterFactory":          { "opensearch": null,                    "notes": "No direct equivalent; use word_delimiter_graph or custom pattern_replace" },
+    "solr.CommonGramsFilterFactory":              { "opensearch": "common_grams",          "notes": "Map 'words' → 'common_words_path'" },
+    "solr.LimitTokenCountFilterFactory":          { "opensearch": "limit",                 "notes": "Map 'maxTokenCount' → 'max_token_count'" },
+    "solr.DelimitedPayloadTokenFilterFactory":    { "opensearch": "delimited_payload",     "notes": "Map 'delimiter' and 'encoder' params" }
+  },
+
+  "filters_no_equivalent": {
+    "solr.PhoneticFilterFactory":                 { "notes": "OpenSearch has 'phonetic' but requires analysis-phonetic plugin; params differ significantly. Map 'encoder' param manually" },
+    "solr.ReversedWildcardFilterFactory":         { "notes": "No equivalent; used for leading wildcard optimization in Solr. Not needed in OpenSearch (different query execution)" },
+    "solr.ManagedSynonymGraphFilterFactory":      { "notes": "No equivalent; Solr managed resources don't exist in OpenSearch. Convert to file-based synonym_graph filter" },
+    "solr.ManagedStopFilterFactory":              { "notes": "No equivalent; convert to file-based stop filter" },
+    "solr.CollationKeyFilterFactory":             { "notes": "No direct equivalent without ICU plugin; use icu_collation with ICU plugin, or redesign" },
+    "solr.CurrencyFieldType":                     { "notes": "No equivalent field type; model as two fields (amount: scaled_float, currency: keyword)" },
+    "solr.SortableTextField":                     { "notes": "No equivalent; use multi-field mapping with text + keyword sub-field" }
+  },
+
+  "char_filters": {
+    "solr.MappingCharFilterFactory":              { "opensearch": "mapping",         "notes": "Map 'mapping' param → 'mappings' array or 'mappings_path'" },
+    "solr.HTMLStripCharFilterFactory":            { "opensearch": "html_strip",      "notes": "Direct equivalent; 'escaped' param may not apply" },
+    "solr.PatternReplaceCharFilterFactory":       { "opensearch": "pattern_replace", "notes": "Map 'pattern' and 'replacement' params" },
+    "solr.ICUNormalizer2CharFilterFactory":       { "opensearch": "icu_normalizer",  "notes": "Requires ICU analysis plugin" }
+  },
+
+  "parameter_mappings": {
+    "_comment": "Common Solr parameter names → OpenSearch equivalents (camelCase → snake_case)",
+    "minGramSize": "min_gram",
+    "maxGramSize": "max_gram",
+    "minShingleSize": "min_shingle_size",
+    "maxShingleSize": "max_shingle_size",
+    "maxTokenCount": "max_token_count",
+    "ignoreCase": "ignore_case",
+    "preserveOriginal": "preserve_original",
+    "generateWordParts": "generate_word_parts",
+    "generateNumberParts": "generate_number_parts",
+    "splitOnCaseChange": "split_on_case_change",
+    "splitOnNumerics": "split_on_numerics",
+    "stemEnglishPossessive": "stem_english_possessive",
+    "catenateWords": "catenate_words",
+    "catenateNumbers": "catenate_numbers",
+    "catenateAll": "catenate_all"
+  }
+}
