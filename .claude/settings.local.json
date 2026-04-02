@@ -10,7 +10,11 @@
       "Bash(helm test:*)",
       "Bash(cat:*)",
       "Bash(kubectl get:*)",
-      "Bash(argo resume:*)"
+      "Bash(argo resume:*)",
+      "Bash(curl -sL https://raw.githubusercontent.com/querqy/chorus/main/README.md)",
+      "Bash(curl -sL https://raw.githubusercontent.com/querqy/chorus/main/docker-compose.yml)",
+      "Bash(curl -s https://api.github.com/repos/querqy/chorus)",
+      "Bash(curl:*)"
     ]
   }
 }
