@@ -1,253 +1,169 @@
-# Solr → OpenSearch Migration Advisor
+# Solr-to-OpenSearch Migration Advisor
 
-An AI-powered skill that provides expert guidance for migrating Apache Solr (SolrCloud)
-collections to AWS OpenSearch Service. Works with **Claude Code**, **Cursor**, **Kiro**,
-and any agent that supports the [Agent Skills specification](https://agentskills.io/specification).
+An AI-powered migration advisor that provides expert guidance for migrating
+Apache Solr deployments to AWS OpenSearch Service. It combines curated expert
+knowledge, deterministic conversion tools, and structured consulting methodology
+into a single interactive skill.
 
----
-
-## Available Skills
-
-| Skill | Category | Description |
-|-------|----------|-------------|
-| **[solr-to-opensearch-migration](skills/solr-to-opensearch-migration/)** | Migration | Expert guidance for Solr → OpenSearch migration planning, execution, and validation |
-| **[endeca-to-opensearch-migration](skills/endeca-to-opensearch-migration/)** | Migration | Oracle Endeca → OpenSearch migration guidance (early) |
-| **[endeca-to-elasticsearch-migration](skills/endeca-to-elasticsearch-migration/)** | Migration | Oracle Endeca → Elasticsearch migration guidance (early) |
+**Branch:** `feature/one-big-hairy`
 
 ---
 
-## Install a Skill
-
-Install any skill into your project using [`npx skills`](https://agentskills.io):
+## Getting Started
 
 ```bash
-npx skills add opensearch-project/opensearch-migrations
+git checkout feature/one-big-hairy
+cd AIAdvisor/skills/solr-opensearch-migration-advisor
+claude
 ```
 
-After installing, try:
-
-> *"I'm migrating a SolrCloud cluster with 8 collections to OpenSearch — where do I start?"*
-
-Your agent reads the skill instructions and reference files to provide expert migration guidance.
-
-### Install in Kiro (Kiro Power)
-
-1. Open **Kiro** → **Powers** panel → **Add Power**
-2. Paste: `https://github.com/seanoc5/agent99/tree/master/kiro/solr-to-opensearch-migration`
-
-### Install in Cursor
-
-Clone the repo and open it in Cursor. The plugin is discovered from
-`cursor/plugins/solr-to-opensearch-migration/`.
+The skill loads automatically. You're now talking to a migration advisor that has
+access to expert references, schema/query converters, and a Solr inspection toolkit.
 
 ---
 
-## Workspace Layout
+## What To Ask — By Use Case
 
-This repository serves a dual purpose: **skills distribution** (the primary artifact)
-and **consulting knowledge base** (the development substrate).
+### Migration Planning (executive/PM perspective)
 
-```text
-agent99/
-├── skills/              Installable skills (Agent Skills spec)
-├── kiro/                Kiro Powers (POWER.md + steering/)
-├── cursor/              Cursor plugins (plugin.json + skills symlink)
-├── project/          Project steering (vision, architecture, this layout)
-├── sources/          Raw reference material by topic
-├── playbook/         OSC consulting methodology + assessment kit
-├── examples/            Per-client engagement specs (4 examples)
-├── working/          Content tracking and coordination
-├── DESIGN.md            Architecture and design tenets
-├── DEVELOPER_GUIDE.md   How to contribute
-├── docker-compose.yaml  Local demo stacks (Solr, OpenSearch, ES)
-└── CLAUDE.md / GEMINI.md
-```
+Use when you need to scope work, allocate resources, or build a migration roadmap
+before any technical work begins.
 
-For detailed folder responsibilities, governance rules, and how content flows between
-layers, see [`project/core/structure.md`](project/core/structure.md), [`project/core/opensearch-migrations-positioning.md`](project/core/opensearch-migrations-positioning.md), and [`DESIGN.md`](DESIGN.md).
+> *"We have 12 Solr collections totaling 800GB across 3 SolrCloud clusters. We need
+> to migrate to AWS OpenSearch. Help me build a phased migration plan with resource
+> estimates and risk areas."*
 
-## Where To Start
+> *"What are the typical phases of a Solr-to-OpenSearch migration, and what team
+> roles do we need at each stage? We have 2 search engineers and 1 DevOps person."*
 
-| You want to... | Start here |
-|----------------|-----------|
-| Get oriented quickly | `START-HERE.md` |
-| Understand the project | `project/core/product.md` |
-| See how this repo relates to upstream `opensearch-migrations` | `project/core/opensearch-migrations-positioning.md` |
-| Contribute content | `DEVELOPER_GUIDE.md` |
-| See what's complete vs. missing | `working/CONTENT-STRUCTURE.md` |
-| See a realistic worked engagement example | `examples/northstar-enterprise-demo/` |
-| See the smallest worked example | `examples/techproducts-demo/` |
-| See the companion-style artifact flow | `examples/migration-companion-demo/` |
-| Use the skill references directly | `skills/solr-to-opensearch-migration/references/` |
-| Run a client intake session | `playbook/intake-template.md` |
-| Run expert interviews (Sessions 2–3) | `playbook/interview-guide.md` |
-| Use the assessment kit | `playbook/assessment-kit/assessment-kit-index.md` |
-| Start from reusable companion artifacts | `playbook/assessment-kit/` |
+> *"Our CTO wants a go/no-go framework for this migration. What criteria should we
+> use to decide whether we're ready to cut over?"*
 
-## Supported Operating Modes
+### Solr Audit and Discovery
 
-This repo supports four distinct usage modes. Calling them out explicitly avoids a lot of
-confusion about what is "the product" vs what is development scaffolding.
+Use when you're starting a new engagement and need to understand what you're working
+with before making any decisions.
 
-| Mode | Primary entry point | What it is for |
-|------|---------------------|----------------|
-| Skill/reference mode | `skills/solr-to-opensearch-migration/` | Agent reads curated migration guidance and file pointers |
-| Python core mode | `scripts/skill.py` and converter/report modules | Deterministic workflow floor without requiring full MCP orchestration |
-| MCP mode | `scripts/mcp_server.py` | Tool surface for MCP-capable agent clients |
-| Consultant artifact mode | `playbook/` and `examples/` | Human-led assessment, planning, review, and approval artifacts |
+> *"I have a Solr 8.11 cluster. Walk me through what I should inventory before
+> planning a migration — collections, schemas, query patterns, consumers, the works."*
 
-The repo should be understood as all four, not just one of them.
+> *"Here's our schema.xml — what stands out as potentially tricky to migrate?
+> What should I flag for the team?"*
+>
+> *(paste or attach schema.xml)*
 
-## Workflow Phases and Artifact Chain
+> *"We know our main search app uses Solr, but we suspect there are other consumers
+> hitting it directly. How should I discover and document all the Solr consumers?"*
 
-The migration-advisor process is phase-based even when the user experiences it as a single
-conversation. The durable outputs matter more than the conversational surface.
+### Technical Deep Dive
 
-| Phase | Primary purpose | Minimum durable outputs |
-|------|------------------|-------------------------|
-| 1. Intake | establish scope, stakeholders, source facts, missing inputs | intake notes, artifact request list |
-| 2. Assessment | identify constraints, risks, incompatibilities, readiness gaps | readiness/risk findings, consumer inventory |
-| 3. Target design | map Solr behavior into OpenSearch design choices | schema/query translation findings, design decisions |
-| 4. Planning | turn findings into implementation and sequencing | migration playbook, phased task plan |
-| 5. Validation and approval | define go/no-go evidence and review posture | success definition, validation plan, approval record |
-| 6. Deployment readiness and handoff | prepare target-team execution and cutover control | cutover checklist, operator-facing handoff artifacts |
+Use when you need to understand specific migration challenges, plan around
+incompatibilities, or prepare the team for what's ahead.
 
-This is the main connection point between the skill references, playbook, and worked examples
-under `examples/`.
+> *"Walk me through the differences between Solr's eDisMax and OpenSearch's
+> multi_match. We rely heavily on qf, pf, mm, and bq — what breaks and what
+> translates cleanly?"*
 
-## Prerequisites and Fallbacks
+> *"We use TF-IDF scoring and our relevance is finely tuned. What should we expect
+> when moving to BM25, and how do we validate that search quality hasn't regressed?"*
 
-For normal repository work:
+> *"Our Solr setup uses nested documents, function queries for boosting by recency,
+> and a custom UpdateRequestProcessor chain. Give me an honest assessment of the
+> migration complexity for each."*
 
-- Python 3.11+ is the practical baseline
-- `pytest` is the test entry point
-- `mcp` is required for the MCP-server test path
-- Docker is optional and used for local demo stacks, not for the core test suite
-- AWS credentials are optional and only relevant for AWS-target design or deployment exercises
+### Iterative Migration Partnership (phone-a-friend)
 
-Fallback posture:
+Use throughout active migration work. The advisor can help with specific conversion
+tasks, review your work, troubleshoot issues, or guide you step-by-step through
+a phase you haven't done before.
 
-- if MCP is unavailable, the skill/reference path remains usable
-- if an LLM is unavailable, the deterministic core still provides converter/report behavior
-- if live eval scoring is unavailable, emit or review structured eval tasks/results without scoring
-- if deployment details are missing, produce a deployment-readiness gap list rather than a false-ready plan
+> *"Here's our Solr schema.xml — convert it to an OpenSearch index mapping and flag
+> anything that needs manual attention."*
+>
+> *(paste or attach schema.xml)*
 
-## Skill Structure
+> *"I'm converting our faceted search queries from Solr to OpenSearch. Here are
+> 3 representative queries — translate them and explain what changed."*
+>
+> *(paste query examples)*
 
-The skill has two layers:
+> *"We just deployed the OpenSearch cluster and our first batch of migrated queries
+> is returning different result ordering than Solr. Help me diagnose why and figure
+> out what to adjust."*
 
-- `SKILL.md`: routing layer with quick-reference material and file pointers
-- `references/`: expert content layer (primary + secondary tiers)
+> *"I'm setting up dual-write so we can run both engines in parallel. Walk me through
+> the pattern — what infrastructure do I need, how do I validate consistency, and
+> when is it safe to cut over?"*
 
-### Primary References (01–07) — Core Migration Path
+---
 
-These cover the 80% case that applies to most engagements:
-
-```text
-01-strategic-guidance.md    — go/no-go decisions, when NOT to migrate
-02-pre-migration.md         — inventorying a Solr deployment
-03-target-design.md         — designing the OpenSearch solution
-04-migration-execution.md   — dual-write, cutover, pipelines
-05-validation-cutover.md    — relevance measurement, go/no-go gates
-06-operations.md            — AWS ops, monitoring, ISM, DR
-07-platform-integration.md  — Spring Boot, Python, Drupal, Rails
-```
-
-### Secondary References (08+) — Edge Cases and Long Tail
-
-These cover the remaining 20% — obscure Solr features, uncommon configurations, and issues
-that only surface in specific situations:
-
-```text
-08-edge-cases-and-gotchas.md  — 30+ gotchas with external source links
-```
-
-**Design rationale:** AI agents have limited context windows. Loading everything by default
-wastes context on issues that may not apply. The SKILL.md routing layer decides which
-references to load based on the user's question. Secondary references are loaded only when
-the user's situation suggests edge cases are relevant (uncommon Solr features, post-migration
-debugging, exhaustive risk assessment). This keeps the default experience focused while
-ensuring deep coverage is available when needed.
-
-The long-term content plan is tracked in `working/CONTENT-STRUCTURE.md`.
-
-## Using The Repository
-
-### Directly in an agent or CLI
-
-The simplest path is to run your agent inside this repository and let it read the markdown
-sources directly.
-
-### Local demo stacks
-
-The root [`docker-compose.yaml`](docker-compose.yaml) supports three separate local workflows:
-
-- Solr plus ZooKeeper for source-side testing
-- OpenSearch plus Dashboards for the Northstar migration demo
-- Elasticsearch plus Kibana for side-by-side compatibility checks
-
-Typical startup commands:
+## Running Tests
 
 ```bash
-docker compose up -d
-docker compose --profile solr-init up solr-init-cm1
-docker compose --profile opensearch-demo up -d
-docker compose --profile elasticsearch-demo up -d
-bash tools/demo_search_stack.sh both
+python3.12 -m pytest tests/ -q          # 345 tests, all passing
 ```
 
-The root compose file uses the explicit project name `agent99` and repo-local default ports for
-Solr and ZooKeeper so it can run alongside other local demo stacks. Override the host ports with
-`ZK_HOST_PORT` and `SOLR_HOST_PORT` if needed. A starter override file is available at
-`.env.example`; copy it to `.env` at the repository root to customize local port bindings.
+---
 
-Default demo endpoints:
+## What's In This Branch
 
-- Solr: `http://localhost:18985/solr`
-- OpenSearch: `http://localhost:9200`
-- OpenSearch Dashboards: `http://localhost:5601`
-- Elasticsearch: `http://localhost:9201`
-- Kibana: `http://localhost:5602`
+### Skill Content
 
-The Northstar demo app in `sources/samples/northstar-enterprise-app/`
-is already configured to use the root OpenSearch demo defaults. That means the repo-level
-OpenSearch profile can stand in for the app-local compose file when you want one shared demo
-stack.
+| Component | Details |
+|-----------|---------|
+| `SKILL.md` | Routing layer with 8-step guided workflow and 18 MCP tools |
+| `references/` | 18 expert reference files — strategic guidance through platform integration |
+| `data/` | 5 JSON files: incompatibility catalog, analyzer/query mappings, sizing heuristics, workflow prompts |
+| `steering/` | 7 docs: accuracy, incompatibilities, index design, query translation, sizing, stakeholders, metrics interpretation |
 
-For the cleanest demo setup, `tools/demo_search_stack.sh` will start the selected engine profile,
-wait for cluster health, and load the shared Northstar sample corpus into OpenSearch,
-Elasticsearch, or both.
+### Deterministic Tools (`scripts/`)
 
-### As a packaged skill
+| Module | Purpose |
+|--------|---------|
+| `skill.py` | Core advisor: session management, schema/query conversion, checklist, report, Solr inspection |
+| `schema_converter.py` | Solr XML/JSON schema to OpenSearch mappings |
+| `query_converter.py` | Solr query syntax to OpenSearch Query DSL |
+| `mcp_server.py` | FastMCP server exposing 18 tools (conversion, inspection, AWS knowledge) |
+| `solr_inspector.py` | 6 read-only Solr API methods (schema, metrics, luke, mbeans, collections, system) |
+| `storage.py` | Session state persistence (in-memory + file backends) |
+| `report.py` | Migration report generation |
 
-This checkout does not include a built `.skill` artifact, but the source is present in
-`skills/solr-to-opensearch-migration/`. To package it locally:
+### Tests and Evaluation
 
-```bash
-cd skills/solr-to-opensearch-migration
-zip -r ../../solr-to-opensearch-migration.skill SKILL.md references/
-```
+| Suite | Count | What it covers |
+|-------|-------|----------------|
+| Unit tests (`tests/test_*.py`) | ~230 | Converters, skill, storage, MCP, inspector, eval validation |
+| Integration tests (`tests/integration/`) | ~100 | Golden scenarios, artifact integrity, doc consistency |
+| Scenario evals (`tests/scenario-evals/`) | 119 scenarios | 4 datasets: golden, stump-the-chumps, Solr features, advisor interactions |
+| Skill impact (`tests/skill-impact/`) | 4 tiers | T1 deterministic through T4 full LLM+MCP |
+| Conversational eval (`tests/conversational-eval/`) | 12 steps | Sequential multi-turn workflow validation |
+| Connected demo (`tests/connected/`) | Live Solr | Docker-based e-commerce demo with 200K docs |
 
-## Status At A Glance
+### Worked Examples
 
-| Layer | Status |
-|---|---|
-| `SKILL.md` routing layer | Complete |
-| `consulting-methodology.md` | Draft, needs expert review |
-| `migration-strategy.md` | Draft, needs war stories |
-| `aws-opensearch-service.md` | Draft, needs current-version review |
-| `solr-concepts-reference.md` | Draft, needs validation |
-| `01-strategic-guidance.md` | Expanded RFC-aligned draft |
-| `02-pre-migration.md` | Expanded RFC-aligned draft |
-| `03-target-design.md` | Expanded RFC-aligned draft |
-| `04-migration-execution.md` | Expanded RFC-aligned draft |
-| `05-validation-cutover.md` | Expanded RFC-aligned draft |
-| `06-operations.md` | Expanded RFC-aligned draft |
-| `07-platform-integration.md` | Expanded RFC-aligned draft |
-| `09-approval-and-safety-tiers.md` | New governance reference |
-| `10-playbook-artifact-and-review.md` | New playbook/artifact reference |
-| `playbook/` methodology | Intake + interview guides complete, assessment kit organized |
-| `examples/techproducts-demo/` | Complete compact worked example |
-| `examples/northstar-enterprise-demo/` | More realistic enterprise worked example |
-| `examples/drupal-solr-opensearch-demo/` | Drupal migration intake/demo package |
-| `examples/migration-companion-demo/` | Companion-style assessment, playbook, approval, and cutover artifact set |
+| Example | Complexity | Purpose |
+|---------|------------|---------|
+| `examples/techproducts-demo/` | 2/5 | Smallest complete example (teaching) |
+| `examples/hello-migration/` | 1/5 | Minimal migration walkthrough |
+| `examples/drupal-solr-opensearch-demo/` | 3/5 | Drupal-specific intake and assessment |
+| `examples/northstar-enterprise-demo/` | 4/5 | Realistic enterprise migration |
+| `examples/migration-companion-demo/` | N/A | Companion artifact templates (risk register, go/no-go, cutover) |
+
+### Consulting Playbook (`playbook/`)
+
+| File | Purpose |
+|------|---------|
+| `intake-template.md` | Session 1 structured intake (~59 questions) |
+| `interview-guide.md` | Sessions 2-3 expert interview |
+| `assessment-kit/` | 11 reusable templates (risk rubric, go/no-go, success criteria, etc.) |
+
+---
+
+## Dev Loop (for content iteration)
+
+1. **Edit content:** Modify `references/*.md` or `SKILL.md`
+2. **Ad-hoc test:** Ask a question in your Claude session (reference edits are picked up immediately; SKILL.md changes need a session restart)
+3. **Unit tests:** `python3.12 -m pytest tests/ -q`
+4. **Eval baseline check:** `python3.12 tests/scenario-evals/run_eval_tasks.py --baseline tests/scenario-evals/baselines/golden_scenarios_baseline.json --fail-on-regression`
+5. **4-tier eval:** `cd tests/skill-impact && bash run_eval.sh --tier 1` (tiers 2+ require API key)
+6. **Conversational eval:** `cd tests/conversational-eval && bash run_eval.sh` (requires API key)
