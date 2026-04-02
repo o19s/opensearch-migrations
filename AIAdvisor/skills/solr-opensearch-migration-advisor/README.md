@@ -5,14 +5,14 @@ Apache Solr deployments to AWS OpenSearch Service. It combines curated expert
 knowledge, deterministic conversion tools, and structured consulting methodology
 into a single interactive skill.
 
-**Branch:** `feature/one-big-hairy`
+**Branch:** `feature/kitchen-sink`
 
 ---
 
 ## Getting Started
 
 ```bash
-git checkout feature/one-big-hairy
+git checkout feature/kitchen-sink
 cd AIAdvisor/skills/solr-opensearch-migration-advisor
 claude
 ```
