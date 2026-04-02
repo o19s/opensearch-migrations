@@ -1,0 +1,16 @@
+# Session state (per-user, not shareable)
+sessions/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# AI tool local config (per-user permissions, not skill discovery)
+.claude/
+.codex
+
+# TODO: re-enable artifact exclusion once a UI or review workflow is in place.
+#        For now, reports are tracked so stakeholders can browse them in the repo.
+# artifacts/*
+# !artifacts/.gitkeep

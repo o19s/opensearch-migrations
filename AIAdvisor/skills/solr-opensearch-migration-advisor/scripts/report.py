@@ -12,7 +12,9 @@ Unsupported, then Behavioral.  Breaking and Unsupported items also produce
 an explicit "Action required" call-out.
 """
 
-from typing import List, Dict, Any, TYPE_CHECKING
+import os
+from datetime import datetime, timezone
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from storage import Incompatibility, ClientIntegration
@@ -142,3 +144,44 @@ class MigrationReport:
             report.append("- TBD based on further infra analysis.")
 
         return "\n".join(report)
+
+    def save(
+        self,
+        session_id: str,
+        artifacts_dir: Optional[str] = None,
+        *,
+        now: Optional[datetime] = None,
+    ) -> str:
+        """Generate the report and persist it as a timestamped Markdown file.
+
+        Files are written to *artifacts_dir* (default: ``artifacts/`` next to
+        the project root) with the naming convention::
+
+            report-{session_id}-{yyyyMMddHHmm}.md
+
+        Existing reports are never overwritten — each call creates a new file,
+        building a history that a future UI can display.
+
+        Args:
+            session_id:    The migration session identifier (used in the filename).
+            artifacts_dir: Directory for generated artifacts.  Created if absent.
+            now:           Optional override for the current time (useful in tests).
+
+        Returns:
+            The absolute path of the saved report file.
+        """
+        if artifacts_dir is None:
+            artifacts_dir = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "artifacts"
+            )
+        os.makedirs(artifacts_dir, exist_ok=True)
+
+        ts = (now or datetime.now(timezone.utc)).strftime("%Y%m%d%H%M")
+        filename = f"report-{session_id}-{ts}.md"
+        path = os.path.join(artifacts_dir, filename)
+
+        content = self.generate()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(content)
+
+        return os.path.abspath(path)

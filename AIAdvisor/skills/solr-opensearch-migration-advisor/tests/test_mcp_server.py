@@ -11,11 +11,14 @@ from storage import InMemoryStorage
 
 
 @pytest.fixture(autouse=True)
-def in_memory_skill(monkeypatch):
+def in_memory_skill(monkeypatch, tmp_path):
     monkeypatch.setattr(
         _mod,
         "_skill",
-        SolrToOpenSearchMigrationSkill(storage=InMemoryStorage()),
+        SolrToOpenSearchMigrationSkill(
+            storage=InMemoryStorage(),
+            artifacts_dir=str(tmp_path / "artifacts"),
+        ),
     )
 
 

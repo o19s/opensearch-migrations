@@ -7,8 +7,10 @@ from storage import InMemoryStorage, SessionState, Incompatibility
 
 
 @pytest.fixture
-def skill():
-    return SolrToOpenSearchMigrationSkill(storage=InMemoryStorage())
+def skill(tmp_path):
+    return SolrToOpenSearchMigrationSkill(
+        storage=InMemoryStorage(), artifacts_dir=str(tmp_path / "artifacts")
+    )
 
 
 SIMPLE_SCHEMA_XML = """<schema name="test" version="1.6">

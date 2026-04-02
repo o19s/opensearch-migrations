@@ -13,7 +13,9 @@ SIMPLE_SCHEMA_XML = """<schema name="techproducts" version="1.6">
 
 def test_end_to_end_skill_flow_persists_session_and_generates_report(tmp_path):
     storage = FileStorage(str(tmp_path / "sessions"))
-    skill = SolrToOpenSearchMigrationSkill(storage=storage)
+    skill = SolrToOpenSearchMigrationSkill(
+        storage=storage, artifacts_dir=str(tmp_path / "artifacts")
+    )
     session_id = "e2e-techproducts"
 
     schema_response = skill.handle_message(
@@ -45,7 +47,9 @@ def test_end_to_end_skill_flow_persists_session_and_generates_report(tmp_path):
     )
     storage.save(state)
 
-    resumed_skill = SolrToOpenSearchMigrationSkill(storage=storage)
+    resumed_skill = SolrToOpenSearchMigrationSkill(
+        storage=storage, artifacts_dir=str(tmp_path / "artifacts")
+    )
     report = resumed_skill.handle_message("generate report", session_id)
 
     assert "# Solr to OpenSearch Migration Report" in report

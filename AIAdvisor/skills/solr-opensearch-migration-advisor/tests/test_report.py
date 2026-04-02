@@ -1,4 +1,7 @@
 """Tests for report.py"""
+import os
+from datetime import datetime, timezone
+
 import pytest
 
 from report import MigrationReport
@@ -177,3 +180,50 @@ def test_client_section_ordering_library_before_ui():
     ]
     output = MigrationReport(client_integrations=clients).generate()
     assert output.index("Client Libraries") < output.index("Front-end / UI")
+
+
+# ---------------------------------------------------------------------------
+# Report persistence (save)
+# ---------------------------------------------------------------------------
+
+def test_save_creates_file(tmp_path):
+    report = MigrationReport(milestones=["Step A"])
+    path = report.save("sess-1", artifacts_dir=str(tmp_path))
+    assert os.path.exists(path)
+    with open(path, "r") as fh:
+        content = fh.read()
+    assert "Step A" in content
+    assert "# Solr to OpenSearch Migration Report" in content
+
+
+def test_save_filename_contains_session_id_and_timestamp(tmp_path):
+    ts = datetime(2026, 4, 2, 15, 27, tzinfo=timezone.utc)
+    report = MigrationReport()
+    path = report.save("kitchen-sink", artifacts_dir=str(tmp_path), now=ts)
+    assert os.path.basename(path) == "report-kitchen-sink-202604021527.md"
+
+
+def test_save_creates_artifacts_dir_if_absent(tmp_path):
+    target = str(tmp_path / "nested" / "artifacts")
+    report = MigrationReport()
+    path = report.save("s1", artifacts_dir=target)
+    assert os.path.isdir(target)
+    assert os.path.exists(path)
+
+
+def test_save_multiple_reports_coexist(tmp_path):
+    report = MigrationReport()
+    ts1 = datetime(2026, 4, 2, 15, 0, tzinfo=timezone.utc)
+    ts2 = datetime(2026, 4, 2, 16, 0, tzinfo=timezone.utc)
+    p1 = report.save("s1", artifacts_dir=str(tmp_path), now=ts1)
+    p2 = report.save("s1", artifacts_dir=str(tmp_path), now=ts2)
+    assert p1 != p2
+    assert os.path.exists(p1)
+    assert os.path.exists(p2)
+    files = [f for f in os.listdir(tmp_path) if f.endswith(".md")]
+    assert len(files) == 2
+
+
+def test_save_returns_absolute_path(tmp_path):
+    path = MigrationReport().save("s1", artifacts_dir=str(tmp_path))
+    assert os.path.isabs(path)

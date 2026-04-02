@@ -58,10 +58,15 @@ class SolrToOpenSearchMigrationSkill:
         response = skill.handle_message("Now generate the report.", session_id="user-123")
     """
 
-    def __init__(self, storage: Optional[StorageBackend] = None) -> None:
+    def __init__(
+        self,
+        storage: Optional[StorageBackend] = None,
+        artifacts_dir: Optional[str] = None,
+    ) -> None:
         self._schema_converter = SchemaConverter()
         self._query_converter = QueryConverter()
         self._storage = storage or FileStorage()
+        self._artifacts_dir = artifacts_dir
         self._steering_docs = self._load_steering_docs()
         self._aws_knowledge_url = "https://knowledge-mcp.global.api.aws"
 
@@ -337,7 +342,10 @@ class SolrToOpenSearchMigrationSkill:
             incompatibilities=state.incompatibilities,
             client_integrations=state.client_integrations,
         )
-        return report.generate()
+        saved_path = report.save(session_id, artifacts_dir=self._artifacts_dir)
+        markdown = report.generate()
+        markdown += f"\n\n---\n*Report saved to `{saved_path}`*"
+        return markdown
 
     # ------------------------------------------------------------------
     # Live Solr inspection
