@@ -115,11 +115,13 @@ RRE is better suited for CI/CD integration — it runs as part of your build pip
 |---|---|---|
 | **Quepid** | Interactive relevance exploration; stakeholder demos; building judgement sets collaboratively | Not CI/CD-native; requires UI interaction |
 | **RRE** | Automated regression testing; integrating relevance checks into deploys | Steeper setup; less interactive |
+| **Querqy** | Query rewriting (synonyms, boosts, filters, deletes) managed as rules rather than code. Platform-agnostic rule engine with Solr, ES, and OpenSearch plugins. | Engine-native rules need rewriting during migration. AWS Managed requires custom plugin upload. |
+| **SMUI** | Web UI for merchandisers to manage Querqy rules without editing files. Supports OpenSearch backend. | Must reconfigure backend + audit rules for Solr-native syntax after migration. |
 | **Search-Collector** | Online measurement (real traffic); A/B test logging | Requires production integration; lags offline tools |
 | **A/B testing** | Post-cutover live comparison | Not usable during migration phase |
 | **Interleaving** | Online comparison with smaller user exposure than A/B | Complex to implement correctly |
 
-**Recommended default:** Quepid for offline measurement during migration; add RRE for CI/CD once the new engine is in staging. Ship online measurement (Search-Collector or A/B) as a post-cutover workstream.
+**Recommended default:** Quepid for offline measurement during migration; add RRE for CI/CD once the new engine is in staging. If the client uses Querqy, port and validate rules *before* baselining — otherwise measurements don't reflect production behavior. Ship online measurement (Search-Collector or A/B) as a post-cutover workstream.
 
 ---
 

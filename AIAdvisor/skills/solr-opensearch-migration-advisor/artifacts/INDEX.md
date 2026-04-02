@@ -1,6 +1,6 @@
 # Migration Artifacts Index
 
-**Project:** Enterprise Solr 7 to OpenSearch Migration
+**Project:** Enterprise Solr 8 (Chorus) to OpenSearch Migration
 **Created:** 2026-04-02
 
 ---
@@ -43,6 +43,8 @@ Examples:
 |------|-------------|----------|--------|
 | [P1-01_discovery-question-matrix.md](P1-01_discovery-question-matrix.md) | 200-item risk discovery matrix across 20 groups. Use as comprehensive reference during intake. | All team | Ready |
 | [P1-02_intake-interview-template.md](P1-02_intake-interview-template.md) | 66-question structured interview guide for stakeholder sessions. Fill in live during meetings. | Project lead | Ready |
+| [P1-03_chorus-source-audit.md](P1-03_chorus-source-audit.md) | Best-guess source config audit: schema, solrconfig, Querqy, SMUI, dataset. ~30 assumptions to verify. | Solr expert + OS expert | Assumed — needs verification |
+| [P1-04_querqy-smui-migration-track.md](P1-04_querqy-smui-migration-track.md) | Querqy + SMUI investigation: plugin compat, SMUI deploy script, AWS constraints, decision tree, 15-task execution plan. | OS expert + Sys admin | Ready |
 
 ### P2: Build & Validate
 
@@ -77,10 +79,11 @@ This is the full list of artifacts the migration will produce. Items are created
 ### P1: Audit & Design
 - [x] P1-01 — Discovery question matrix (200-item risk reference)
 - [x] P1-02 — Intake interview template (66-question session guide)
-- [ ] P1-03 — Schema conversion report (after schema.xml is provided)
-- [ ] P1-04 — Query translation report (after top queries are provided)
-- [ ] P1-05 — Incompatibility register (auto-generated from schema + query analysis)
-- [ ] P1-06 — Complexity scorecard (6-dimension scoring)
+- [x] P1-03 — Chorus source audit (schema, solrconfig, Querqy, SMUI, dataset — assumed, awaiting verification)
+- [x] P1-04 — Querqy + SMUI migration track (plugin compat, deploy script, AWS decision tree, execution plan)
+- [ ] P1-04b — Query translation report (after top queries are confirmed)
+- [ ] P1-05 — Incompatibility register (preliminary in P1-03 §8, full version after verification)
+- [ ] P1-06 — Complexity scorecard (preliminary in P1-03 §7, full version after verification)
 - [ ] P1-07 — Infrastructure sizing recommendation
 - [ ] P1-08 — Client integration inventory
 - [ ] P1-09 — Risk register
@@ -112,6 +115,7 @@ This is the full list of artifacts the migration will produce. Items are created
 ## Quick Start
 
 **New to this project?** Read these in order:
-1. `P1-01` — Scan the 20 risk groups to understand what we're watching for
-2. `P1-02` — Use this to run your first stakeholder session
-3. `INDEX.md` — Come back here to find anything else
+1. `P1-03` — Start here: what we think we're migrating (Chorus source audit)
+2. `P1-01` — Scan the 20 risk groups to understand what we're watching for
+3. `P1-02` — Use this to run your first stakeholder session
+4. `INDEX.md` — Come back here to find anything else

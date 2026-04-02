@@ -144,6 +144,45 @@
       "recommendation": "Rewrite using OpenSearch collapse parameter with inner_hits. Test thoroughly."
     },
     {
+      "id": "QUERY-012",
+      "area": "query",
+      "feature": "Querqy query rewriting plugin",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Querqy plugin integration differs between Solr and OpenSearch. Solr loads via solrconfig.xml JAR; OpenSearch uses bin/opensearch-plugin install. Engine-native rules (Solr fq syntax in filters/boosts) must be rewritten to OpenSearch Query DSL. Generic Querqy rules port without changes. AWS Managed OpenSearch requires custom plugin upload (2.15+, not available on Serverless).",
+      "detection": {
+        "solrconfig_xml": ["querqy", "QuerqyRewriterRequestHandler", "QuerqyDismaxQParserPlugin"],
+        "code_patterns": ["querqy", "QuerqyRewriter", "rules.txt", "common-rules"]
+      },
+      "recommendation": "Audit all Querqy rules for engine-native syntax. Port generic rules as-is. Rewrite Solr-specific filter/boost expressions to OpenSearch Query DSL. Install querqy-opensearch plugin. If using AWS Managed, verify custom plugin support for your region and version. See steering/relevance_tooling.md."
+    },
+    {
+      "id": "QUERY-013",
+      "area": "query",
+      "feature": "SMUI (Search Management UI) for Querqy rules",
+      "category": "Behavioral",
+      "severity": "medium",
+      "description": "SMUI supports OpenSearch as a backend target, but connection settings and rule publishing must be reconfigured. Rules containing Solr-native syntax will fail until rewritten.",
+      "detection": {
+        "deployment": ["SMUI", "smui", "search-management-ui"]
+      },
+      "recommendation": "Reconfigure SMUI backend to OpenSearch. Audit all published rules for Solr-native syntax. Verify rule deployment workflow end-to-end in staging before cutover."
+    },
+    {
+      "id": "QUERY-014",
+      "area": "query",
+      "feature": "Learning to Rank (LTR) plugin",
+      "category": "Breaking",
+      "severity": "high",
+      "description": "Solr LTR module and OpenSearch LTR plugin have different APIs, feature store formats, and model definition syntax. Models cannot be transferred directly. Feature values may differ between engines due to scoring and analyzer differences, often requiring retraining.",
+      "detection": {
+        "solrconfig_xml": ["LTRQParserPlugin", "LTRFeatureLoggerTransformerFactory"],
+        "query_params": ["rq={!ltr", "fl=features:[features"],
+        "code_patterns": ["LTRScoringQuery", "FeatureStore"]
+      },
+      "recommendation": "Re-export and re-register models in OpenSearch LTR format. Audit feature sets for Solr-specific field references. Plan for retraining after Querqy rules and analyzers are stable on OpenSearch."
+    },
+    {
       "id": "SCHEMA-001",
       "area": "schema",
       "feature": "Analyzer chains not converted",
