@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-04-03T040004Z",
+  "git_sha": "5e3389af9",
+  "mode": "demo",
+  "steering_hashes": {
+    "accuracy.md": "af7ee5944e50",
+    "incompatibilities.md": "f270cc75cae0",
+    "index_design.md": "100019aae3c8",
+    "query_translation.md": "d905094cb821",
+    "relevance_tooling.md": "2adfa3847a60",
+    "sizing.md": "049269e1685e",
+    "stakeholders.md": "e3b0c44298fc"
+  },
+  "llm_backend": "auto",
+  "ollama_model": null,
+  "bedrock_model_id": null
+}
