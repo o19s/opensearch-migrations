@@ -4,20 +4,39 @@ Every test run creates a timestamped session directory under
 tests/artifacts/ and symlinks it as tests/artifacts/latest/.
 Pytest junit XML, LLM response reports, and run metadata all land
 in the same session directory.
+
+Modes:
+  --mode=test (default)  Artifacts stay local (gitignored).
+  --mode=demo            Also copies human-readable reports to
+                         tests/reports/ (tracked in git), commits
+                         them, and prints the push command.
 """
 
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 ARTIFACTS_ROOT = Path(__file__).resolve().parent / "artifacts"
+REPORTS_ROOT = Path(__file__).resolve().parent / "reports"
 STEERING_DIR = Path(__file__).resolve().parents[1] / "steering"
+SKILL_ROOT = Path(__file__).resolve().parents[1]
 
 
 def pytest_addoption(parser):
+    parser.addoption(
+        "--mode",
+        default="test",
+        choices=["test", "demo"],
+        help=(
+            "Run mode. 'test' keeps artifacts local (gitignored). "
+            "'demo' also copies human-readable reports to tests/reports/ "
+            "(tracked in git), commits them, and prints the push command."
+        ),
+    )
     parser.addoption(
         "--llm-backend",
         default="auto",
@@ -86,6 +105,7 @@ def pytest_configure(config):
     # Store on config so fixtures can find it
     config._artifact_session_dir = session_dir
     config._artifact_timestamp = ts
+    config._run_mode = config.getoption("--mode")
 
     # Rewrite junitxml into the session directory
     config.option.xmlpath = str(session_dir / "pytest-results.xml")
@@ -99,6 +119,7 @@ def pytest_configure(config):
     metadata = {
         "timestamp": ts,
         "git_sha": _git_sha(),
+        "mode": config._run_mode,
         "steering_hashes": _steering_hashes(),
         "llm_backend": config.getoption("--llm-backend"),
         "ollama_model": config.getoption("--ollama-model"),
@@ -107,3 +128,71 @@ def pytest_configure(config):
     (session_dir / "run-metadata.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
     )
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """In demo mode, copy human-readable reports to the tracked
+    tests/reports/ directory and commit them."""
+    config = session.config
+    if getattr(config, "_run_mode", "test") != "demo":
+        return
+
+    session_dir = config._artifact_session_dir
+    ts = config._artifact_timestamp
+
+    # Find all .md reports in the session directory
+    reports = list(session_dir.glob("*.md"))
+    if not reports:
+        return
+
+    # Copy to tracked reports directory
+    report_dir = REPORTS_ROOT / ts
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    copied = []
+    for report in reports:
+        dest = report_dir / report.name
+        shutil.copy2(report, dest)
+        copied.append(dest)
+
+    # Also copy run metadata for context
+    metadata_src = session_dir / "run-metadata.json"
+    if metadata_src.exists():
+        shutil.copy2(metadata_src, report_dir / "run-metadata.json")
+
+    # Update latest symlink in reports/
+    latest = REPORTS_ROOT / "latest"
+    latest.unlink(missing_ok=True)
+    latest.symlink_to(ts)
+
+    # Git commit
+    try:
+        # Stage the reports directory
+        subprocess.run(
+            ["git", "add", str(report_dir), str(latest)],
+            cwd=str(SKILL_ROOT),
+            check=True,
+            capture_output=True,
+        )
+        commit_msg = f"Demo report: guidance impact test results ({ts})"
+        subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=str(SKILL_ROOT),
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError:
+        # Commit may fail if nothing changed or git is in a weird state
+        pass
+
+    # Print next steps
+    print()
+    print("=" * 60)
+    print("DEMO MODE: Report committed to tests/reports/")
+    print(f"  {report_dir}/")
+    for f in copied:
+        print(f"    {f.name}")
+    print()
+    print("To share with the team:")
+    print("  git push")
+    print("=" * 60)

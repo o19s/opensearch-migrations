@@ -26,8 +26,11 @@ without our `steering/` content, then check whether specific expert terms
 appear in the response.
 
 ```bash
-# Auto-detect backend (tries Bedrock, then local Ollama, skips if neither)
+# Test mode (default): artifacts stay local, nothing committed
 pytest tests/test_guidance_impact.py -v
+
+# Demo mode: also commits human-readable report to tests/reports/
+pytest tests/test_guidance_impact.py -v --mode=demo
 
 # Explicitly require Ollama (fails if not running)
 pytest tests/test_guidance_impact.py -v --llm-backend=ollama
@@ -40,17 +43,30 @@ Every test run (including unit tests) creates a session directory under
 `tests/artifacts/<timestamp>/` and symlinks `tests/artifacts/latest/`.
 
 ```
-tests/artifacts/
+tests/artifacts/          (gitignored — local only)
   2026-04-03T015624Z/
     pytest-results.xml           # standard junit XML
-    guidance-impact-report.md    # LLM responses + concept scorecard
+    guidance-impact-report.md    # LLM responses + term scorecard
     run-metadata.json            # git SHA, steering file hashes, backend config
+  latest -> 2026-04-03T015624Z/
+```
+
+In `--mode=demo`, human-readable reports are also copied to a tracked
+location and committed:
+
+```
+tests/reports/            (tracked in git — shareable)
+  2026-04-03T015624Z/
+    guidance-impact-report.md    # same report, visible on GitHub
+    run-metadata.json
   latest -> 2026-04-03T015624Z/
 ```
 
 Session directories accumulate so you can compare runs over time.
 The `run-metadata.json` includes SHA-256 hashes of each steering file,
 so you can trace exactly which guidance version produced which result.
+
+**Latest demo report:** [tests/reports/latest/guidance-impact-report.md](reports/latest/guidance-impact-report.md)
 
 #### Why This Matters
 
