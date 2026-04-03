@@ -29,6 +29,10 @@ dev = [
     "pyyaml>=6.0",
     "mcp",
 ]
+eval = [
+    "claude-agent-sdk==0.1.53",
+    "dotenv==0.9.9",
+]
 
 [tool.setuptools.packages.find]
 where = ["scripts"]
@@ -36,3 +40,5 @@ where = ["scripts"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["scripts", "tests/scenario-evals"]
+# junitxml path is rewritten per-session by tests/conftest.py
+addopts = "--junitxml=tests/artifacts/latest/pytest-results.xml"

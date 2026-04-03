@@ -14,7 +14,8 @@
       "Bash(curl -sL https://raw.githubusercontent.com/querqy/chorus/main/README.md)",
       "Bash(curl -sL https://raw.githubusercontent.com/querqy/chorus/main/docker-compose.yml)",
       "Bash(curl -s https://api.github.com/repos/querqy/chorus)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(python -m pytest tests/test_skill.py tests/test_schema_converter.py tests/test_query_converter.py -v --tb=short)"
     ]
   }
 }

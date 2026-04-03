@@ -10,6 +10,12 @@ __pycache__/
 .claude/
 .codex
 
+# Environment
+.env
+
+# Test artifacts (generated per-run, not committed)
+tests/artifacts/
+
 # TODO: re-enable artifact exclusion once a UI or review workflow is in place.
 #        For now, reports are tracked so stakeholders can browse them in the repo.
 # artifacts/*
