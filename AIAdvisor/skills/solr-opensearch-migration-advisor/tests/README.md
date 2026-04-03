@@ -110,3 +110,58 @@ model access. No additional setup needed if `boto3` can authenticate.
 
 End-to-end evaluations using Claude as both advisor and judge.
 See `tests/evals/README.md`.
+
+---
+
+## How to Verify a Change
+
+After making a material change (steering content, skill code, converters,
+test infrastructure), follow these steps to confirm it works.
+
+### Changed steering/ or references/ files
+
+These files shape what the LLM says. Verify the guidance still has
+measurable impact:
+
+```bash
+cd AIAdvisor/skills/solr-opensearch-migration-advisor
+pytest tests/test_guidance_impact.py -v
+```
+
+Then open the report:
+
+```bash
+cat tests/artifacts/latest/guidance-impact-report.md
+# or open in your IDE / GitHub preview
+```
+
+**What to check:**
+1. Header row: Delta should be positive (guided > bare)
+2. Test Results table: all rows should show ✅
+3. Expected Term Scorecard: guided column should show ✅ for at least 3/4 terms
+4. If any terms show ❌, read the Diagnosis section for LLM-suggested fixes
+
+### Changed skill code (converters, report generator, MCP tools)
+
+```bash
+cd AIAdvisor/skills/solr-opensearch-migration-advisor
+pytest tests/test_schema_converter.py tests/test_query_converter.py tests/test_skill.py tests/test_report.py -v
+```
+
+**What to check:**
+1. All tests pass
+2. Open `tests/artifacts/latest/pytest-results.xml` — zero failures
+
+### Changed both steering and code
+
+Run both checks:
+
+```bash
+cd AIAdvisor/skills/solr-opensearch-migration-advisor
+pytest -v
+```
+
+**What to check:**
+1. Unit tests: all pass
+2. Guidance impact: open `tests/artifacts/latest/guidance-impact-report.md`
+   and confirm Delta is positive with no ❌ in the test results
