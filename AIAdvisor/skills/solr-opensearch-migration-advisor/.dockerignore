@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+.venv
+.env
+.env.*
+sessions/
+tests/evals/
+tests/conversational-eval/
+tests/scenario-evals/
+tests/reports/
+tests/artifacts/
+.claude/
+.git

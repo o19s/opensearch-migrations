@@ -1,0 +1,27 @@
+services:
+  advisor:
+    build: .
+    volumes:
+      - advisor-sessions:/app/sessions
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASSWORD=admin
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.0
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\\|yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  advisor-sessions:
