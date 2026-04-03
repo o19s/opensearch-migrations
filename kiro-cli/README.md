@@ -45,6 +45,22 @@ curl -L https://github.com/<username>/opensearch-migrations/archive/refs/heads/<
 
 Within a Kiro session, use `/save` to save your conversation.
 
+## Agents
+
+| Agent | Description |
+|---|---|
+| `opensearch-migration` | Orchestrates OpenSearch migrations using Migration Assistant on EKS |
+| `solr-opensearch-migration` | Migrates Apache Solr collections to OpenSearch indexes (schema, queries, sizing) |
+
+To run a specific agent:
+```bash
+# EKS Migration Assistant agent (default)
+./gradlew :kiro-cli:kiroAgent
+
+# Solr-to-OpenSearch migration advisor
+./gradlew :kiro-cli:kiroAgent -PagentName=solr-opensearch-migration
+```
+
 ## Directory Structure
 
 ```
@@ -52,7 +68,9 @@ kiro-cli/
 ├── build.gradle
 ├── README.md
 └── kiro-cli-config/
-    ├── agents/opensearch-migration.json
+    ├── agents/
+    │   ├── opensearch-migration.json
+    │   └── solr-opensearch-migration.json
     ├── prompts/start.md
     ├── settings/hooks.json
     └── steering/
