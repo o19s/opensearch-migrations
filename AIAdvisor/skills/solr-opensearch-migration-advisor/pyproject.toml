@@ -42,3 +42,6 @@ testpaths = ["tests"]
 pythonpath = ["scripts", "tests/scenario-evals"]
 # junitxml path is rewritten per-session by tests/conftest.py
 addopts = "--junitxml=tests/artifacts/latest/pytest-results.xml"
+markers = [
+    "extended: above-and-beyond tests (run with --extended)",
+]

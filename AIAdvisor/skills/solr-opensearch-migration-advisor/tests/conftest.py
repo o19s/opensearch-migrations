@@ -28,6 +28,15 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 
 def pytest_addoption(parser):
     parser.addoption(
+        "--extended",
+        action="store_true",
+        default=False,
+        help=(
+            "Include 'above and beyond' tests in test_deliverables.py. "
+            "These go deeper than the AWS deliverable requirements."
+        ),
+    )
+    parser.addoption(
         "--mode",
         default="test",
         choices=["test", "demo"],
@@ -67,6 +76,19 @@ def pytest_addoption(parser):
         default=None,
         help="AWS region for Bedrock (default: from AWS_DEFAULT_REGION or us-east-1)",
     )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip tests marked @extended unless --extended is passed."""
+    import pytest as _pytest
+    if config.getoption("--extended"):
+        return
+    skip_extended = _pytest.mark.skip(
+        reason="Extended test — run with --extended to include"
+    )
+    for item in items:
+        if "extended" in item.keywords:
+            item.add_marker(skip_extended)
 
 
 # ── session artifact directory ───────────────────────────────────────────
