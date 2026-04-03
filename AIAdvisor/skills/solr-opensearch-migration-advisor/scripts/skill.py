@@ -26,6 +26,12 @@ from schema_converter import SchemaConverter
 from query_converter import QueryConverter
 from storage import StorageBackend, FileStorage, SessionState
 from report import MigrationReport
+from artifact_generator import (
+    generate_progress_dashboard,
+    generate_intake_worksheet,
+    generate_incompatibility_tracker,
+    _save as _save_artifact,
+)
 
 
 class SolrToOpenSearchMigrationSkill:
@@ -56,10 +62,15 @@ class SolrToOpenSearchMigrationSkill:
         response = skill.handle_message("Now generate the report.", session_id="user-123")
     """
 
-    def __init__(self, storage: Optional[StorageBackend] = None) -> None:
+    def __init__(
+        self,
+        storage: Optional[StorageBackend] = None,
+        artifacts_dir: Optional[str] = None,
+    ) -> None:
         self._schema_converter = SchemaConverter()
         self._query_converter = QueryConverter()
         self._storage = storage or FileStorage()
+        self._artifacts_dir = artifacts_dir
         self._steering_docs = self._load_steering_docs()
         self._aws_knowledge_url = "https://knowledge-mcp.global.api.aws"
 
@@ -86,6 +97,19 @@ class SolrToOpenSearchMigrationSkill:
 
     def _save_session(self, state: SessionState) -> None:
         self._storage.save(state)
+
+    def _update_artifacts(self, state: SessionState) -> None:
+        """Regenerate stakeholder-facing artifacts from current session state."""
+        has_data = state.progress > 0 or state.facts or state.incompatibilities
+        if not has_data:
+            return
+        generate_progress_dashboard(state, artifacts_dir=self._artifacts_dir)
+        if state.progress >= 1 or state.facts.get("schema_migrated"):
+            generate_intake_worksheet(state, artifacts_dir=self._artifacts_dir)
+        if state.incompatibilities:
+            generate_incompatibility_tracker(
+                state, artifacts_dir=self._artifacts_dir
+            )
 
     def _query_aws_knowledge(self, query: str, topic: str = "general") -> str:
         """Query the AWS Knowledge MCP Server for accurate AWS information.
@@ -149,6 +173,7 @@ class SolrToOpenSearchMigrationSkill:
         response = self._dispatch(message, state, session_id)
         state.append_turn(message, response)
         self._save_session(state)
+        self._update_artifacts(state)
         return response
 
     def _dispatch(self, message: str, state: SessionState, session_id: str) -> str:
@@ -316,7 +341,12 @@ class SolrToOpenSearchMigrationSkill:
             incompatibilities=state.incompatibilities,
             client_integrations=state.client_integrations,
         )
-        return report.generate()
+        markdown = report.generate()
+        saved_path = _save_artifact(
+            markdown, "report", session_id, self._artifacts_dir, None
+        )
+        markdown += f"\n\n---\n*Report saved to `{saved_path}`*"
+        return markdown
 
     # ------------------------------------------------------------------
     # Schema conversion
