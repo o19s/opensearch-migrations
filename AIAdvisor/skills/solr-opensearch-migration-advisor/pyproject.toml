@@ -38,3 +38,5 @@ where = ["scripts"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["scripts"]
+# junitxml path is rewritten per-session by tests/conftest.py
+addopts = "--junitxml=tests/artifacts/latest/pytest-results.xml"
