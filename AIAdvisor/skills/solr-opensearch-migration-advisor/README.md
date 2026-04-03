@@ -100,8 +100,19 @@ a phase you haven't done before.
 ## Running Tests
 
 ```bash
-python3.12 -m pytest tests/ -q          # 345 tests, all passing
+pytest tests/ -q                                # unit tests (fast, no dependencies)
+pytest tests/test_guidance_impact.py -v          # guidance impact tests (needs Ollama)
 ```
+
+After any test run, open the human-readable report:
+
+```
+tests/artifacts/latest/guidance-impact-report.md
+```
+
+See [tests/README.md](tests/README.md) for full details on test tiers,
+backend options, model comparison, and the "How to Verify a Change"
+checklist.
 
 ---
 
@@ -161,9 +172,10 @@ python3.12 -m pytest tests/ -q          # 345 tests, all passing
 
 ## Dev Loop (for content iteration)
 
-1. **Edit content:** Modify `references/*.md` or `SKILL.md`
+1. **Edit content:** Modify `steering/*.md`, `references/*.md`, or `SKILL.md`
 2. **Ad-hoc test:** Ask a question in your Claude session (reference edits are picked up immediately; SKILL.md changes need a session restart)
-3. **Unit tests:** `python3.12 -m pytest tests/ -q`
-4. **Eval baseline check:** `python3.12 tests/scenario-evals/run_eval_tasks.py --baseline tests/scenario-evals/baselines/golden_scenarios_baseline.json --fail-on-regression`
-5. **4-tier eval:** `cd tests/skill-impact && bash run_eval.sh --tier 1` (tiers 2+ require API key)
-6. **Conversational eval:** `cd tests/conversational-eval && bash run_eval.sh` (requires API key)
+3. **Unit tests:** `pytest tests/ -q`
+4. **Guidance impact check:** `pytest tests/test_guidance_impact.py -v` then open `tests/artifacts/latest/guidance-impact-report.md` — confirm Delta is positive and no ❌ in test results
+5. **Eval baseline check:** `python3.12 tests/scenario-evals/run_eval_tasks.py --baseline tests/scenario-evals/baselines/golden_scenarios_baseline.json --fail-on-regression`
+6. **4-tier eval:** `cd tests/skill-impact && bash run_eval.sh --tier 1` (tiers 2+ require API key)
+7. **Conversational eval:** `cd tests/conversational-eval && bash run_eval.sh` (requires API key)
