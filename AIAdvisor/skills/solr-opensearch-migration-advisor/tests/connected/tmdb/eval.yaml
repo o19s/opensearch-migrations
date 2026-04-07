@@ -1,0 +1,43 @@
+description: "TMDB text-heavy scenario — agent inspects live Solr and plans migration"
+
+providers:
+  - id: 'file://../../evals/claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+# LLM-as-judge for rubric assertions
+defaultTest:
+  options:
+    provider:
+      id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      config:
+        region: us-east-1
+        max_tokens: 256
+
+prompts:
+  - id: tmdb-migration-prompt
+    label: "TMDB migration advisor"
+    raw: "{{query}}"
+
+tests:
+  - description: "Agent produces migration plan for TMDB text-heavy schema"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a Search Relevance Engineer. I need to migrate our TMDB movie search
+        from Solr 8.11 to OpenSearch. Solr is running at http://localhost:38984
+        with a collection called "tmdb".
+        Please inspect the schema and produce a migration plan with OpenSearch
+        index mappings. Pay special attention to text analysis chains, copyFields,
+        and synonym handling.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response produces an OpenSearch index mapping and migration plan that:
+          (1) maps text-heavy fields (title, overview, cast, directors) to OpenSearch text type;
+          (2) addresses copyField directives (e.g. text_all catch-all field);
+          (3) flags synonym configuration as requiring migration;
+          (4) notes Querqy or custom plugin dependencies if detected.
+        metric: tmdb-migration-plan-quality
