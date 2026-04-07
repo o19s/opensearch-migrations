@@ -15,7 +15,8 @@ def solr_get(path):
 
 
 def test_solr_reachable():
-    assert "lucene" in solr_get("/solr/admin/info/system?wt=json")
+    data = solr_get("/solr/techproducts/admin/ping?wt=json")
+    assert data["status"] == "OK"
 
 
 def test_techproducts_collection_exists():
