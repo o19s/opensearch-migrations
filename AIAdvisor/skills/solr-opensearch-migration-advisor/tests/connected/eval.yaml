@@ -1,0 +1,37 @@
+description: "Connected eval — agent inspects live Solr and produces a migration plan"
+
+providers:
+  - id: 'file://../evals/claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  options:
+    provider:
+      id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      config:
+        region: us-east-1
+        max_tokens: 256
+
+prompts:
+  - id: connected-prompt
+    label: "Migration advisor with live Solr"
+    raw: "{{query}}"
+
+tests:
+  - description: "Agent produces migration plan from live Solr inspection"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I need to migrate my Solr collection to OpenSearch. I'm a Search Engineer.
+        Solr is running at http://localhost:38983 with a collection called "techproducts".
+        Please inspect the schema and produce a migration plan with OpenSearch index mappings.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response produces an OpenSearch index mapping derived from inspecting the live Solr
+          instance. It maps Solr field types to OpenSearch equivalents and flags the TF-IDF
+          to BM25 similarity change.
+        metric: migration-plan-quality

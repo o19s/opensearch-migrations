@@ -1,0 +1,20 @@
+# Minimal Solr with TechProducts for connected eval tests.
+# Starts Solr 8 and creates the techproducts example collection.
+#
+# Usage:
+#   docker compose up -d
+#   # wait ~15s for health check, then run evals
+#   docker compose down -v
+
+services:
+  solr:
+    image: solr:8
+    ports:
+      - "38983:8983"
+    command: solr-precreate techproducts
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/techproducts/admin/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
