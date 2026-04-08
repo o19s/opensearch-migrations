@@ -98,11 +98,15 @@ tests:
         metric: field-mapping
       - type: llm-rubric
         value: >-
-          Response addresses Solr copyField directives and explains how to
-          replicate them in OpenSearch (e.g. using copy_to).
+          Response mentions Solr copyField and explains the OpenSearch equivalent
+          (copy_to) for the text_all catch-all field.
         metric: copy-fields
       - type: llm-rubric
         value: >-
-          Response flags synonym configuration as requiring migration and notes
-          the Querqy plugin dependency with its OpenSearch equivalent or alternative.
-        metric: synonyms-and-plugins
+          Response mentions that synonym files need to be migrated to OpenSearch.
+        metric: synonyms
+      - type: llm-rubric
+        value: >-
+          Response identifies Querqy as a plugin dependency and mentions
+          that an OpenSearch equivalent exists (querqy-opensearch).
+        metric: querqy-plugin

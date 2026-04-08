@@ -14,3 +14,4 @@
 - Custom Request Handlers: No direct equivalent; must rebuild using standard Search API + Client-side logic.
 - Search Components: No equivalent; logic must be moved to the client or a custom OpenSearch plugin.
 - Solr Power: No equivalent; use standard OpenSearch feature set.
+- Querqy: The Solr query rewriting plugin has an OpenSearch equivalent — [Querqy for OpenSearch](https://github.com/querqy/querqy-opensearch). Migration requires installing the plugin and converting rewriter configs. Flag this as a critical dependency when detected (e.g. querqy JARs in lib/, QuerqyRewriterRequestHandler in solrconfig.xml).
