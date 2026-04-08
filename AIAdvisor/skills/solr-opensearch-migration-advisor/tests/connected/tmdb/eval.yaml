@@ -88,9 +88,21 @@ tests:
     assert:
       - type: llm-rubric
         value: >-
-          Response produces an OpenSearch index mapping and migration plan that:
-          (1) maps text-heavy fields (title, overview, cast, directors) to OpenSearch text type;
-          (2) addresses copyField directives (e.g. text_all catch-all field) and how to replicate in OpenSearch;
-          (3) flags synonym configuration as requiring migration;
-          (4) notes Querqy plugin dependency and its OpenSearch equivalent or alternative.
-        metric: tmdb-migration-plan-quality
+          Response includes a complete OpenSearch index mapping as a JSON code block
+          that could be used in a PUT request.
+        metric: json-mapping
+      - type: llm-rubric
+        value: >-
+          Response maps text-heavy fields (title, overview, cast, directors) to
+          OpenSearch text type with appropriate analyzers.
+        metric: field-mapping
+      - type: llm-rubric
+        value: >-
+          Response addresses Solr copyField directives and explains how to
+          replicate them in OpenSearch (e.g. using copy_to).
+        metric: copy-fields
+      - type: llm-rubric
+        value: >-
+          Response flags synonym configuration as requiring migration and notes
+          the Querqy plugin dependency with its OpenSearch equivalent or alternative.
+        metric: synonyms-and-plugins
