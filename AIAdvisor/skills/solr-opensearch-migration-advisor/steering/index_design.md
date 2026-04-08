@@ -15,6 +15,12 @@
 - `solr.DateField` → `date`.
 - `solr.BoolField` → `boolean`.
 
+## Output Format
+- Always include a complete, valid OpenSearch index mapping as a JSON code block.
+- The JSON mapping must be copy-pasteable into a `PUT /<index>` request body.
+- Do not describe field mappings only in prose — the JSON mapping is the primary deliverable.
+- Annotate the JSON with comments or follow-up prose explaining non-obvious type decisions.
+
 ## Analysis
 - Solr Tokenizers/Filters → OpenSearch Analysers/Tokenizers/Filters.
 - `copyField` → `copy_to`.
