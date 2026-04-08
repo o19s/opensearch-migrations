@@ -6,14 +6,10 @@ providers:
     config:
       timeout: 3000000
 
-# LLM-as-judge for rubric assertions
+# LLM-as-judge: cascades Bedrock → Ollama → fail-fast with guidance
 defaultTest:
   options:
-    provider:
-      id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
-      config:
-        region: us-east-1
-        max_tokens: 256
+    provider: 'file://../../evals/judge_provider.py'
 
 prompts:
   - id: tmdb-migration-prompt
