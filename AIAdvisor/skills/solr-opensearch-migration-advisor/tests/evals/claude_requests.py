@@ -1,5 +1,17 @@
-from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
+import asyncio
 import os
+
+# Suppress "Loop ... is closed" stderr noise from child process watchers
+_original_del = asyncio.unix_events._UnixSelectorEventLoop.__del__ if hasattr(asyncio, "unix_events") else None
+if _original_del:
+    def _quiet_del(self):
+        try:
+            _original_del(self)
+        except Exception:
+            pass
+    asyncio.unix_events._UnixSelectorEventLoop.__del__ = _quiet_del
+
+from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
 
 script_path = "/".join(os.path.realpath(__file__).split("/")[:-1])
 cwd = f"{script_path}/../../../solr-opensearch-migration-advisor"
