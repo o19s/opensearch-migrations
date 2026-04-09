@@ -1,0 +1,126 @@
+description: "Scenario 3: Media search — highlighting, field weighting, storage, reindexing"
+
+providers:
+  - id: 'file://../../evals/claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  options:
+    provider:
+      id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      config:
+        region: us-east-1
+        max_tokens: 256
+
+prompts:
+  - id: tmdb-media-search-prompt
+    label: "TMDB media search migration"
+    raw: "{{query}}"
+
+tests:
+
+  - description: "Introduce media search migration with highlighting and field weighting needs"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a Search Relevance Engineer. I need to migrate our TMDB movie search
+        from Solr 8.11 to OpenSearch.
+
+        Our search is heavily reliant on highlighting for result snippets — users
+        see title and overview highlights on every result. We also use eDisMax
+        with field weighting across title, overview, cast, and directors to get
+        the right "discovery" feel.
+
+        Can you help plan this migration?
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response acknowledges the migration need and asks clarifying questions
+          about the schema, highlighting configuration, or field boost setup.
+        metric: tmdb-intro
+
+  - description: "Provide schema and query config — expect highlighting and field weighting guidance"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Here is our Solr schema (core fields):
+
+        <schema name="tmdb" version="1.6">
+          <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+          <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+          <fieldType name="pfloat" class="solr.FloatPointField" docValues="true"/>
+          <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+          <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+            <analyzer type="index">
+              <tokenizer class="solr.StandardTokenizerFactory"/>
+              <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt"/>
+              <filter class="solr.LowerCaseFilterFactory"/>
+            </analyzer>
+            <analyzer type="query">
+              <tokenizer class="solr.StandardTokenizerFactory"/>
+              <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt"/>
+              <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
+              <filter class="solr.LowerCaseFilterFactory"/>
+            </analyzer>
+          </fieldType>
+
+          <field name="id" type="string" indexed="true" stored="true" required="true"/>
+          <field name="title" type="text_general" indexed="true" stored="true" termVectors="true"/>
+          <field name="overview" type="text_general" indexed="true" stored="true"/>
+          <field name="tagline" type="text_general" indexed="true" stored="true"/>
+          <field name="cast" type="text_general" indexed="true" stored="true" multiValued="true"/>
+          <field name="directors" type="text_general" indexed="true" stored="true" multiValued="true"/>
+          <field name="genres" type="text_general" indexed="true" stored="true" multiValued="true"/>
+          <field name="release_date" type="pdate" indexed="true" stored="true"/>
+          <field name="vote_average" type="pfloat" indexed="true" stored="true"/>
+          <field name="vote_count" type="pint" indexed="true" stored="true"/>
+        </schema>
+
+        And our eDisMax query configuration:
+
+        defType=edismax
+        qf=title^10 overview^5 cast^3 directors^3 tagline^2
+        pf=title^15 overview^8
+        hl=true
+        hl.fl=title,overview,tagline
+        hl.fragsize=150
+        hl.snippets=3
+        hl.simple.pre=<em>
+        hl.simple.post=</em>
+
+        Please produce an OpenSearch migration plan covering the index mapping,
+        query translation, and highlighting setup.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Response includes an OpenSearch highlight configuration that maps
+          fragment_size, number_of_fragments, and pre_tags/post_tags from the
+          Solr hl.* parameters.
+        metric: highlight-mapping
+      - type: llm-rubric
+        value: >-
+          Response discusses highlighter type choice (unified, plain, or fvh)
+          and explains that the title field's termVectors="true" enables FVH
+          or requires term_vector in the OpenSearch mapping.
+        metric: highlighter-type
+      - type: llm-rubric
+        value: >-
+          Response translates the eDisMax qf boosts (title^10, overview^5,
+          cast^3, etc.) into an OpenSearch multi_match or equivalent query
+          with per-field boost values.
+        metric: field-weight-translation
+      - type: llm-rubric
+        value: >-
+          Response addresses the pf (phrase fields) parameter by translating
+          it to a phrase-type query (e.g. multi_match with type:phrase in a
+          bool should clause) rather than ignoring it.
+        metric: phrase-boost
+      - type: llm-rubric
+        value: >-
+          Response flags storage or performance implications of term vectors
+          for highlighting as a consideration for the migration.
+        metric: storage-callout
