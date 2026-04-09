@@ -19,3 +19,16 @@ cd tmdb && bash setup.sh
 pytest verify.py -v
 bash setup.sh teardown
 ```
+
+## Running evals
+
+Evals use the Claude Agent SDK which requires Python setup first:
+
+```bash
+cd AIAdvisor/skills/solr-opensearch-migration-advisor
+uv sync --extra eval
+source .venv/bin/activate
+cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+```
+
+See `tests/evals/README.md` for Claude auth and Bedrock setup details.
