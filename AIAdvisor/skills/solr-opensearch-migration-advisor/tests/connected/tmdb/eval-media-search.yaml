@@ -6,6 +6,12 @@ description: "Scenario 3: Media search — highlighting, field weighting, storag
 #   source .venv/bin/activate
 #   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
 #   See tests/evals/README.md for details on Claude auth and Bedrock setup.
+#
+# LLM-as-judge provider:
+#   Defaults to Bedrock Claude Sonnet. Override with JUDGE_PROVIDER env var:
+#     export JUDGE_PROVIDER=ollama:llama3.1:8b    # local ollama
+#     export JUDGE_PROVIDER=openai:gpt-4o         # OpenAI
+#   Any promptfoo-compatible provider string works.
 
 providers:
   - id: 'file://../../evals/claude_requests.py'
@@ -16,7 +22,7 @@ providers:
 defaultTest:
   options:
     provider:
-      id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
       config:
         region: us-east-1
         max_tokens: 256
