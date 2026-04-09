@@ -34,7 +34,7 @@ description: "Scenario 3: Media search — highlighting, field weighting, storag
 # └─────────────────────────────────────────────────────────────────┘
 
 providers:
-  - id: 'file://../../evals/claude_requests.py'
+  - id: 'file://claude_requests.py'
     label: 'Claude agent invocation'
     config:
       timeout: 3000000

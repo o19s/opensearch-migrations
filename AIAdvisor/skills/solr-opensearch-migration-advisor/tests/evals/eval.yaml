@@ -9,7 +9,7 @@ providers:
 defaultTest:
   options:
     provider:
-      id: bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
       config:
         region: us-east-1
         max_tokens: 256
