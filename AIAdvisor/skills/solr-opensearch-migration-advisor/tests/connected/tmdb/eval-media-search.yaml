@@ -7,11 +7,24 @@ description: "Scenario 3: Media search — highlighting, field weighting, storag
 #   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
 #   See tests/evals/README.md for details on Claude auth and Bedrock setup.
 #
-# LLM-as-judge provider:
-#   Defaults to Bedrock Claude Sonnet. Override with JUDGE_PROVIDER env var:
-#     export JUDGE_PROVIDER=ollama:llama3.1:8b    # local ollama
-#     export JUDGE_PROVIDER=openai:gpt-4o         # OpenAI
-#   Any promptfoo-compatible provider string works.
+# ┌─────────────────────────────────────────────────────────────────┐
+# │  LLM-as-judge provider                                        │
+# │                                                                │
+# │  LOCAL (free):  export JUDGE_PROVIDER=ollama:llama3.1:8b      │
+# │    - No API costs, runs on your machine                        │
+# │    - Good for iterating on prompts and debugging eval setup    │
+# │    - Quality varies by model — may produce false pass/fail     │
+# │                                                                │
+# │  REMOTE ($$):   Bedrock Claude Sonnet (default if unset)       │
+# │    - Higher quality judgments, closer to "real" eval results    │
+# │    - Each run burns API tokens — use for final/CI runs         │
+# │    - Requires Bedrock access + AWS credentials                 │
+# │                                                                │
+# │  Set JUDGE_PROVIDER to any promptfoo-compatible provider:      │
+# │    export JUDGE_PROVIDER=ollama:llama3.1:8b                    │
+# │    export JUDGE_PROVIDER=openai:gpt-4o                         │
+# │    unset JUDGE_PROVIDER  # back to Bedrock default             │
+# └─────────────────────────────────────────────────────────────────┘
 
 providers:
   - id: 'file://../../evals/claude_requests.py'
