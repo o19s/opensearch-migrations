@@ -7,13 +7,19 @@ description: "Scenario 3: Media search — highlighting, field weighting, storag
 #   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
 #   See tests/evals/README.md for details on Claude auth and Bedrock setup.
 #
+# IMPORTANT: promptfoo uses its own python subprocess, NOT your activated venv.
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#   Without this, you'll get "No module named 'claude_agent_sdk'".
+#
 # ┌─────────────────────────────────────────────────────────────────┐
 # │  LLM-as-judge provider                                        │
 # │                                                                │
-# │  LOCAL (free):  export JUDGE_PROVIDER=ollama:llama3.1:8b      │
+# │  LOCAL (free):  export JUDGE_PROVIDER=ollama:MODEL_NAME       │
 # │    - No API costs, runs on your machine                        │
 # │    - Good for iterating on prompts and debugging eval setup    │
 # │    - Quality varies by model — may produce false pass/fail     │
+# │    - Run `ollama list` to see available models                 │
+# │    - Larger models (14b+) judge more reliably                  │
 # │                                                                │
 # │  REMOTE ($$):   Bedrock Claude Sonnet (default if unset)       │
 # │    - Higher quality judgments, closer to "real" eval results    │
@@ -21,8 +27,9 @@ description: "Scenario 3: Media search — highlighting, field weighting, storag
 # │    - Requires Bedrock access + AWS credentials                 │
 # │                                                                │
 # │  Set JUDGE_PROVIDER to any promptfoo-compatible provider:      │
-# │    export JUDGE_PROVIDER=ollama:llama3.1:8b                    │
-# │    export JUDGE_PROVIDER=openai:gpt-4o                         │
+# │    export JUDGE_PROVIDER=ollama:qwen3:14b     # local, free    │
+# │    export JUDGE_PROVIDER=ollama:llama3:8b     # local, free    │
+# │    export JUDGE_PROVIDER=openai:gpt-4o        # remote, $$     │
 # │    unset JUDGE_PROVIDER  # back to Bedrock default             │
 # └─────────────────────────────────────────────────────────────────┘
 
