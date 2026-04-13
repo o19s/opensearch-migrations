@@ -1,0 +1,44 @@
+<schema name="tmdb" version="1.6">
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
+  <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+  <fieldType name="pfloat" class="solr.FloatPointField" docValues="true"/>
+  <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+  <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+    <analyzer type="index">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt"/>
+      <filter class="solr.SynonymGraphFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+
+  <field name="id" type="string" indexed="true" stored="true" required="true"/>
+  <field name="title" type="text_general" indexed="true" stored="true"
+         termVectors="true" termPositions="true" termOffsets="true"/>
+  <field name="overview" type="text_general" indexed="true" stored="true"/>
+  <field name="tagline" type="text_general" indexed="true" stored="true"/>
+  <field name="poster_path" type="string" indexed="true" stored="true"/>
+  <field name="cast" type="text_general" indexed="true" stored="true" multiValued="true"/>
+  <field name="directors" type="text_general" indexed="true" stored="true" multiValued="true"/>
+  <field name="genres" type="text_general" indexed="true" stored="true" multiValued="true"/>
+  <field name="genres_s" type="string" indexed="true" stored="true" multiValued="true"/>
+  <field name="release_date" type="pdate" indexed="true" stored="true"/>
+  <field name="vote_average" type="pfloat" indexed="true" stored="true" docValues="false"/>
+  <field name="vote_count" type="pint" indexed="true" stored="true"/>
+  <field name="cast_nomv" type="text_general" indexed="true" stored="true"/>
+
+  <copyField source="genres" dest="genres_s"/>
+  <copyField source="overview" dest="text_all"/>
+  <copyField source="title" dest="text_all"/>
+  <copyField source="tagline" dest="text_all"/>
+  <copyField source="cast" dest="text_all"/>
+  <copyField source="directors" dest="text_all"/>
+  <copyField source="genres" dest="text_all"/>
+
+  <uniqueKey>id</uniqueKey>
+</schema>
