@@ -25,35 +25,31 @@ configs, each testing a different aspect:
 
 | Config | What it tests | LLM needed |
 |--------|---------------|------------|
-| `eval-guidance-impact.yaml` | Steering content changes LLM output (before/after) | Ollama (local) |
+| `eval-guidance-impact.yaml` | Steering changes skill output (bare vs guided) | Claude agent |
 | `eval-media-search.yaml` | Solr→OS query translation (30 tests) | Claude agent |
 | `eval.yaml` | General conversation flow | Claude agent |
 
-#### Guidance Impact (Ollama, free, fast)
+#### Guidance Impact (Claude agent, context engineering)
 
-Proves steering docs are not decorative — the same scenario sent bare vs
-with steering produces different expert terms.
+Proves steering docs are not decorative — runs the **real skill** twice:
+once with empty `steering/` (bare), once with full steering content.
+The side-by-side report shows bare=red, guided=green.
 
 ```bash
 cd tests/evals
-ollama pull llama3.2    # one-time setup
 
-# Run all (bare + guided, side by side):
+# One-time setup: create bare skill fixture (symlinks without steering)
+bash fixtures/skill-bare/setup.sh
+
+# Run (two Claude agent calls per test — bare and guided):
 promptfoo eval -c eval-guidance-impact.yaml
 
-# View results:
+# View side-by-side results:
 promptfoo view
 
 # Export shareable report:
 promptfoo eval -c eval-guidance-impact.yaml --output guidance-impact.html
 ```
-
-To compare models: `OLLAMA_MODEL=qwen3:14b promptfoo eval -c eval-guidance-impact.yaml`
-
-| Model | Bare | Guided | Delta |
-|-------|------|--------|-------|
-| llama3.2 (3B) | ~1/4 concepts | 3-4/4 | **+2-3** |
-| qwen3 (14B) | ~3/4 concepts | 4/4 | +1 |
 
 #### Media Search Query Translation (Claude agent)
 

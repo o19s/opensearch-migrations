@@ -2,10 +2,16 @@ from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
 import os
 
 script_path = "/".join(os.path.realpath(__file__).split("/")[:-1])
-cwd = f"{script_path}/../../../solr-opensearch-migration-advisor"
+default_cwd = f"{script_path}/../../../solr-opensearch-migration-advisor"
 
 
 async def call_api(prompt: str, options: dict, context: dict) -> dict:
+    # Allow provider config to override cwd (e.g. for bare vs guided skill comparison)
+    config = options.get("config", {})
+    cwd = config.get("cwd") or default_cwd
+    if not os.path.isabs(cwd):
+        cwd = os.path.join(script_path, cwd)
+
     # check if test has continue flag set, and only then continue sessions
     continue_conversation = (context.get("test", {}).get("metadata", {}).get("continue", False))
     agent_options = ClaudeAgentOptions(

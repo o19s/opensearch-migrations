@@ -1,148 +1,83 @@
-description: "Guidance impact: prove steering content changes LLM output"
+description: "Guidance impact: prove steering content changes skill output"
 
-# This eval demonstrates that our steering documents are not decorative —
-# they measurably change what the model produces. The same scenario is
-# sent via two prompts: bare (just the question) and guided (steering
-# prepended). Deterministic assertions check for specific expert terms.
+# This eval proves that the steering documents in steering/ are not
+# decorative — they measurably change the skill's output. Two providers
+# run the SAME skill with the SAME SKILL.md, but one has an empty
+# steering/ directory (bare) and the other has the full steering content.
+#
+# Expected result:
+#   bare (no steering)    → all RED  (skill lacks expert knowledge)
+#   guided (with steering) → all GREEN (steering provides it)
 #
 # Prerequisites:
-#   Ollama running locally with a small model (default: llama3.2:latest)
-#   ollama pull llama3.2
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor
+#   uv sync --extra eval
+#   source .venv/bin/activate
+#   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
 #
 # Running:
-#   cd AIAdvisor/skills/solr-opensearch-migration-advisor/tests/evals
-#
-#   # All guidance impact tests:
+#   cd tests/evals
 #   promptfoo eval -c eval-guidance-impact.yaml
-#
-#   # View results side-by-side (bare vs guided columns):
-#   promptfoo view
+#   promptfoo view   # side-by-side: bare (red) vs guided (green)
 #
 #   # Export shareable report:
 #   promptfoo eval -c eval-guidance-impact.yaml --output guidance-impact.html
-#
-# To use a different model:
-#   OLLAMA_MODEL=qwen3:14b promptfoo eval -c eval-guidance-impact.yaml
 
 providers:
-  - id: 'ollama:chat:{{env.OLLAMA_MODEL | default("llama3.2:latest")}}'
-    label: 'ollama'
+  # Bare: real skill, but steering/ is empty — no expert guidance
+  - id: 'file://claude_requests.py'
+    label: 'bare (no steering)'
     config:
-      temperature: 0.3
+      cwd: fixtures/skill-bare
+      timeout: 3000000
+
+  # Guided: real skill with full steering/ content
+  - id: 'file://claude_requests.py'
+    label: 'guided (with steering)'
+    config:
+      timeout: 3000000
 
 defaultTest:
   metadata:
     continue: false
-  vars:
-    scenario: &scenario |
-      A client is migrating from Solr to OpenSearch. They have function
-      queries for custom scoring, filter queries (fq) for faceted navigation,
-      custom request handlers with business logic, Solr join queries between
-      collections, and nested child documents. They say: 'It's all Lucene
-      underneath, so most of it ports directly.' Respond as a migration
-      consultant in 2-3 paragraphs.
 
 prompts:
-  # Two prompts: bare gets just the scenario, guided gets steering prepended
-  - id: bare-prompt
-    label: "bare (no steering)"
-    raw: "{{scenario}}"
-
-  - id: guided-prompt
-    label: "guided (with steering)"
-    raw: |
-      Follow the guidance below strictly when answering.
-
-      --- STEERING: accuracy.md ---
-      Accuracy is the top priority. When translating Solr constructs to
-      OpenSearch equivalents, never guess or approximate. Flag any Solr feature
-      that has no direct OpenSearch equivalent rather than silently substituting
-      a close-but-different alternative.
-
-      --- STEERING: incompatibilities.md ---
-      ## Query Gaps
-      ### Function Queries
-      Solr function queries (bf, boost, _val_) use a math-expression syntax
-      that has no direct equivalent in OpenSearch. The replacement is
-      function_score with script_score, field_value_factor, or decay functions.
-      Common patterns:
-      - bf=vote_average^2 → function_score with field_value_factor
-      - bf=recip(ms(NOW,release_date),3.16e-11,1,1) → function_score with exp/gauss decay
-      - bf=log(vote_count) → field_value_factor with modifier: log1p
-      - Arbitrary math → script_score with Painless scripting
-      Key: boost_mode matters (bf is additive, boost is multiplicative).
-      script_score runs Painless on every matching doc — slower than field_value_factor.
-
-      ### MoreLikeThis (MLT)
-      Solr MLT maps to OpenSearch more_like_this query. Parameter names differ.
-
-      ### Spatial
-      Solr latlon/spatial fields map to geo_point/geo_shape. Query syntax differs.
-
-      ## Features
-      - Dynamic Fields: Solr dynamicField → OpenSearch dynamic_templates.
-      - Nested Docs: Solr _childDocuments_ maps to nested objects or parent-child joining.
-      - Joins: Solr {!join} maps to terms lookup query or flattened index design.
-        No direct equivalent for chained joins.
-
-      ## Plugins
-      - Custom Request Handlers: No direct equivalent; must rebuild using
-        standard Search API + client-side logic.
-      - Search Components: No equivalent; logic must be moved to client or
-        custom OpenSearch plugin.
-      - Querqy: Community plugin for self-managed OS, NOT on AWS OpenSearch Service.
-      - LTR: Both support LTR, but model formats and feature definitions differ.
-
-      --- STEERING: query_translation.md ---
-      Key Conversions:
-      - q → query
-      - qf → multi_match with fields and type: best_fields
-      - pf → multi_match with type: phrase
-      - mm → minimum_should_match
-      - boost → boost or function_score
-      - fq → filter in bool query
-
-      --- END STEERING ---
-
-      {{scenario}}
+  - id: guidance-impact-scenario
+    label: "Migration scenario"
+    raw: "{{query}}"
 
 tests:
 
   # ═══════════════════════════════════════════════════════════════
-  #  INCOMPATIBILITIES SCENARIO
+  #  5 tests that should FAIL without steering, PASS with steering.
   #
-  #  4 concepts the steering should cause the model to produce:
-  #    script_score      — from Function Queries section
-  #    rebuild_handlers  — "no direct equivalent" for request handlers
-  #    nested_mapping    — "nested" for child documents
-  #    join_replacement  — "terms lookup" or "flattened" for joins
-  #
-  #  The "bare" prompt column should MISS at least one of these.
-  #  The "guided" prompt column should HIT all or most of them.
-  #  View results with: promptfoo view
+  #  Each tests a specific concept from steering/incompatibilities.md
+  #  or steering/query_translation.md that a bare LLM won't produce
+  #  with the right specificity.
   # ═══════════════════════════════════════════════════════════════
 
-  - description: "bare: model misses expert terms without steering"
-    assert:
-      # Passes if ANY of these terms is absent from the bare response
-      - type: not-contains-all
-        value:
-          - "script_score"
-          - "no direct equivalent"
-          - "nested"
-          - "terms lookup"
-        metric: bare-misses-terms
-
-  - description: "guided: script_score for function queries"
+  - description: "function queries → script_score / function_score"
+    vars:
+      query: |
+        I'm migrating a Solr 8 application to OpenSearch. We heavily use
+        Solr function queries for custom scoring, including bf=recip(ms(NOW,release_date),3.16e-11,1,1)
+        and bf=log(popularity). What are the OpenSearch equivalents?
+        Be specific about the query DSL constructs to use.
     assert:
       - type: contains-any
         value:
           - "script_score"
           - "function_score"
           - "field_value_factor"
-        metric: script-score-present
+        metric: function-query-translation
 
-  - description: "guided: handlers flagged as no direct equivalent"
+  - description: "custom request handlers → no direct equivalent"
+    vars:
+      query: |
+        Our Solr 8 setup has custom request handlers that combine search
+        with business logic (inventory checks, personalization). We need
+        to migrate these to OpenSearch. What's the equivalent?
     assert:
       - type: contains-any
         value:
@@ -154,16 +89,55 @@ tests:
           - "rebuild using"
           - "need to be rewritten"
           - "needs to be rewritten"
-          - "require significant rework"
-        metric: rebuild-handlers-present
+        metric: handler-incompatibility
 
-  - description: "guided: nested for child documents"
+  - description: "eDisMax qf → multi_match with field boosts"
+    vars:
+      query: |
+        I need to translate this Solr eDisMax query to OpenSearch:
+        defType=edismax
+        q=dark knight
+        qf=title^10 overview^5 cast^3 directors^3
+
+        What is the exact OpenSearch query DSL?
     assert:
       - type: icontains
-        value: "nested"
-        metric: nested-mapping-present
+        value: "multi_match"
+        metric: edismax-qf-translation
+      - type: icontains
+        value: "title^10"
+        metric: field-boost-preserved
 
-  - description: "guided: terms lookup or flattened for joins"
+  - description: "highlighting hl.* → OpenSearch highlight config"
+    vars:
+      query: |
+        Translate this Solr highlighting config to OpenSearch query DSL:
+        hl=true
+        hl.fl=title,overview
+        hl.fragsize=150
+        hl.snippets=3
+        hl.simple.pre=<em>
+        hl.simple.post=</em>
+
+        Provide the exact OpenSearch JSON.
+    assert:
+      - type: icontains
+        value: "fragment_size"
+        metric: highlight-fragsize
+      - type: icontains
+        value: "number_of_fragments"
+        metric: highlight-snippets
+      - type: icontains
+        value: "pre_tags"
+        metric: highlight-tags
+
+  - description: "Solr joins → terms lookup or denormalize"
+    vars:
+      query: |
+        Our Solr app uses join queries between collections:
+        {!join from=author_id to=id fromIndex=authors}name:Shakespeare
+
+        How do we handle this in OpenSearch? Be specific about the approach.
     assert:
       - type: contains-any
         value:
@@ -172,4 +146,6 @@ tests:
           - "flattened"
           - "denormalize"
           - "denormalized"
-        metric: join-replacement-present
+          - "application-side"
+          - "application side"
+        metric: join-replacement
