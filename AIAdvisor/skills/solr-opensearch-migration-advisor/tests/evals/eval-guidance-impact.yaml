@@ -1,0 +1,166 @@
+description: "Guidance impact: prove steering content changes LLM output"
+
+# This eval demonstrates that our steering documents are not decorative —
+# they measurably change what the model produces. Each scenario is sent
+# twice: once bare (no context), once with steering docs loaded as system
+# prompt. Deterministic assertions check for specific expert terms.
+#
+# Prerequisites:
+#   Ollama running locally with a small model (default: llama3.2:latest)
+#   ollama pull llama3.2
+#
+# Running:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor/tests/evals
+#
+#   # All guidance impact tests (bare + guided):
+#   promptfoo eval -c eval-guidance-impact.yaml
+#
+#   # Just the bare tests (should show misses):
+#   promptfoo eval -c eval-guidance-impact.yaml --filter-pattern "^bare"
+#
+#   # Just the guided tests (should pass):
+#   promptfoo eval -c eval-guidance-impact.yaml --filter-pattern "^guided"
+#
+#   # View results side-by-side:
+#   promptfoo view
+#
+#   # Export shareable report:
+#   promptfoo eval -c eval-guidance-impact.yaml --output guidance-impact.html
+#
+# Model size and guidance impact:
+#   llama3.2 (3B)   Bare: ~1/4 concepts  →  Guided: 3-4/4
+#   Smaller models show a more dramatic delta because they have less
+#   built-in knowledge to fall back on, making the steering impact obvious.
+#
+# To use a different model:
+#   Set OLLAMA_MODEL env var, e.g.:
+#     OLLAMA_MODEL=qwen3:14b promptfoo eval -c eval-guidance-impact.yaml
+
+providers:
+  # Bare provider: no system prompt, raw LLM
+  - id: 'ollama:chat:{{env.OLLAMA_MODEL | default("llama3.2:latest")}}'
+    label: 'bare (no steering)'
+    config:
+      temperature: 0.3
+
+  # Guided provider: steering docs loaded as system prompt
+  - id: 'ollama:chat:{{env.OLLAMA_MODEL | default("llama3.2:latest")}}'
+    label: 'guided (with steering)'
+    config:
+      temperature: 0.3
+      systemMessage: file://fixtures/steering-incompatibilities.md
+
+defaultTest:
+  metadata:
+    continue: false
+
+prompts:
+  - id: guidance-impact-scenario
+    label: "Migration incompatibilities scenario"
+    raw: "{{query}}"
+
+tests:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  INCOMPATIBILITIES SCENARIO
+  #
+  #  4 concepts the steering should cause the model to produce:
+  #    script_score      — from Function Queries section
+  #    rebuild_handlers  — "no direct equivalent" for request handlers
+  #    nested_mapping    — "nested" for child documents
+  #    join_replacement  — "terms lookup" or "flattened" for joins
+  # ═══════════════════════════════════════════════════════════════
+
+  - description: "bare-incompatibilities: without steering, model misses expert terms"
+    vars:
+      query: |
+        A client is migrating from Solr to OpenSearch. They have function
+        queries for custom scoring, filter queries (fq) for faceted navigation,
+        custom request handlers with business logic, Solr join queries between
+        collections, and nested child documents. They say: 'It's all Lucene
+        underneath, so most of it ports directly.' Respond as a migration
+        consultant in 2-3 paragraphs.
+    assert:
+      # Bare model should NOT produce all 4 expert terms.
+      # We expect it to miss at least one — proving guidance adds value.
+      # Using not-contains-all: passes if ANY of these terms is absent.
+      - type: not-contains-all
+        value:
+          - "script_score"
+          - "no direct equivalent"
+          - "nested"
+          - "terms lookup"
+        metric: bare-misses-terms
+
+  - description: "guided-script_score: steering produces script_score for function queries"
+    vars:
+      query: |
+        A client is migrating from Solr to OpenSearch. They have function
+        queries for custom scoring, filter queries (fq) for faceted navigation,
+        custom request handlers with business logic, Solr join queries between
+        collections, and nested child documents. They say: 'It's all Lucene
+        underneath, so most of it ports directly.' Respond as a migration
+        consultant in 2-3 paragraphs.
+    assert:
+      - type: contains-any
+        value:
+          - "script_score"
+          - "function_score"
+          - "field_value_factor"
+        metric: script-score-present
+
+  - description: "guided-rebuild_handlers: steering flags handlers as no direct equivalent"
+    vars:
+      query: |
+        A client is migrating from Solr to OpenSearch. They have function
+        queries for custom scoring, filter queries (fq) for faceted navigation,
+        custom request handlers with business logic, Solr join queries between
+        collections, and nested child documents. They say: 'It's all Lucene
+        underneath, so most of it ports directly.' Respond as a migration
+        consultant in 2-3 paragraphs.
+    assert:
+      - type: contains-any
+        value:
+          - "no direct equivalent"
+          - "not directly equivalent"
+          - "no equivalent"
+          - "must rebuild"
+          - "must be rebuilt"
+          - "rebuild using"
+          - "need to be rewritten"
+          - "needs to be rewritten"
+          - "require significant rework"
+        metric: rebuild-handlers-present
+
+  - description: "guided-nested_mapping: steering mentions nested for child docs"
+    vars:
+      query: |
+        A client is migrating from Solr to OpenSearch. They have function
+        queries for custom scoring, filter queries (fq) for faceted navigation,
+        custom request handlers with business logic, Solr join queries between
+        collections, and nested child documents. They say: 'It's all Lucene
+        underneath, so most of it ports directly.' Respond as a migration
+        consultant in 2-3 paragraphs.
+    assert:
+      - type: icontains
+        value: "nested"
+        metric: nested-mapping-present
+
+  - description: "guided-join_replacement: steering recommends terms lookup or flattened"
+    vars:
+      query: |
+        A client is migrating from Solr to OpenSearch. They have function
+        queries for custom scoring, filter queries (fq) for faceted navigation,
+        custom request handlers with business logic, Solr join queries between
+        collections, and nested child documents. They say: 'It's all Lucene
+        underneath, so most of it ports directly.' Respond as a migration
+        consultant in 2-3 paragraphs.
+    assert:
+      - type: contains-any
+        value:
+          - "terms lookup"
+          - "terms query"
+          - "flattened"
+          - "denormalize"
+          - "denormalized"
+        metric: join-replacement-present
