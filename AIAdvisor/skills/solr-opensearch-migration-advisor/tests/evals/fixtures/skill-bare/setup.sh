@@ -11,8 +11,8 @@ SKILL_DIR="$(cd "$SCRIPT_DIR/../../../../solr-opensearch-migration-advisor" && p
 echo "Creating bare skill fixture at $SCRIPT_DIR"
 echo "Linking to real skill at $SKILL_DIR"
 
-# Symlink everything except steering/
-for item in SKILL.md scripts references pyproject.toml README.md uv.lock .env.example .gitignore; do
+# Symlink only what the skill needs at runtime
+for item in SKILL.md scripts references; do
   if [ -e "$SKILL_DIR/$item" ]; then
     ln -sf "$SKILL_DIR/$item" "$SCRIPT_DIR/$item"
     echo "  linked $item"
