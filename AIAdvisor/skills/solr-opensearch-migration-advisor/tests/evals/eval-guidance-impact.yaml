@@ -1,9 +1,9 @@
 description: "Guidance impact: prove steering content changes LLM output"
 
 # This eval demonstrates that our steering documents are not decorative —
-# they measurably change what the model produces. Each scenario is sent
-# twice: once bare (no context), once with steering docs loaded as system
-# prompt. Deterministic assertions check for specific expert terms.
+# they measurably change what the model produces. The same scenario is
+# sent via two prompts: bare (just the question) and guided (steering
+# prepended). Deterministic assertions check for specific expert terms.
 #
 # Prerequisites:
 #   Ollama running locally with a small model (default: llama3.2:latest)
@@ -12,52 +12,99 @@ description: "Guidance impact: prove steering content changes LLM output"
 # Running:
 #   cd AIAdvisor/skills/solr-opensearch-migration-advisor/tests/evals
 #
-#   # All guidance impact tests (bare + guided):
+#   # All guidance impact tests:
 #   promptfoo eval -c eval-guidance-impact.yaml
 #
-#   # Just the bare tests (should show misses):
-#   promptfoo eval -c eval-guidance-impact.yaml --filter-pattern "^bare"
-#
-#   # Just the guided tests (should pass):
-#   promptfoo eval -c eval-guidance-impact.yaml --filter-pattern "^guided"
-#
-#   # View results side-by-side:
+#   # View results side-by-side (bare vs guided columns):
 #   promptfoo view
 #
 #   # Export shareable report:
 #   promptfoo eval -c eval-guidance-impact.yaml --output guidance-impact.html
 #
-# Model size and guidance impact:
-#   llama3.2 (3B)   Bare: ~1/4 concepts  →  Guided: 3-4/4
-#   Smaller models show a more dramatic delta because they have less
-#   built-in knowledge to fall back on, making the steering impact obvious.
-#
 # To use a different model:
-#   Set OLLAMA_MODEL env var, e.g.:
-#     OLLAMA_MODEL=qwen3:14b promptfoo eval -c eval-guidance-impact.yaml
+#   OLLAMA_MODEL=qwen3:14b promptfoo eval -c eval-guidance-impact.yaml
 
 providers:
-  # Bare provider: no system prompt, raw LLM
   - id: 'ollama:chat:{{env.OLLAMA_MODEL | default("llama3.2:latest")}}'
-    label: 'bare (no steering)'
+    label: 'ollama'
     config:
       temperature: 0.3
-
-  # Guided provider: steering docs loaded as system prompt
-  - id: 'ollama:chat:{{env.OLLAMA_MODEL | default("llama3.2:latest")}}'
-    label: 'guided (with steering)'
-    config:
-      temperature: 0.3
-      systemMessage: file://fixtures/steering-incompatibilities.md
 
 defaultTest:
   metadata:
     continue: false
+  vars:
+    scenario: &scenario |
+      A client is migrating from Solr to OpenSearch. They have function
+      queries for custom scoring, filter queries (fq) for faceted navigation,
+      custom request handlers with business logic, Solr join queries between
+      collections, and nested child documents. They say: 'It's all Lucene
+      underneath, so most of it ports directly.' Respond as a migration
+      consultant in 2-3 paragraphs.
 
 prompts:
-  - id: guidance-impact-scenario
-    label: "Migration incompatibilities scenario"
-    raw: "{{query}}"
+  # Two prompts: bare gets just the scenario, guided gets steering prepended
+  - id: bare-prompt
+    label: "bare (no steering)"
+    raw: "{{scenario}}"
+
+  - id: guided-prompt
+    label: "guided (with steering)"
+    raw: |
+      Follow the guidance below strictly when answering.
+
+      --- STEERING: accuracy.md ---
+      Accuracy is the top priority. When translating Solr constructs to
+      OpenSearch equivalents, never guess or approximate. Flag any Solr feature
+      that has no direct OpenSearch equivalent rather than silently substituting
+      a close-but-different alternative.
+
+      --- STEERING: incompatibilities.md ---
+      ## Query Gaps
+      ### Function Queries
+      Solr function queries (bf, boost, _val_) use a math-expression syntax
+      that has no direct equivalent in OpenSearch. The replacement is
+      function_score with script_score, field_value_factor, or decay functions.
+      Common patterns:
+      - bf=vote_average^2 → function_score with field_value_factor
+      - bf=recip(ms(NOW,release_date),3.16e-11,1,1) → function_score with exp/gauss decay
+      - bf=log(vote_count) → field_value_factor with modifier: log1p
+      - Arbitrary math → script_score with Painless scripting
+      Key: boost_mode matters (bf is additive, boost is multiplicative).
+      script_score runs Painless on every matching doc — slower than field_value_factor.
+
+      ### MoreLikeThis (MLT)
+      Solr MLT maps to OpenSearch more_like_this query. Parameter names differ.
+
+      ### Spatial
+      Solr latlon/spatial fields map to geo_point/geo_shape. Query syntax differs.
+
+      ## Features
+      - Dynamic Fields: Solr dynamicField → OpenSearch dynamic_templates.
+      - Nested Docs: Solr _childDocuments_ maps to nested objects or parent-child joining.
+      - Joins: Solr {!join} maps to terms lookup query or flattened index design.
+        No direct equivalent for chained joins.
+
+      ## Plugins
+      - Custom Request Handlers: No direct equivalent; must rebuild using
+        standard Search API + client-side logic.
+      - Search Components: No equivalent; logic must be moved to client or
+        custom OpenSearch plugin.
+      - Querqy: Community plugin for self-managed OS, NOT on AWS OpenSearch Service.
+      - LTR: Both support LTR, but model formats and feature definitions differ.
+
+      --- STEERING: query_translation.md ---
+      Key Conversions:
+      - q → query
+      - qf → multi_match with fields and type: best_fields
+      - pf → multi_match with type: phrase
+      - mm → minimum_should_match
+      - boost → boost or function_score
+      - fq → filter in bool query
+
+      --- END STEERING ---
+
+      {{scenario}}
 
 tests:
 
@@ -69,21 +116,15 @@ tests:
   #    rebuild_handlers  — "no direct equivalent" for request handlers
   #    nested_mapping    — "nested" for child documents
   #    join_replacement  — "terms lookup" or "flattened" for joins
+  #
+  #  The "bare" prompt column should MISS at least one of these.
+  #  The "guided" prompt column should HIT all or most of them.
+  #  View results with: promptfoo view
   # ═══════════════════════════════════════════════════════════════
 
-  - description: "bare-incompatibilities: without steering, model misses expert terms"
-    vars:
-      query: |
-        A client is migrating from Solr to OpenSearch. They have function
-        queries for custom scoring, filter queries (fq) for faceted navigation,
-        custom request handlers with business logic, Solr join queries between
-        collections, and nested child documents. They say: 'It's all Lucene
-        underneath, so most of it ports directly.' Respond as a migration
-        consultant in 2-3 paragraphs.
+  - description: "bare: model misses expert terms without steering"
     assert:
-      # Bare model should NOT produce all 4 expert terms.
-      # We expect it to miss at least one — proving guidance adds value.
-      # Using not-contains-all: passes if ANY of these terms is absent.
+      # Passes if ANY of these terms is absent from the bare response
       - type: not-contains-all
         value:
           - "script_score"
@@ -92,15 +133,7 @@ tests:
           - "terms lookup"
         metric: bare-misses-terms
 
-  - description: "guided-script_score: steering produces script_score for function queries"
-    vars:
-      query: |
-        A client is migrating from Solr to OpenSearch. They have function
-        queries for custom scoring, filter queries (fq) for faceted navigation,
-        custom request handlers with business logic, Solr join queries between
-        collections, and nested child documents. They say: 'It's all Lucene
-        underneath, so most of it ports directly.' Respond as a migration
-        consultant in 2-3 paragraphs.
+  - description: "guided: script_score for function queries"
     assert:
       - type: contains-any
         value:
@@ -109,15 +142,7 @@ tests:
           - "field_value_factor"
         metric: script-score-present
 
-  - description: "guided-rebuild_handlers: steering flags handlers as no direct equivalent"
-    vars:
-      query: |
-        A client is migrating from Solr to OpenSearch. They have function
-        queries for custom scoring, filter queries (fq) for faceted navigation,
-        custom request handlers with business logic, Solr join queries between
-        collections, and nested child documents. They say: 'It's all Lucene
-        underneath, so most of it ports directly.' Respond as a migration
-        consultant in 2-3 paragraphs.
+  - description: "guided: handlers flagged as no direct equivalent"
     assert:
       - type: contains-any
         value:
@@ -132,29 +157,13 @@ tests:
           - "require significant rework"
         metric: rebuild-handlers-present
 
-  - description: "guided-nested_mapping: steering mentions nested for child docs"
-    vars:
-      query: |
-        A client is migrating from Solr to OpenSearch. They have function
-        queries for custom scoring, filter queries (fq) for faceted navigation,
-        custom request handlers with business logic, Solr join queries between
-        collections, and nested child documents. They say: 'It's all Lucene
-        underneath, so most of it ports directly.' Respond as a migration
-        consultant in 2-3 paragraphs.
+  - description: "guided: nested for child documents"
     assert:
       - type: icontains
         value: "nested"
         metric: nested-mapping-present
 
-  - description: "guided-join_replacement: steering recommends terms lookup or flattened"
-    vars:
-      query: |
-        A client is migrating from Solr to OpenSearch. They have function
-        queries for custom scoring, filter queries (fq) for faceted navigation,
-        custom request handlers with business logic, Solr join queries between
-        collections, and nested child documents. They say: 'It's all Lucene
-        underneath, so most of it ports directly.' Respond as a migration
-        consultant in 2-3 paragraphs.
+  - description: "guided: terms lookup or flattened for joins"
     assert:
       - type: contains-any
         value:
