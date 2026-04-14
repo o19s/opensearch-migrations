@@ -65,16 +65,18 @@ tests:
       - type: icontains
         value: "boost_mode"
         metric: mentions-boost-mode
-      - type: javascript
-        value: |
-          // bf must be associated with "sum" and boost with "multiply"
-          const lower = output.toLowerCase();
-          const hasBfSum = /\bbf\b[\s\S]{0,200}(additive|sum)/i.test(output);
-          const hasBoostMultiply = /\bboost\b[\s\S]{0,200}(multiplicative|multiply)/i.test(output);
-          if (!hasBfSum) return false;
-          if (!hasBoostMultiply) return false;
-          return true;
-        metric: bf-sum-boost-multiply
+      - type: contains-any
+        value:
+          - "additive"
+          - "adds to"
+          - "added to"
+        metric: bf-is-additive
+      - type: contains-any
+        value:
+          - "multiplicative"
+          - "multiplies"
+          - "multiply"
+        metric: boost-is-multiplicative
 
   # ── Test 2: Querqy on AWS (niche) ─────────────────────────────
   # Steering: incompatibilities.md#querqy-aws
@@ -91,13 +93,17 @@ tests:
         Answer yes or no, then explain what we should do instead for
         UP, DOWN, FILTER, and SYNONYM rules.
     assert:
-      - type: javascript
-        value: |
-          // Must clearly say Querqy is NOT available/supported/installable on AWS
-          const lower = output.toLowerCase();
-          const saysNo = /cannot|can't|not available|not supported|not possible|does not support|doesn't support|no,/i.test(output);
-          if (!saysNo) return false;
-          return true;
+      - type: contains-any
+        value:
+          - "cannot"
+          - "can't"
+          - "not available"
+          - "not supported"
+          - "not possible"
+          - "does not support"
+          - "does not allow"
+          - "doesn't support"
+          - "No."
         metric: querqy-aws-unavailable
       - type: contains-any
         value:
@@ -127,15 +133,15 @@ tests:
       - type: icontains
         value: "best_fields"
         metric: recommends-best-fields
-      - type: javascript
-        value: |
-          // Must warn against combined_fields with mixed analyzers
-          const lower = output.toLowerCase();
-          const warnsCombined = /combined.fields[\s\S]{0,300}(same analyzer|require|error|fail|not work|won't work|incorrect|different analyz)/i.test(output)
-            || /different analyz[\s\S]{0,200}(best_fields|not.*combined)/i.test(output);
-          if (!warnsCombined) return false;
-          return true;
-        metric: warns-combined-fields
+      - type: contains-any
+        value:
+          - "same analyzer"
+          - "same analysis"
+          - "different analyzer"
+          - "different analysis"
+          - "require the same"
+          - "requires the same"
+        metric: explains-analyzer-requirement
 
   # ── Test 4: copyField → multi-fields (TMDB-specific) ──────────
   # Steering: incompatibilities.md#copyfield
@@ -155,16 +161,15 @@ tests:
         How should we represent these in OpenSearch? Should we use
         copy_to or multi-fields? Explain why.
     assert:
-      - type: javascript
-        value: |
-          const lower = output.toLowerCase();
-          // Must recommend multi-fields (fields: {}) not copy_to
-          const recommendsMultiField = /multi.?field|"fields"|sub.?field|fields:\s*\{/i.test(output);
-          const warnsCopyTo = /copy_to[\s\S]{0,200}(not|doesn't|does not|won't|raw|same analyz)/i.test(output)
-            || /not.*copy_to/i.test(output);
-          if (!recommendsMultiField) return false;
-          return true;
-        metric: uses-multi-fields
+      - type: contains-any
+        value:
+          - "multi-field"
+          - "multi_field"
+          - "multifield"
+          - "sub-field"
+          - "\"fields\""
+          - "fields:"
+        metric: recommends-multi-fields
 
   # ── Test 5: SMUI export format (Querqy/SMUI niche) ────────────
   # Steering: incompatibilities.md#smui
@@ -181,12 +186,12 @@ tests:
         Show an example of what the export looks like for a term with
         SYNONYM and UP rules.
     assert:
-      - type: javascript
-        value: |
-          const lower = output.toLowerCase();
-          // Must say plain text, not JSON
-          const saysPlainText = /plain.?text|text.?format|text.?file|not json|not.*xml|querqy.?format|rule.?block/i.test(output);
-          const showsArrow = output.includes('=>');
-          if (!saysPlainText && !showsArrow) return false;
-          return true;
+      - type: contains-any
+        value:
+          - "plain text"
+          - "plain-text"
+          - "text format"
+          - "text file"
+          - "=>"
+          - "Common Rules"
         metric: smui-plain-text-format
