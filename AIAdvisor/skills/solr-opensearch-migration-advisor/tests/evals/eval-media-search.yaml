@@ -319,9 +319,9 @@ tests:
         value: |
           const has150 = output.includes('150');
           const has3 = /number_of_fragments["\s:]+3/.test(output);
-          if (!has150) return { pass: false, score: 0, reason: 'fragment_size 150 not found' };
-          if (!has3) return { pass: false, score: 0, reason: 'number_of_fragments 3 not found' };
-          return { pass: true, score: 1 };
+          if (!has150) return false;
+          if (!has3) return false;
+          return true;
 
   - description: "hl-02: termVectors field -> FVH or term_vector mapping note"
     vars:
