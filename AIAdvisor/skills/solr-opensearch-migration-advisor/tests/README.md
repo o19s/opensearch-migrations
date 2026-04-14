@@ -38,9 +38,6 @@ The side-by-side report shows bare=red, guided=green.
 ```bash
 cd tests/evals
 
-# One-time setup: create bare skill fixture (symlinks without steering)
-bash fixtures/skill-bare/setup.sh
-
 # Run (two Claude agent calls per test — bare and guided):
 promptfoo eval -c eval-guidance-impact.yaml
 

@@ -1,13 +1,19 @@
-description: "Guidance impact: prove steering content changes skill output"
+description: "Guidance impact: prove steering + reference content changes skill output"
 
-# This eval proves that the steering documents in steering/ are not
-# decorative — they measurably change the skill's output. Two providers
-# run the SAME skill with the SAME SKILL.md, but one has an empty
-# steering/ directory (bare) and the other has the full steering content.
+# This eval proves that curated steering and reference documents make
+# the skill produce expert-level output. Two self-contained skill
+# fixtures run side-by-side:
+#
+#   fixtures/skill-bare/     SKILL.md only, empty steering/, no references
+#   fixtures/skill-guided/   SKILL.md + steering triggers + reference deep-dives
+#
+# Each steering trigger in incompatibilities.md maps to a reference doc.
+# Each test maps to a specific steering trigger.
+# The report shows exactly what content was added to flip red → green.
 #
 # Expected result:
-#   bare (no steering)    → all RED  (skill lacks expert knowledge)
-#   guided (with steering) → all GREEN (steering provides it)
+#   bare (no steering)     → all RED  (skill lacks expert knowledge)
+#   guided (with steering) → all GREEN (steering + references provide it)
 #
 # Prerequisites:
 #   cd AIAdvisor/skills/solr-opensearch-migration-advisor
@@ -21,21 +27,33 @@ description: "Guidance impact: prove steering content changes skill output"
 #   promptfoo eval -c eval-guidance-impact.yaml
 #   promptfoo view   # side-by-side: bare (red) vs guided (green)
 #
-#   # Export shareable report:
-#   promptfoo eval -c eval-guidance-impact.yaml --output guidance-impact.html
+# Fixture structure:
+#   skill-bare/
+#     SKILL.md                          ← minimal skill definition
+#     steering/README.md                ← empty, no guidance
+#
+#   skill-guided/
+#     SKILL.md                          ← same skill + "read steering/" instruction
+#     steering/incompatibilities.md     ← 5 triggers, one per test
+#     references/function-queries.md   ← deep-dive for test 1
+#     references/request-handlers.md   ← deep-dive for test 2
+#     references/edismax.md            ← deep-dive for test 3
+#     references/highlighting.md       ← deep-dive for test 4
+#     references/joins.md             ← deep-dive for test 5
 
 providers:
-  # Bare: real skill, but steering/ is empty — no expert guidance
+  # Bare: minimal SKILL.md, no steering, no references
   - id: 'file://claude_requests.py'
     label: 'bare (no steering)'
     config:
       cwd: fixtures/skill-bare
       timeout: 3000000
 
-  # Guided: real skill with full steering/ content
+  # Guided: SKILL.md + steering triggers + reference deep-dives
   - id: 'file://claude_requests.py'
     label: 'guided (with steering)'
     config:
+      cwd: fixtures/skill-guided
       timeout: 3000000
 
 defaultTest:
@@ -49,15 +67,11 @@ prompts:
 
 tests:
 
-  # ═══════════════════════════════════════════════════════════════
-  #  5 tests that should FAIL without steering, PASS with steering.
-  #
-  #  Each tests a specific concept from steering/incompatibilities.md
-  #  or steering/query_translation.md that a bare LLM won't produce
-  #  with the right specificity.
-  # ═══════════════════════════════════════════════════════════════
+  # Each test maps to one steering trigger + one reference doc.
+  # The steering trigger and reference file are noted in the description
+  # so the report traces exactly what content flips the test green.
 
-  - description: "function queries → script_score / function_score"
+  - description: "function queries → script_score (steering: incompatibilities.md#function-queries, ref: function-queries.md)"
     vars:
       query: |
         I'm migrating a Solr 8 application to OpenSearch. We heavily use
@@ -72,7 +86,7 @@ tests:
           - "field_value_factor"
         metric: function-query-translation
 
-  - description: "custom request handlers → no direct equivalent"
+  - description: "request handlers → no direct equivalent (steering: incompatibilities.md#handlers, ref: request-handlers.md)"
     vars:
       query: |
         Our Solr 8 setup has custom request handlers that combine search
@@ -91,7 +105,7 @@ tests:
           - "needs to be rewritten"
         metric: handler-incompatibility
 
-  - description: "eDisMax qf → multi_match with field boosts"
+  - description: "eDisMax qf → multi_match (steering: incompatibilities.md#edismax, ref: edismax.md)"
     vars:
       query: |
         I need to translate this Solr eDisMax query to OpenSearch:
@@ -103,12 +117,12 @@ tests:
     assert:
       - type: icontains
         value: "multi_match"
-        metric: edismax-qf-translation
+        metric: edismax-multi-match
       - type: icontains
         value: "title^10"
-        metric: field-boost-preserved
+        metric: edismax-boost-preserved
 
-  - description: "highlighting hl.* → OpenSearch highlight config"
+  - description: "highlighting hl.* → fragment_size (steering: incompatibilities.md#highlighting, ref: highlighting.md)"
     vars:
       query: |
         Translate this Solr highlighting config to OpenSearch query DSL:
@@ -126,12 +140,12 @@ tests:
         metric: highlight-fragsize
       - type: icontains
         value: "number_of_fragments"
-        metric: highlight-snippets
+        metric: highlight-num-fragments
       - type: icontains
         value: "pre_tags"
         metric: highlight-tags
 
-  - description: "Solr joins → terms lookup or denormalize"
+  - description: "joins → terms lookup / denormalize (steering: incompatibilities.md#joins, ref: joins.md)"
     vars:
       query: |
         Our Solr app uses join queries between collections:
