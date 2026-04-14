@@ -28,3 +28,21 @@
 - SMUI exports Querqy rules as a plain-text file (one rule block per input term), not JSON.
 - Rule types: UP (boost), DOWN (penalize), FILTER (add filter), DELETE (remove term), SYNONYM (expand query).
 - See `references/smui-rule-translation.md` for the export format and per-rule-type OpenSearch DSL.
+
+## Querqy Rewriter Registration (OpenSearch Plugin)
+- Register rewriters via `PUT /_querqy/rewriter/<name>` REST API, NOT via config files.
+- Each rewriter requires a `class` field (e.g., `querqy.rewrite.commonrules.CommonRulesRewriter`) and a `config` object with `rules`.
+- Rewriter chain order is defined per-query in the `rewriters` array, not in a config file.
+- See `references/querqy-rewriter-api.md` for the exact API format.
+
+## Querqy infoLogging (Debug Which Rules Fired)
+- Solr: `querqy.infoLogging=on` as a request parameter.
+- OpenSearch: `info_logging: { "id": "..." }` inside the querqy query body.
+- Response includes `querqy_decorations` showing which rules matched.
+- See `references/querqy-info-logging.md` for request/response examples.
+
+## positionIncrementGap Migration
+- Solr: `positionIncrementGap` (camelCase) set on the **fieldType**.
+- OpenSearch: `position_increment_gap` (snake_case) set on the **field mapping**.
+- Default differs: Solr defaults to 0, OpenSearch defaults to 100.
+- See `references/position-increment-gap.md` for mapping examples.

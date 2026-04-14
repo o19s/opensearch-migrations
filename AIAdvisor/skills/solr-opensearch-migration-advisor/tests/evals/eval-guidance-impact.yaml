@@ -1,17 +1,12 @@
 description: "Guidance impact: prove steering + reference content changes skill output"
 
-# 5 tests designed to FAIL without steering and PASS with steering.
-# Each tests domain knowledge that Claude/LLMs don't reliably have:
-#
-#   1. bf vs boost (additive vs multiplicative) — opinionated/counterintuitive
-#   2. Querqy on AWS OpenSearch — genuinely niche, LLMs get this wrong
-#   3. multi_match type selection — subtle, LLMs recommend wrong type
-#   4. copyField → multi-fields not copy_to — TMDB-specific
-#   5. SMUI export format — Querqy/SMUI niche, LLMs fabricate
+# 4 tests designed to FAIL without steering and PASS with steering.
+# Each tests domain knowledge that Claude doesn't reliably produce
+# without curated steering and reference content.
 #
 # Fixture structure:
-#   skill-bare/     → SKILL.md only, empty steering
-#   skill-guided/   → SKILL.md + 5 steering triggers + 5 reference deep-dives
+#   skill-bare/     → SKILL.md only, empty steering, no references
+#   skill-guided/   → SKILL.md + steering triggers + reference deep-dives
 #
 # Expected: bare column = all red, guided column = all green
 #
@@ -45,108 +40,11 @@ prompts:
 
 tests:
 
-  # ── Test 1: bf vs boost (opinionated) ──────────────────────────
-  # Steering: incompatibilities.md#bf-vs-boost
-  # Reference: bf-vs-boost.md
-  # LLMs often conflate bf and boost or get the additive/multiplicative
-  # distinction wrong. Steering must explicitly state bf=sum, boost=multiply.
-
-  - description: "bf is additive (sum), boost is multiplicative (multiply)"
-    vars:
-      query: |
-        In Solr eDisMax, explain the exact difference between the bf and
-        boost parameters in terms of how they combine with the relevance
-        score. For each one, what is the correct boost_mode value to use
-        in an OpenSearch function_score query?
-
-        Be specific: state whether each is additive or multiplicative,
-        and give the exact boost_mode string for each.
-    assert:
-      - type: icontains
-        value: "boost_mode"
-        metric: mentions-boost-mode
-      - type: contains-any
-        value:
-          - "additive"
-          - "adds to"
-          - "added to"
-        metric: bf-is-additive
-      - type: contains-any
-        value:
-          - "multiplicative"
-          - "multiplies"
-          - "multiply"
-        metric: boost-is-multiplicative
-
-  # ── Test 2: Querqy on AWS (niche) ─────────────────────────────
-  # Steering: incompatibilities.md#querqy-aws
-  # Reference: querqy-to-native-os.md
-  # LLMs often say Querqy can be installed on AWS OpenSearch — it cannot.
-
-  - description: "Querqy is NOT available on AWS OpenSearch Service"
-    vars:
-      query: |
-        We use Querqy in Solr for query rewriting. We're migrating to
-        AWS OpenSearch Service (the managed service, not self-managed).
-        Can we install the Querqy plugin on AWS OpenSearch Service?
-
-        Answer yes or no, then explain what we should do instead for
-        UP, DOWN, FILTER, and SYNONYM rules.
-    assert:
-      - type: contains-any
-        value:
-          - "cannot"
-          - "can't"
-          - "not available"
-          - "not supported"
-          - "not possible"
-          - "does not support"
-          - "does not allow"
-          - "doesn't support"
-          - "No."
-        metric: querqy-aws-unavailable
-      - type: contains-any
-        value:
-          - "boosting"
-          - "negative_boost"
-          - "bool"
-          - "should"
-        metric: querqy-down-replacement
-
-  # ── Test 3: multi_match type for mixed analyzers (subtle) ──────
-  # Steering: incompatibilities.md#edismax-type
-  # Reference: multi-match-type-selection.md
-  # LLMs often recommend combined_fields even when analyzers differ.
-
-  - description: "Use best_fields (not combined_fields) when analyzers differ"
-    vars:
-      query: |
-        I'm translating this Solr eDisMax to OpenSearch:
-        qf=title^10 overview^5 genres_s^2
-
-        title and overview use the text_general analyzer.
-        genres_s is a string/keyword field (no analysis).
-
-        Should I use multi_match type "best_fields" or "combined_fields"?
-        Explain why one is correct and the other would fail.
-    assert:
-      - type: icontains
-        value: "best_fields"
-        metric: recommends-best-fields
-      - type: contains-any
-        value:
-          - "same analyzer"
-          - "same analysis"
-          - "different analyzer"
-          - "different analysis"
-          - "require the same"
-          - "requires the same"
-        metric: explains-analyzer-requirement
-
-  # ── Test 4: copyField → multi-fields (TMDB-specific) ──────────
+  # ── Confirmed stumper: copyField → multi-fields ────────────────
   # Steering: incompatibilities.md#copyfield
   # Reference: copyfield-to-multifield.md
-  # LLMs suggest copy_to, but that doesn't re-analyze.
+  # Bare Claude says "use copy_to" — WRONG (copy_to doesn't re-analyze).
+  # Guided Claude says "use multi-fields" — CORRECT.
 
   - description: "copyField with different analyzer → multi-fields, not copy_to"
     vars:
@@ -171,27 +69,99 @@ tests:
           - "fields:"
         metric: recommends-multi-fields
 
-  # ── Test 5: SMUI export format (Querqy/SMUI niche) ────────────
-  # Steering: incompatibilities.md#smui
-  # Reference: smui-rule-translation.md
-  # LLMs fabricate a JSON format. SMUI actually exports plain text.
+  # ── Querqy rewriter REST API format ────────────────────────────
+  # Steering: incompatibilities.md#querqy-rewriter
+  # Reference: querqy-rewriter-api.md
+  # Claude won't know the exact PUT /_querqy/rewriter endpoint or the
+  # JSON body structure with "class" and "config.rules" fields.
 
-  - description: "SMUI exports plain text rules, not JSON"
+  - description: "Querqy rewriter registration via /_querqy/rewriter REST API"
     vars:
       query: |
-        I need to export rules from SMUI (Search Management UI for Querqy)
-        and translate them to OpenSearch. What is the format of a SMUI
-        rules export file? Is it JSON, XML, or something else?
+        We're migrating our Querqy setup from Solr to the OpenSearch
+        Querqy plugin. In Solr, we configured rewriters in querqy.xml.
 
-        Show an example of what the export looks like for a term with
-        SYNONYM and UP rules.
+        Show the exact REST API call to register a CommonRulesRewriter
+        in the OpenSearch Querqy plugin. Include the HTTP method,
+        endpoint path, and full JSON request body.
     assert:
       - type: contains-any
         value:
-          - "plain text"
-          - "plain-text"
-          - "text format"
-          - "text file"
-          - "=>"
-          - "Common Rules"
-        metric: smui-plain-text-format
+          - "_querqy/rewriter"
+          - "_querqy"
+        metric: querqy-endpoint
+      - type: contains-any
+        value:
+          - "CommonRulesRewriter"
+          - "commonrules"
+          - "common_rules"
+        metric: querqy-rewriter-class
+
+  # ── Querqy infoLogging → OpenSearch equivalent ─────────────────
+  # Steering: incompatibilities.md#querqy-info-logging
+  # Reference: querqy-info-logging.md
+  # Claude won't know the OpenSearch Querqy plugin uses "info_logging"
+  # in the query body (not a request parameter) and returns
+  # "querqy_decorations" in the response.
+
+  - description: "Querqy infoLogging: debug which rules fired in OpenSearch"
+    vars:
+      query: |
+        In Solr, we use querqy.infoLogging=on to see which Querqy rules
+        fired for a given query. We're migrating to the OpenSearch Querqy
+        plugin.
+
+        How do we enable the same debug logging in OpenSearch? Show the
+        exact query syntax and describe what the response looks like.
+    assert:
+      - type: contains-any
+        value:
+          - "info_logging"
+          - "infoLogging"
+          - "info logging"
+        metric: info-logging-param
+      - type: contains-any
+        value:
+          - "querqy_decorations"
+          - "decorations"
+          - "matched_queries"
+        metric: decoration-response
+
+  # ── positionIncrementGap parameter name and location ───────────
+  # Steering: incompatibilities.md#position-increment-gap
+  # Reference: position-increment-gap.md
+  # Claude may know the concept but give the wrong parameter name
+  # (camelCase instead of snake_case) or put it on the analyzer
+  # instead of the field mapping.
+
+  - description: "positionIncrementGap → position_increment_gap (snake_case, on field)"
+    vars:
+      query: |
+        Our Solr schema has positionIncrementGap="100" on the text_general
+        fieldType to prevent phrase matches across multi-valued field
+        boundaries.
+
+        What is the exact OpenSearch mapping parameter name for this?
+        Where does it go — on the analyzer or on the field mapping?
+        Show a mapping example.
+    assert:
+      - type: icontains
+        value: "position_increment_gap"
+        metric: correct-param-name
+
+  # ═══════════════════════════════════════════════════════════════
+  #  COMMENTED OUT: Tests where bare Claude already passes
+  #  (Claude's training data covers these topics well enough)
+  # ═══════════════════════════════════════════════════════════════
+
+  # - description: "bf is additive (sum), boost is multiplicative (multiply)"
+  #   # Claude already knows this without steering
+
+  # - description: "Querqy is NOT available on AWS OpenSearch Service"
+  #   # Claude already knows this without steering
+
+  # - description: "Use best_fields (not combined_fields) when analyzers differ"
+  #   # Claude already knows this without steering
+
+  # - description: "SMUI exports plain text rules, not JSON"
+  #   # Claude already knows this without steering
