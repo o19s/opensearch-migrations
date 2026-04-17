@@ -1,0 +1,187 @@
+description: "Blue-sky SMA evals: deeper translation, operational guidance, migration strategy"
+
+# Prerequisites:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor
+#   uv sync --extra eval
+#   source .venv/bin/activate
+#   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#
+# Running tests:
+#   Test descriptions are prefixed by category. Use --filter-pattern to select subsets:
+#
+#   # Function query translation:
+#   promptfoo eval -c eval-blue-sky.yaml --filter-pattern "^funcq-"
+#
+#   # Everything:
+#   promptfoo eval -c eval-blue-sky.yaml
+#
+#   promptfoo view
+
+providers:
+  - id: 'file://claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  metadata:
+    continue: false
+  vars:
+    ecommerce_schema: "file://fixtures/ecommerce-schema.xml"
+    ecommerce_solrconfig: "file://fixtures/ecommerce-solrconfig.xml"
+    ecommerce_dih: "file://fixtures/ecommerce-dih-config.xml"
+  options:
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      config:
+        region: us-east-1
+        max_tokens: 512
+
+prompts:
+  - id: blue-sky-prompt
+    label: "Blue-sky SMA eval"
+    raw: "{{query}}"
+
+tests:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  FUNCTION QUERY TRANSLATION
+  # ═══════════════════════════════════════════════════════════════
+
+  # ─────────────────────────────────────────────────────────────
+  #  Function Query Translation (funcq-*) — 4 tests
+  #
+  #  Why this matters: Solr bf expressions are a mini-language.
+  #  Shallow "use function_score" advice doesn't help; the advisor
+  #  must decompose the actual expression.
+  # ─────────────────────────────────────────────────────────────
+
+  - description: "funcq-01: recip date boost -> decay function with correct params"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. Here is our schema:
+        {{ecommerce_schema}}
+
+        Our /search handler (from solrconfig.xml) uses this recency boost:
+        bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
+
+        Explain how the recip() parameters map to the OpenSearch decay function
+        parameters (scale, offset, decay). Provide the complete OpenSearch query JSON.
+    assert:
+      - type: icontains
+        value: "function_score"
+      - type: contains-any
+        value:
+          - "gauss"
+          - "exp"
+          - "linear"
+          - "decay"
+      - type: icontains
+        value: "updated_at"
+      - type: contains-any
+        value:
+          - "scale"
+          - "offset"
+          - "origin"
+
+  - description: "funcq-02: field value factor with log modifier"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. Here is our schema:
+        {{ecommerce_schema}}
+
+        We boost popular products using:
+        bf=log(review_count)^0.5
+
+        Provide the OpenSearch function_score equivalent. Note how the log()
+        wrapping and the ^0.5 boost translate.
+    assert:
+      - type: icontains
+        value: "function_score"
+      - type: contains-any
+        value:
+          - "field_value_factor"
+          - "script_score"
+      - type: icontains
+        value: "review_count"
+      - type: contains-any
+        value:
+          - "log"
+          - "ln"
+          - "modifier"
+
+  - description: "funcq-03: geodist boost -> distance decay"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. Here is our schema:
+        {{ecommerce_schema}}
+
+        Our /stores handler uses geodist boosting to rank nearby results higher:
+        defType=edismax
+        q=laptop
+        qf=product_name^10 description^5
+        bf=recip(geodist(),1,100,100)
+        sfield=store_location
+        pt=40.7128,-74.0060
+
+        The store_location field is a LatLonPointSpatialField.
+        Provide the OpenSearch query JSON with the equivalent geo-distance decay.
+    assert:
+      - type: icontains
+        value: "function_score"
+      - type: contains-any
+        value:
+          - "gauss"
+          - "exp"
+          - "linear"
+          - "decay"
+      - type: contains-any
+        value:
+          - "geo_point"
+          - "store_location"
+          - "location"
+      - type: contains-any
+        value:
+          - "40.7128"
+          - "-74.006"
+          - "origin"
+
+  - description: "funcq-04: multiple bf + bq combined -> function_score with multiple functions"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. Here is our schema:
+        {{ecommerce_schema}}
+
+        Here is our full /search handler config:
+        {{ecommerce_solrconfig}}
+
+        The /search handler combines recency boost, popularity boost, and
+        in-stock boosting:
+        bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
+        bf=log(review_count)^0.3
+        bq=in_stock:true^10
+        bq=avg_rating:[4 TO *]^3
+
+        Provide the complete OpenSearch query JSON that combines all boost
+        signals. Note how multiple bf values and multiple bq values translate.
+    assert:
+      - type: icontains
+        value: "function_score"
+      - type: icontains
+        value: "should"
+      - type: icontains
+        value: "updated_at"
+      - type: icontains
+        value: "review_count"
+      - type: icontains
+        value: "in_stock"
+      - type: javascript
+        value: |
+          const lower = output.toLowerCase();
+          const hasMultipleFunctions = (lower.includes('functions') || lower.includes('script'))
+            && lower.includes('updated_at') && lower.includes('review_count');
+          const hasBothBq = lower.includes('in_stock') && (lower.includes('avg_rating') || lower.includes('4'));
+          return (hasMultipleFunctions && hasBothBq)
+            ? { pass: true, score: 1 }
+            : { pass: false, score: 0, reason: 'Must translate both bf expressions as function_score functions AND both bq expressions as should clauses' };
