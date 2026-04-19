@@ -1,0 +1,233 @@
+description: "Yolo SMA evals: real-world TMDB and Chorus configs fed to the advisor"
+
+# Prerequisites:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor
+#   uv sync --extra eval
+#   source .venv/bin/activate
+#   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#
+# Chorus fixtures:
+#   Extract schema.xml and solrconfig.xml from a running Chorus Solr instance:
+#     curl http://localhost:8983/solr/ecommerce/admin/file?file=schema.xml > tests/evals/fixtures/chorus-schema.xml
+#     curl http://localhost:8983/solr/ecommerce/admin/file?file=solrconfig.xml > tests/evals/fixtures/chorus-solrconfig.xml
+#
+# Running tests:
+#   # TMDB yolo tests only (no Chorus fixtures needed):
+#   promptfoo eval -c eval-yolo.yaml --filter-pattern "^yolo-tmdb"
+#
+#   # Chorus yolo tests (requires fixtures):
+#   promptfoo eval -c eval-yolo.yaml --filter-pattern "^yolo-chorus"
+#
+#   # Everything:
+#   promptfoo eval -c eval-yolo.yaml
+#
+#   promptfoo view
+
+providers:
+  - id: 'file://claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  metadata:
+    continue: false
+  vars:
+    tmdb_schema: "file://../connected/tmdb/solr-tmdb/solr_home/tmdb/conf/schema.xml"
+    tmdb_solrconfig: "file://../connected/tmdb/solr-tmdb/solr_home/tmdb/conf/solrconfig.xml"
+    chorus_schema: "file://fixtures/chorus-schema.xml"
+    chorus_solrconfig: "file://fixtures/chorus-solrconfig.xml"
+  options:
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      config:
+        region: us-east-1
+        max_tokens: 512
+
+prompts:
+  - id: yolo-prompt
+    label: "Yolo SMA eval"
+    raw: "{{query}}"
+
+tests:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  TMDB YOLO TESTS (yolo-tmdb-*)
+  # ═══════════════════════════════════════════════════════════════
+  #
+  #  Feed the real TMDB Solr schema and solrconfig to the advisor.
+  #  These configs are from the o19s/solr-tmdb project (Solr 8.11).
+  # ═══════════════════════════════════════════════════════════════
+
+  - description: "yolo-tmdb-01: schema conversion produces valid mapping for all core fields"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11.
+        Convert this schema to an OpenSearch mapping:
+        {{tmdb_schema}}
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must produce a valid OpenSearch mapping that covers
+          the core TMDB fields:
+          1. id → keyword (or _id)
+          2. title → text with appropriate analyzer
+          3. overview → text
+          4. cast, directors, genres → text (multiValued → array)
+          5. release_date → date
+          6. vote_average → float
+          7. vote_count → integer
+          8. poster_path → keyword
+          Must handle the extensive copyField rules (synonym variants,
+          language variants, etc.) — either as multi-fields or copy_to.
+          Must NOT include _version_ in the mapping.
+        metric: yolo-tmdb-01-schema
+      - type: javascript
+        value: |
+          const jsonMatch = output.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (!jsonMatch) return { pass: false, score: 0, reason: 'No JSON code block found' };
+          try {
+            const parsed = JSON.parse(jsonMatch[1].trim());
+            const props = parsed.mappings?.properties || parsed.properties || {};
+            const hasTitle = 'title' in props;
+            const hasOverview = 'overview' in props;
+            const noVersion = !('_version_' in props);
+            return (hasTitle && hasOverview && noVersion)
+              ? { pass: true, score: 1 }
+              : { pass: false, score: 0, reason: 'Missing expected fields or _version_ not excluded' };
+          } catch (e) {
+            return { pass: false, score: 0, reason: 'JSON parse error: ' + e.message };
+          }
+
+  - description: "yolo-tmdb-02: solrconfig translation covers handlers and caches"
+    vars:
+      query: |
+        I'm a DevOps Engineer migrating from Solr 8.11. Here is our solrconfig.xml:
+        {{tmdb_solrconfig}}
+
+        What OpenSearch settings and configurations replace these Solr settings?
+        Focus on request handlers, caches, and any custom components.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must address the key solrconfig.xml elements:
+          1. Request handlers → Search templates or application-layer defaults
+          2. Cache settings → OpenSearch query cache and field data cache settings
+          3. Querqy integration (if present) → Querqy OpenSearch plugin
+          4. LTR/extraction handlers (if present) → OpenSearch LTR plugin
+          5. Should provide concrete OpenSearch settings JSON where applicable
+        metric: yolo-tmdb-02-solrconfig
+
+  - description: "yolo-tmdb-03a: full TMDB migration session - start"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11 to OpenSearch.
+        Here is our schema:
+        {{tmdb_schema}}
+
+        And our solrconfig:
+        {{tmdb_solrconfig}}
+
+        This is a movie database with about 15,000 documents. Start the migration.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must acknowledge the TMDB context and begin systematic migration:
+          1. Identify key schema elements (text fields, dates, numeric, multiValued)
+          2. Flag any incompatibilities or notable conversion decisions
+          3. Show the OpenSearch mapping
+          4. Should note Querqy/LTR components if present in solrconfig
+        metric: yolo-tmdb-03a-start
+
+  - description: "yolo-tmdb-03b: full TMDB migration session - queries"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Now translate our main search query:
+        defType=edismax
+        q={user_query}
+        qf=title^10 overview^1 cast^5 directors^3
+        pf=title^20 overview^5
+        mm=100%
+        tie=0.1
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must translate the eDisMax query with awareness of the TMDB schema:
+          1. multi_match with correct field boosts (title^10, cast^5, etc.)
+          2. Phrase boost approximation for pf
+          3. minimum_should_match reflecting mm=100%
+          4. tie_breaker: 0.1
+          Must reference the field types from the schema (knows title is text, etc.)
+        metric: yolo-tmdb-03b-queries
+
+  - description: "yolo-tmdb-03c: full TMDB migration session - report"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Generate the full migration report.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must produce a complete migration report that:
+          1. References the TMDB schema and query from previous turns
+          2. Lists all incompatibilities found
+          3. Includes the OpenSearch mapping and query DSL
+          4. Provides milestones and sequencing
+          5. Is tailored for Search Relevance Engineer (leads with schema/query details)
+        metric: yolo-tmdb-03c-report
+
+  # ═══════════════════════════════════════════════════════════════
+  #  CHORUS YOLO TESTS (yolo-chorus-*)
+  # ═══════════════════════════════════════════════════════════════
+  #
+  #  Feed real Chorus (Solr 8 e-commerce) configs to the advisor.
+  #  Requires chorus-schema.xml and chorus-solrconfig.xml fixtures
+  #  extracted from a running Chorus instance.
+  # ═══════════════════════════════════════════════════════════════
+
+  - description: "yolo-chorus-01: Chorus schema with Querqy and complex analyzers"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11.
+        This is our Chorus e-commerce schema:
+        {{chorus_schema}}
+
+        Convert to OpenSearch. Pay special attention to any Querqy-related
+        field types or custom analyzers.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must handle the Chorus e-commerce schema complexity:
+          1. Product fields (title, description, brand, category, price, etc.)
+          2. Custom analyzers (synonym, phonetic, edge ngram for suggest, etc.)
+          3. Querqy-related field types or rewriter configurations
+          4. Show complete mapping JSON
+          5. Flag any incompatible or unsupported field types
+        metric: yolo-chorus-01-schema
+
+  - description: "yolo-chorus-02: Chorus eDisMax handler with bf/bq"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11.
+        Here is our Chorus solrconfig.xml:
+        {{chorus_solrconfig}}
+
+        Translate the main /select request handler to OpenSearch Query DSL.
+        Our handler uses eDisMax with boost functions and boost queries
+        for relevance tuning.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must translate the Chorus search handler:
+          1. eDisMax qf/pf field boosts → multi_match with field weights
+          2. bf expressions → function_score functions
+          3. bq expressions → should clauses
+          4. Querqy integration → note need for Querqy OpenSearch plugin
+          5. Show complete OpenSearch query JSON
+        metric: yolo-chorus-02-handler
