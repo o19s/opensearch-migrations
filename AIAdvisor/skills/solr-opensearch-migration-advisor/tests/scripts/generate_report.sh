@@ -19,9 +19,9 @@
 # Prerequisites:
 #   cd AIAdvisor/skills/solr-opensearch-migration-advisor
 #   uv sync --extra eval
-#   source .venv/bin/activate
 #   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
-#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#
+# The script auto-detects the .venv and sets PROMPTFOO_PYTHON.
 
 set -euo pipefail
 
@@ -54,6 +54,19 @@ if [[ -f "$SKILL_DIR/.env" ]]; then
     set -a
     source "$SKILL_DIR/.env"
     set +a
+fi
+
+# Auto-detect venv and set PROMPTFOO_PYTHON so promptfoo uses the
+# correct Python with claude_agent_sdk installed
+if [[ -z "${PROMPTFOO_PYTHON:-}" ]]; then
+    VENV_PYTHON="$SKILL_DIR/.venv/bin/python"
+    if [[ -x "$VENV_PYTHON" ]]; then
+        export PROMPTFOO_PYTHON="$VENV_PYTHON"
+    else
+        echo "Error: .venv not found at $SKILL_DIR/.venv" >&2
+        echo "Run: cd $SKILL_DIR && uv sync --extra eval" >&2
+        exit 1
+    fi
 fi
 
 # Ensure skill symlink exists
