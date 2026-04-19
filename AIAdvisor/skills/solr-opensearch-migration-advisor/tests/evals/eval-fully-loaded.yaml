@@ -1,0 +1,949 @@
+description: "Fully-loaded SMA evals: 6 roles x 3 tiers (deterministic, single-turn, conversations)"
+
+# Prerequisites:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor
+#   uv sync --extra eval
+#   source .venv/bin/activate
+#   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#
+# Running tests:
+#   Test descriptions are prefixed by tier. Use --filter-pattern to select subsets:
+#
+#   # Deterministic / fast:
+#   promptfoo eval -c eval-fully-loaded.yaml --filter-pattern "^det-"
+#
+#   # Single-turn exchanges:
+#   promptfoo eval -c eval-fully-loaded.yaml --filter-pattern "^single-"
+#
+#   # Multi-prompt conversations:
+#   promptfoo eval -c eval-fully-loaded.yaml --filter-pattern "^conv-"
+#
+#   # Everything:
+#   promptfoo eval -c eval-fully-loaded.yaml
+#
+#   promptfoo view
+
+providers:
+  - id: 'file://claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  metadata:
+    continue: false
+  vars:
+    ecommerce_schema: "file://fixtures/ecommerce-schema.xml"
+    ecommerce_solrconfig: "file://fixtures/ecommerce-solrconfig.xml"
+  options:
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      config:
+        region: us-east-1
+        max_tokens: 512
+
+prompts:
+  - id: fully-loaded-prompt
+    label: "Fully-loaded SMA eval"
+    raw: "{{query}}"
+
+tests:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  TIER 1 — DETERMINISTIC / FAST (det-*)
+  # ═══════════════════════════════════════════════════════════════
+  #
+  #  No LLM judge. Uses icontains, contains-any, javascript only.
+  #  Purpose: fast sanity checks that key concepts appear in output.
+  # ═══════════════════════════════════════════════════════════════
+
+  - description: "det-01: role prompt lists all 6 stakeholder roles"
+    vars:
+      query: |
+        Help me migrate my Solr system to OpenSearch.
+    assert:
+      - type: contains-any
+        value:
+          - "Search Relevance Engineer"
+          - "Search Engineer"
+      - type: contains-any
+        value:
+          - "Application Developer"
+          - "App Developer"
+      - type: contains-any
+        value:
+          - "DevOps"
+          - "Platform Engineer"
+      - type: contains-any
+        value:
+          - "Data Engineer"
+      - type: contains-any
+        value:
+          - "Architect"
+      - type: contains-any
+        value:
+          - "Product Manager"
+          - "Business Stakeholder"
+
+  - description: "det-02: schema conversion outputs valid mapping JSON"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11.
+        Convert this schema to an OpenSearch mapping:
+        {{ecommerce_schema}}
+    assert:
+      - type: javascript
+        value: |
+          const jsonMatch = output.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (!jsonMatch) return { pass: false, score: 0, reason: 'No JSON code block found' };
+          try {
+            const parsed = JSON.parse(jsonMatch[1].trim());
+            const hasMappings = parsed.mappings || (parsed.settings && parsed.mappings !== undefined);
+            return hasMappings
+              ? { pass: true, score: 1 }
+              : { pass: false, score: 0, reason: 'JSON parsed but no "mappings" key found' };
+          } catch (e) {
+            return { pass: false, score: 0, reason: 'JSON parse error: ' + e.message };
+          }
+
+  - description: "det-03: Trie field types flagged as incompatible"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 6.6.
+        My schema has these field types:
+        <fieldType name="int" class="solr.TrieIntField" precisionStep="0"/>
+        <fieldType name="long" class="solr.TrieLongField" precisionStep="0"/>
+        <fieldType name="date" class="solr.TrieDateField" precisionStep="0"/>
+        <field name="count" type="int" indexed="true" stored="true"/>
+        What should I know about migrating these?
+    assert:
+      - type: icontains
+        value: "TrieIntField"
+      - type: contains-any
+        value:
+          - "integer"
+          - "long"
+          - "Point"
+          - "deprecated"
+          - "no direct equivalent"
+
+  - description: "det-04: copyField with different analyzers -> multi-fields"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer. In my Solr schema I have:
+        <fieldType name="text_en" class="solr.TextField">
+          <analyzer><tokenizer class="solr.StandardTokenizerFactory"/>
+          <filter class="solr.PorterStemFilterFactory"/></analyzer>
+        </fieldType>
+        <fieldType name="text_general" class="solr.TextField">
+          <analyzer><tokenizer class="solr.StandardTokenizerFactory"/></analyzer>
+        </fieldType>
+        <field name="title" type="text_general"/>
+        <copyField source="title" dest="title_en"/>
+        The title_en field uses a different analyzer (English stemming).
+        Should I use copy_to or multi-fields in OpenSearch?
+    assert:
+      - type: contains-any
+        value:
+          - "multi-fields"
+          - "multi_fields"
+          - "fields"
+          - "sub-field"
+
+  - description: "det-05: SolrJ -> opensearch-java library mapping"
+    vars:
+      query: |
+        I'm an Application Developer. We use SolrJ in our Java microservices.
+        What OpenSearch client library replaces it?
+    assert:
+      - type: icontains
+        value: "opensearch-java"
+
+  - description: "det-06: DIH replacement mentions concrete alternatives"
+    vars:
+      query: |
+        I'm a Data Engineer. We use Solr's Data Import Handler (DIH) to pull
+        data from MySQL. What are our options in OpenSearch?
+    assert:
+      - type: contains-any
+        value:
+          - "SolrReader"
+          - "Logstash"
+          - "Kafka"
+          - "Bulk API"
+          - "custom script"
+          - "Data Prepper"
+
+  - description: "det-07: bf expression -> function_score"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11.
+        Our eDisMax handler uses: bf=recip(ms(NOW,release_date),3.16e-11,1,1)
+        What's the OpenSearch equivalent?
+    assert:
+      - type: icontains
+        value: "function_score"
+
+  - description: "det-08: hallucination guard - fake feature"
+    vars:
+      query: |
+        How do I migrate Solr's wormhole vector indexing feature to OpenSearch?
+    assert:
+      - type: contains-any
+        value:
+          - "not a real"
+          - "does not exist"
+          - "not aware"
+          - "no such"
+          - "don't recognize"
+          - "not a standard"
+          - "not a feature"
+          - "unfamiliar"
+
+  - description: "det-09: Kerberos auth mentions keytab"
+    vars:
+      query: |
+        I'm a DevOps Engineer. We use Kerberos authentication with Solr.
+        How do we set this up in OpenSearch?
+    assert:
+      - type: icontains
+        value: "keytab"
+
+  - description: "det-10: autoSoftCommit -> refresh_interval"
+    vars:
+      query: |
+        I'm a DevOps Engineer migrating from Solr 8.11. Our solrconfig.xml has:
+        {{ecommerce_solrconfig}}
+        What are the equivalent OpenSearch settings for the commit configuration?
+    assert:
+      - type: icontains
+        value: "refresh_interval"
+
+  # ═══════════════════════════════════════════════════════════════
+  #  TIER 2 — SINGLE-TURN / SINGLE-PROMPT (single-*)
+  # ═══════════════════════════════════════════════════════════════
+  #
+  #  Each test is one isolated prompt with an llm-rubric assertion.
+  #  Tests establish role context in the prompt itself.
+  # ═══════════════════════════════════════════════════════════════
+
+  - description: "single-01: (Search Eng) eDisMax bf -> function_score with correct decay params"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11. Here is our schema:
+        {{ecommerce_schema}}
+
+        Our /search handler uses this recency boost:
+        bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
+
+        Explain how the recip() parameters map to the OpenSearch decay function
+        parameters. Provide the complete OpenSearch query JSON.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide a complete function_score query using a decay
+          function (gauss, exp, or linear) on updated_at. It must:
+          1. Set origin to "now"
+          2. Provide a scale value reflecting the 3.16e-11 constant (~1 year half-life)
+          3. Translate ^0.5 as a weight on the function
+          4. Show complete, valid JSON — not pseudocode
+        metric: single-01-decay-params
+
+  - description: "single-02: (Search Eng) TF-IDF to BM25 on short fields"
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 6.6 (ClassicSimilarity/TF-IDF)
+        to OpenSearch (BM25). Our product titles are 2-5 words long.
+
+        What specific ranking behavior changes on these short text fields?
+        What BM25 parameter controls this and what value approximates TF-IDF?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must:
+          1. Identify k1 as the BM25 parameter controlling term frequency saturation
+          2. Explain that BM25 saturates TF while TF-IDF scales linearly
+          3. Note that setting k1 very high (~100) approximates TF-IDF behavior
+          4. Explain why this matters for short fields (fewer term occurrences)
+        metric: single-02-tfidf-bm25
+
+  - description: "single-03: (DevOps) 5-node Solr -> OpenSearch sizing"
+    vars:
+      query: |
+        I'm a DevOps Engineer. Our current Solr setup:
+        - 5 SolrCloud nodes, each 32GB RAM (16GB heap), 8 cores, 500GB SSD
+        - 3 ZooKeeper nodes
+        - 2 collections, 4 shards each, replication factor 2
+        - ~200M documents, 80GB total index size
+        - Peak: 500 queries/sec, 50 docs/sec indexing
+
+        What should our OpenSearch cluster look like?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide concrete sizing recommendations:
+          1. Node count (should be comparable or justified if different)
+          2. Heap recommendation (should NOT exceed 32GB, ideally ~50% of RAM)
+          3. Shard count (should follow 10-50GB per shard guideline)
+          4. Note that ZooKeeper is eliminated (built-in cluster manager)
+          5. Recommend dedicated cluster manager nodes for this size
+          6. Address storage requirements
+          Generic "it depends" without numbers is NOT sufficient.
+        metric: single-03-cluster-sizing
+
+  - description: "single-04: (DevOps) autoSoftCommit + autoCommit -> refresh + translog"
+    vars:
+      query: |
+        I'm a DevOps Engineer migrating from Solr 8.11. Our commit settings:
+        - autoSoftCommit maxTime = 1000ms
+        - autoCommit maxTime = 15000ms, openSearcher=false
+
+        What are the exact equivalent OpenSearch settings? Provide the PUT JSON.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must map BOTH tiers:
+          1. autoSoftCommit (1000ms) → index.refresh_interval ("1s" or similar)
+          2. autoCommit (15000ms) → translog settings (sync_interval, flush_threshold_size, or durability)
+          3. Explain openSearcher=false has no equivalent (OS always opens new searcher)
+          Mentioning only refresh_interval is WRONG — must cover translog too.
+        metric: single-04-commit-refresh
+
+  - description: "single-05: (App Dev) SolrJ client code migration"
+    vars:
+      query: |
+        I'm an Application Developer. Here's our Java code using SolrJ:
+
+        CloudSolrClient client = new CloudSolrClient.Builder(
+            Collections.singletonList("zk1:2181"), Optional.of("/solr"))
+            .build();
+        client.setDefaultCollection("products");
+
+        SolrQuery query = new SolrQuery("laptop");
+        query.setParam("defType", "edismax");
+        query.setParam("qf", "title^2 description");
+        query.setRows(10);
+
+        QueryResponse response = client.query(query);
+        SolrDocumentList results = response.getResults();
+
+        Show me the equivalent opensearch-java code.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide complete, compilable Java code using opensearch-java:
+          1. OpenSearchClient construction (no ZooKeeper, direct HTTP)
+          2. Multi-match query equivalent for eDisMax qf with field boosts
+          3. SearchRequest with size=10
+          4. Response handling showing how to iterate results
+          Must show actual code, not just prose describing what to change.
+        metric: single-05-solrj-migration
+      - type: icontains
+        value: "opensearch-java"
+
+  - description: "single-06: (Data Eng) Migrate 50M docs from Solr backups"
+    vars:
+      query: |
+        I'm a Data Engineer. I need to migrate 50 million documents from Solr 8.11
+        to OpenSearch. We have nightly Solr backup snapshots available.
+        Our source database is months out of date so re-indexing from source isn't viable.
+
+        What's the recommended approach?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response MUST recommend SolrReader or Reindex From Snapshot (RFS)
+          as the primary approach since backups are available. It should explain
+          that SolrReader reads Lucene segments directly from Solr backup files.
+          Generic advice like "use the Bulk API" or "write a Python script" without
+          mentioning SolrReader/RFS is NOT sufficient.
+        metric: single-06-solrreader
+      - type: contains-any
+        value:
+          - "SolrReader"
+          - "Solr Reader"
+          - "Reindex From Snapshot"
+          - "RFS"
+
+  - description: "single-07: (Architect) ZooKeeper removal impact"
+    vars:
+      query: |
+        I'm an Architect. Our Solr deployment uses a 3-node ZooKeeper ensemble
+        for SolrCloud coordination, config management, and leader election.
+
+        How does OpenSearch handle these responsibilities? What changes in our
+        architecture when ZooKeeper goes away?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must explain:
+          1. OpenSearch uses a built-in Raft-based cluster manager (no external dependency)
+          2. Dedicated cluster manager nodes replace ZooKeeper's role
+          3. Config management moves to cluster state / index templates (no external store)
+          4. Leader election is handled internally
+          5. This simplifies the deployment topology (fewer components to manage)
+          Must NOT suggest installing ZooKeeper alongside OpenSearch.
+        metric: single-07-zookeeper-removal
+
+  - description: "single-08: (Architect) Solr Basic Auth -> OpenSearch Security Plugin"
+    vars:
+      query: |
+        I'm an Architect. We use Solr's Basic Auth plugin with security.json:
+        {
+          "authentication": {
+            "class": "solr.BasicAuthPlugin",
+            "credentials": {"admin": "hash", "search-user": "hash"}
+          },
+          "authorization": {
+            "class": "solr.RuleBasedAuthorizationPlugin",
+            "permissions": [
+              {"name": "read", "role": "search-role"},
+              {"name": "update", "role": "admin-role"},
+              {"name": "all", "role": "admin-role"}
+            ],
+            "user-role": {"admin": "admin-role", "search-user": "search-role"}
+          }
+        }
+
+        How do we replicate this in OpenSearch?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must map the Solr security model to OpenSearch Security plugin:
+          1. Internal user database replaces security.json credentials
+          2. Roles and role mappings replace RuleBasedAuthorizationPlugin
+          3. Read-only role should map to an OpenSearch role with index-level read permissions
+          4. Admin role should map to a role with cluster and index admin permissions
+          5. Should mention opensearch.yml or securityadmin.sh for configuration
+        metric: single-08-security-migration
+
+  - description: "single-09: (PM) Migration timeline for large collection"
+    vars:
+      query: |
+        I'm a Product Manager. We're migrating our e-commerce search from Solr 8.11
+        to OpenSearch. We have 200M products, 5 development teams, and a 3-month target.
+
+        Give me a migration plan I can present to leadership.
+        I need milestones, risks, and cost implications — no code or JSON please.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must be in plain language suitable for leadership:
+          1. Clear milestones with rough time estimates
+          2. Key risks identified in business terms (not technical jargon)
+          3. Cost implications (infrastructure, engineering effort, testing)
+          4. Must NOT contain JSON, Query DSL, or code blocks
+          5. Should mention parallel development, testing phase, and cutover strategy
+          A highly technical response with code examples fails this test.
+        metric: single-09-pm-timeline
+
+  - description: "single-10: (Data Eng) DIH with delta import -> CDC recommendation"
+    vars:
+      query: |
+        I'm a Data Engineer. Our Solr uses DIH with delta imports:
+
+        <entity name="product"
+          query="SELECT * FROM products"
+          deltaQuery="SELECT id FROM products WHERE updated_at > '${dih.last_index_time}'"
+          deltaImportQuery="SELECT * FROM products WHERE id='${dih.delta.id}'">
+
+        We run delta imports every 5 minutes to keep search in sync with MySQL.
+        How do we replicate this in OpenSearch?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must address the delta/incremental sync pattern:
+          1. Recommend CDC (Change Data Capture) with Debezium as the primary approach,
+             OR timestamp-based polling as an alternative
+          2. Explain the mechanism: database changes captured and pushed to OpenSearch
+          3. Should NOT just say "use the Bulk API" without addressing the incremental aspect
+          4. May also mention Logstash JDBC input with schedule as a simpler alternative
+        metric: single-10-dih-delta
+      - type: contains-any
+        value:
+          - "CDC"
+          - "Debezium"
+          - "Change Data Capture"
+          - "timestamp"
+          - "polling"
+          - "Logstash"
+
+  # ═══════════════════════════════════════════════════════════════
+  #  TIER 3 — MULTI-PROMPT CONVERSATIONS (conv-*)
+  # ═══════════════════════════════════════════════════════════════
+  #
+  #  Sequential tests using continue: true to build session state.
+  #  Each conversation tests stepwise guidance and context awareness.
+  #  A continue: false starts a new session.
+  # ═══════════════════════════════════════════════════════════════
+
+  # ─── conv-01: Search Relevance Engineer full workflow (4 turns) ───
+
+  - description: "conv-01a: (Search Eng) identify role and version"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        Help me migrate my Solr system to OpenSearch.
+        I'm a Search Relevance Engineer, migrating from Solr 8.11.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges the Search Relevance Engineer role and Solr 8.11 version.
+          Should mention tailoring for schema, query translation, and relevance concerns.
+          Should ask for schema or proceed to schema acquisition step.
+        metric: conv-01a-role-ack
+
+  - description: "conv-01b: (Search Eng) provide schema"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Here is our schema:
+        {{ecommerce_schema}}
+    assert:
+      - type: llm-rubric
+        value: >-
+          Converts the schema to an OpenSearch mapping with field-by-field annotations
+          (appropriate for Search Relevance Engineer depth). Must flag incompatible types
+          (CurrencyField, EnumField, ICUCollationField). Must show complete mapping JSON.
+        metric: conv-01b-schema-conversion
+
+  - description: "conv-01c: (Search Eng) query translation"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Now translate this eDisMax query:
+        defType=edismax
+        q=wireless headphones
+        qf=product_name^10 description^3 brand^5
+        pf=product_name^15
+        mm=2<-1 5<80%
+        bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
+        bq=in_stock:true^10
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must produce a complete OpenSearch Query DSL translation that:
+          1. Uses multi_match for qf with correct field boosts
+          2. Includes phrase boost approximation for pf
+          3. Translates bf to a function_score decay function
+          4. Translates bq to a should clause
+          5. Handles mm correctly
+          Must reference the schema from the previous turn (knows about product_name, etc.)
+        metric: conv-01c-query-translation
+
+  - description: "conv-01d: (Search Eng) follow-up on scoring"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Will the relevance scores be different in OpenSearch? Our users are
+        sensitive to result ordering changes.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must acknowledge that scores WILL differ and explain why:
+          1. Both Solr 8.11 and OpenSearch use BM25 by default, so base scoring is similar
+          2. The bf/bq boost translation changes the scoring model (additive vs multiplicative)
+          3. Recommends relevance testing / A-B comparison
+          Must reference the specific query from the previous turn, not give generic advice.
+        metric: conv-01d-scoring-awareness
+
+  # ─── conv-02: DevOps full workflow (4 turns) ───
+
+  - description: "conv-02a: (DevOps) identify role and version"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a DevOps / Platform Engineer. We're migrating from Solr 8.11.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges DevOps role. Should mention tailoring for infrastructure,
+          cluster sizing, deployment, and operations. Should proceed toward
+          gathering cluster topology information.
+        metric: conv-02a-role-ack
+
+  - description: "conv-02b: (DevOps) cluster assessment"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Our current setup:
+        - SolrCloud with 5 nodes, each 64GB RAM (31GB heap), 16 cores, 2TB NVMe
+        - 3 ZooKeeper nodes (separate VMs)
+        - 1 collection, 10 shards, replication factor 2
+        - 500M documents, 400GB index size
+        - Peak: 2000 queries/sec, 200 docs/sec indexing
+        - Running on AWS EC2 (r5.4xlarge instances)
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must provide concrete OpenSearch cluster sizing:
+          1. Recommend node count and instance type (e.g., r6g.4xlarge or similar)
+          2. Heap should be ~50% of RAM, max 32GB
+          3. Shard sizing following 10-50GB guideline (400GB / shards)
+          4. Note ZooKeeper elimination (3 fewer nodes to manage)
+          5. Recommend dedicated cluster manager nodes
+          6. Should ask about self-managed vs. Amazon OpenSearch Service
+        metric: conv-02b-cluster-sizing
+
+  - description: "conv-02c: (DevOps) operational concerns"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        We want to go with Amazon OpenSearch Service. What operational
+        considerations should we plan for? We currently have Kerberos auth
+        and need FIPS compliance.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must address:
+          1. Amazon OpenSearch Service specifics (managed service trade-offs)
+          2. Kerberos is not natively supported on managed OS — alternatives needed
+          3. FIPS compliance availability on Amazon OpenSearch Service
+          4. Should reference previous cluster sizing from conv-02b
+          Must NOT ignore the Kerberos/FIPS requirements.
+        metric: conv-02c-operational
+
+  - description: "conv-02d: (DevOps) generate plan"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Generate the full migration plan with all the information we've discussed.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The report must be DevOps-tailored:
+          1. Leads with cluster sizing and infrastructure plan (not schema details)
+          2. Includes the specific node/shard recommendations from conv-02b
+          3. Addresses the Kerberos and FIPS requirements from conv-02c
+          4. Includes deployment sequencing and operational runbook
+          5. Mentions cost estimates for Amazon OpenSearch Service
+        metric: conv-02d-devops-report
+
+  # ─── conv-03: Application Developer (3 turns) ───
+
+  - description: "conv-03a: (App Dev) identify role"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm an Application Developer. We're migrating from Solr 8.11 to OpenSearch.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges App Developer role. Should mention focus on client library
+          changes, API differences, and code integration updates.
+        metric: conv-03a-role-ack
+
+  - description: "conv-03b: (App Dev) client library audit"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        We use these client libraries:
+        - SolrJ (Java, main product service)
+        - pysolr (Python, data analysis scripts)
+        - Custom HTTP client (Node.js, search UI backend)
+        - Solr Admin UI for monitoring
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must map each integration to its OpenSearch equivalent:
+          1. SolrJ → opensearch-java
+          2. pysolr → opensearch-py
+          3. Custom HTTP → update base URL and request body format
+          4. Solr Admin UI → OpenSearch Dashboards
+          Should provide concrete migration actions for each, not just name the replacements.
+        metric: conv-03b-client-audit
+
+  - description: "conv-03c: (App Dev) code migration example"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Show me a before/after code example for our SolrJ usage.
+        We construct eDisMax queries with field boosts and facets.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must provide concrete Java code showing:
+          1. SolrJ "before" code (SolrQuery with eDisMax params)
+          2. opensearch-java "after" code (SearchRequest with multi_match + aggregations)
+          3. Response handling differences
+          Should reference the SolrJ usage established in conv-03b.
+        metric: conv-03c-code-example
+
+  # ─── conv-04: Data Engineer (3 turns) ───
+
+  - description: "conv-04a: (Data Eng) identify role"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a Data Engineer. We need to migrate our Solr 8.11 search infrastructure
+        to OpenSearch.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges Data Engineer role. Should mention focus on ingest pipelines,
+          data transformation, and indexing strategies.
+        metric: conv-04a-role-ack
+
+  - description: "conv-04b: (Data Eng) data source assessment"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Our current data pipeline:
+        - DIH pulls from PostgreSQL every 15 minutes (delta imports)
+        - A custom UpdateRequestProcessorChain does HTML stripping, language detection,
+          and deduplication (signature-based)
+        - Bulk imports run nightly from a data warehouse
+        - We have Solr backup snapshots stored in S3
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must address each pipeline component:
+          1. DIH delta imports → CDC (Debezium) or Logstash JDBC polling
+          2. URP chain → OpenSearch ingest pipeline (HTML strip processor, lang detection, fingerprint)
+          3. Bulk imports → Bulk API with refresh_interval=-1 during load
+          4. S3 backups → SolrReader/RFS can read these directly
+          Must prioritize practical alternatives, not just list options.
+        metric: conv-04b-pipeline-assessment
+
+  - description: "conv-04c: (Data Eng) migration strategy"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Given all that, what's our migration strategy for the actual data move?
+        We have 100M documents and can't afford extended downtime.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must provide a concrete migration plan for the data:
+          1. Use SolrReader/RFS to read the S3 backup snapshots (mentioned in conv-04b)
+          2. Address zero/minimal downtime strategy (dual-write, blue-green, or cutover window)
+          3. Document count validation after migration
+          4. Mention the ingest pipeline setup must happen BEFORE data migration
+          Must reference the S3 backups and pipeline components from the previous turn.
+        metric: conv-04c-data-migration
+
+  # ─── conv-05: Architect (4 turns) ───
+
+  - description: "conv-05a: (Architect) identify role"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm an Architect evaluating the Solr 8.11 to OpenSearch migration for
+        our e-commerce platform.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges Architect role. Should mention focus on system design,
+          risk assessment, integration surface area, and strategic decisions.
+        metric: conv-05a-role-ack
+
+  - description: "conv-05b: (Architect) security audit"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Our current security setup:
+        - Kerberos for internal services
+        - Basic Auth for external API consumers
+        - Rule-based authorization with 5 roles (admin, indexer, reader, analyst, monitor)
+        - TLS between Solr nodes and ZooKeeper
+
+        What does the security architecture look like in OpenSearch?
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must provide an architectural-level security assessment:
+          1. OpenSearch Security plugin replaces all three auth mechanisms
+          2. Map the 5 Solr roles to OpenSearch roles with specific permissions
+          3. TLS is built-in (node-to-node and REST layer)
+          4. Note: ZooKeeper TLS goes away (no ZooKeeper)
+          5. Should assess migration complexity as moderate (not trivial)
+        metric: conv-05b-security-arch
+
+  - description: "conv-05c: (Architect) topology review"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Our Solr topology spans 2 data centers with CDCR for cross-DC replication.
+        We need similar DR capabilities in OpenSearch.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must address cross-DC / DR architecture:
+          1. CDCR → OpenSearch Cross-Cluster Replication (CCR)
+          2. Explain CCR leader-follower model
+          3. Note behavioral differences from CDCR
+          4. Should reference the security setup from conv-05b (affects cross-cluster config)
+        metric: conv-05c-topology
+
+  - description: "conv-05d: (Architect) risk summary"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Summarize the overall migration risk and recommended sequencing.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must produce an architect-appropriate risk summary:
+          1. Aggregate risk assessment (blocker count, severity distribution)
+          2. Recommended sequencing of migration phases
+          3. Should reference security (conv-05b) and topology (conv-05c) findings
+          4. Build-vs-buy assessment for any custom components
+          5. NOT a line-by-line technical report — strategic summary
+        metric: conv-05d-risk-summary
+
+  # ─── conv-06: Product Manager (3 turns) ───
+
+  - description: "conv-06a: (PM) identify role"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a Product Manager overseeing our search migration from Solr to OpenSearch.
+        I need to understand the impact and timeline.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges Product Manager role. Should use plain language,
+          avoid jargon, and mention focus on timelines, costs, and business impact.
+        metric: conv-06a-role-ack
+
+  - description: "conv-06b: (PM) scope assessment"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Our search powers product discovery for an e-commerce site with 10M monthly users.
+        We have 3 development teams (backend, search, platform), Solr 8.11, and about
+        50M products. The search team says "it's mostly configuration work." Is that accurate?
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must push back on "mostly configuration work" claim:
+          1. Explain in business terms what actually needs to change
+          2. Identify areas requiring genuine redesign (not just config translation)
+          3. Flag risk areas that affect user-facing search behavior
+          4. Must NOT use JSON, Query DSL, or deep technical detail
+          5. Should frame effort in team-weeks or similar business metric
+        metric: conv-06b-scope-reality-check
+
+  - description: "conv-06c: (PM) milestone plan"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        Give me a milestone plan I can share with our VP of Engineering.
+        Include risks and cost implications.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must produce executive-ready output:
+          1. Clear milestones with time estimates
+          2. Risks in business terms (user impact, revenue risk, team capacity)
+          3. Cost implications (infrastructure delta, engineering effort)
+          4. Cutover strategy with rollback plan
+          5. Must NOT contain code, JSON, or technical implementation details
+          6. Should reference the scope from conv-06b (3 teams, 50M products)
+        metric: conv-06c-milestone-plan
+
+  # ─── conv-07: Cross-role escalation (4 turns) ───
+
+  - description: "conv-07a: start as Search Eng"
+    metadata:
+      continue: false
+    vars:
+      query: |
+        I'm a Search Relevance Engineer migrating from Solr 8.11 to OpenSearch.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Acknowledges Search Relevance Engineer role with appropriate technical depth.
+        metric: conv-07a-role-ack
+
+  - description: "conv-07b: discover resource-intensive query"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        We have this query that runs on every search:
+        defType=edismax
+        q={user_query}
+        qf=title^10 description^3 tags^5 brand^8 category^2
+        pf=title^15 description^5
+        bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
+        bf=log(review_count)^0.3
+        bf=sqrt(sales_rank)^0.2
+        bq=in_stock:true^10
+        bq=featured:true^20
+        facet=true
+        facet.field=category
+        facet.field=brand
+        facet.range=price
+        facet.pivot=category,brand
+        group=true
+        group.field=brand
+        group.limit=3
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must translate the query AND flag performance concerns:
+          1. Three bf expressions combined in function_score
+          2. Facet pivots → nested aggregations (resource-intensive)
+          3. Result grouping → terms aggregation with top_hits (expensive)
+          4. Should note this is a heavy query running on every search
+        metric: conv-07b-heavy-query
+
+  - description: "conv-07c: escalate to infra concern"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        That query runs at 1000 QPS during peak. Given the function_score with
+        3 functions, nested aggregations, and top_hits on every request — should
+        I be worried about cluster capacity?
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must shift to infrastructure/DevOps depth even though the user is a Search Eng:
+          1. Acknowledge the performance risk at 1000 QPS
+          2. Recommend coordinating-only nodes for aggregation load
+          3. Suggest query profiling / slow query log
+          4. May recommend splitting the query (search vs. aggregations)
+          5. Should mention specific OpenSearch settings (thread pools, circuit breakers)
+          The advisor should recognize this crosses into DevOps territory and adjust.
+        metric: conv-07c-infra-escalation
+
+  - description: "conv-07d: verify dual awareness"
+    metadata:
+      continue: true
+    vars:
+      query: |
+        So to summarize — what are my top 3 risks for this migration, considering
+        both the query translation complexity and the performance concerns?
+    assert:
+      - type: llm-rubric
+        value: >-
+          Must synthesize BOTH the search engineering and infrastructure concerns:
+          1. At least one risk about query translation correctness (scoring, bf semantics)
+          2. At least one risk about performance (1000 QPS with heavy query)
+          3. At least one risk about the overall migration (testing, rollback)
+          Must reference specifics from earlier turns, not give generic advice.
+        metric: conv-07d-dual-awareness
