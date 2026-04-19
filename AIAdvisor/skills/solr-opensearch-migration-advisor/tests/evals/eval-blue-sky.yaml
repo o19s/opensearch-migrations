@@ -84,6 +84,21 @@ tests:
           - "scale"
           - "offset"
           - "origin"
+      - type: llm-rubric
+        value: >-
+          The response must provide a complete, correct OpenSearch function_score query
+          that translates recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5. Verify:
+          1. Uses a decay function (gauss, exp, or linear) on the updated_at field —
+             NOT a raw script_score reimplementing the recip formula.
+          2. Sets origin to "now" (or current date).
+          3. Provides a scale value that reflects the 3.16e-11 constant (roughly 1 year
+             in milliseconds — the half-life of the recip curve). The scale should be
+             in a time unit like "365d" or "1y" or similar order of magnitude.
+          4. The ^0.5 boost is translated as a weight on the function (e.g. "weight": 0.5)
+             or equivalent boost_mode adjustment.
+          A response that just says "use gauss decay" without showing the actual JSON
+          with concrete parameter values is NOT sufficient.
+        metric: funcq-01-param-correctness
 
   - description: "funcq-02: field value factor with log modifier"
     vars:
@@ -110,6 +125,21 @@ tests:
           - "log"
           - "ln"
           - "modifier"
+      - type: llm-rubric
+        value: >-
+          The response must provide a complete OpenSearch function_score query that
+          correctly translates bf=log(review_count)^0.5. Verify:
+          1. Uses field_value_factor with field "review_count" and a log-family modifier
+             (log, log1p, log2p, ln, ln1p, or ln2p) — OR a script_score with an
+             explicit Math.log10/Math.log call on the review_count field.
+          2. The ^0.5 boost is translated as a weight (e.g. "weight": 0.5) on the
+             function entry, NOT as a global boost on the entire query.
+          3. Handles the missing/zero-value case (e.g. "missing": 1 for field_value_factor,
+             or a guard in the script to avoid log(0)).
+          4. Shows complete, valid JSON — not pseudocode or partial snippets.
+          A response that just says "use field_value_factor with log modifier" without
+          concrete JSON is NOT sufficient.
+        metric: funcq-02-field-value-correctness
 
   - description: "funcq-03: geodist boost -> distance decay"
     vars:
@@ -146,6 +176,22 @@ tests:
           - "40.7128"
           - "-74.006"
           - "origin"
+      - type: llm-rubric
+        value: >-
+          The response must provide a complete OpenSearch function_score query that
+          correctly translates the geodist-based boost. Verify:
+          1. Uses a geo decay function (gauss, exp, or linear) — NOT a script_score
+             with manual Haversine calculation.
+          2. The decay function targets the store_location field (or equivalent geo_point field).
+          3. The origin is set to the coordinates 40.7128, -74.0060 (the pt parameter).
+          4. Provides a scale parameter (e.g. "100km" or similar) that reflects the
+             recip(geodist(),1,100,100) shape — where 100 is the half-distance in the
+             recip denominator.
+          5. The main query (multi_match on product_name^10 description^5 for "laptop")
+             is preserved as the inner query of the function_score wrapper.
+          A response that only shows the decay function without the wrapping
+          function_score + multi_match structure is NOT sufficient.
+        metric: funcq-03-geodist-correctness
 
   - description: "funcq-04: multiple bf + bq combined -> function_score with multiple functions"
     vars:
