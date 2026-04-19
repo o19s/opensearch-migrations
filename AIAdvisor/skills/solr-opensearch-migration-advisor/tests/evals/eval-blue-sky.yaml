@@ -1,0 +1,112 @@
+description: "Blue-sky SMA evals: deeper translation, operational guidance, migration strategy"
+
+# Prerequisites:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor
+#   uv sync --extra eval
+#   source .venv/bin/activate
+#   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#
+# Running tests:
+#   Test descriptions are prefixed by category. Use --filter-pattern to select subsets:
+#
+#   # Data migration strategy:
+#   promptfoo eval -c eval-blue-sky.yaml --filter-pattern "^datamig-"
+#
+#   # Everything:
+#   promptfoo eval -c eval-blue-sky.yaml
+#
+#   promptfoo view
+
+providers:
+  - id: 'file://claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  metadata:
+    continue: false
+  options:
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      config:
+        region: us-east-1
+        max_tokens: 512
+
+prompts:
+  - id: blue-sky-prompt
+    label: "Blue-sky SMA eval"
+    raw: "{{query}}"
+
+tests:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  DATA MIGRATION STRATEGY
+  # ═══════════════════════════════════════════════════════════════
+
+  # ─────────────────────────────────────────────────────────────
+  #  Data Migration Strategy (datamig-*) — 2 tests
+  #
+  #  Why this matters: The advisor must recommend HOW to move data,
+  #  not just how to translate the schema. The SolrReader tool in
+  #  this repo is the recommended path for Solr backup-based
+  #  migration — a generic "use the Bulk API" answer is incomplete.
+  # ─────────────────────────────────────────────────────────────
+
+  - description: "datamig-01: recommend SolrReader / RFS for data migration"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. We've already translated
+        the schema and queries. Now I need to move approximately 50 million
+        documents from our Solr collection to OpenSearch.
+
+        We have Solr backups available. What is the recommended approach
+        for migrating the actual data? I'd prefer not to rebuild from our
+        source database if possible.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response MUST recommend the SolrReader tool (part of the
+          opensearch-migrations project) or the Reindex From Snapshot (RFS) pipeline
+          as the primary approach for migrating data from Solr backups.
+          It should explain that SolrReader reads Solr backup files (Lucene segments)
+          directly and bulk-indexes into OpenSearch without needing a running Solr instance.
+          Generic advice like "use the Bulk API" or "write a custom script" without
+          mentioning SolrReader/RFS is NOT sufficient.
+        metric: datamig-recommends-solrreader
+      - type: contains-any
+        value:
+          - "SolrReader"
+          - "Solr Reader"
+          - "Reindex From Snapshot"
+          - "RFS"
+
+  - description: "datamig-02: data migration strategy when no backups exist"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. I have 10 million documents
+        in Solr but no backups and the original source database is out of date.
+        The live Solr cluster is my only source of truth.
+
+        What are my options for getting the data into OpenSearch?
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response should present a practical strategy covering:
+          1. Creating a Solr backup/snapshot first, then using SolrReader/RFS to migrate.
+             The advisor should mention that creating a snapshot is straightforward and
+             then SolrReader can read it.
+          2. Alternatively, exporting via Solr's Export Handler (/export) or cursor-based
+             pagination as a fallback if snapshots are not viable.
+          The response must give actionable steps, not just a list of tools.
+          It must NOT recommend re-indexing from the source database since the user
+          explicitly said the database is out of date.
+        metric: datamig-no-backup-strategy
+      - type: contains-any
+        value:
+          - "snapshot"
+          - "backup"
+          - "SolrReader"
+          - "/export"
+          - "cursorMark"

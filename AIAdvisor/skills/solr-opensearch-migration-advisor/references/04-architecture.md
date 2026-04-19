@@ -260,13 +260,33 @@ Once downloaded, translate `schema.xml` using the guidance in `01-schema-migrati
 
 ## 9. Data Migration Approach
 
-### 9.1 Re-indexing from Source
+### 9.1 Reindex From Snapshot (RFS) with SolrReader — Recommended
 
-The recommended approach is to re-index from the original data source (database, data lake, etc.) rather than exporting from Solr, ensuring data consistency and avoiding Solr-specific artifacts.
+The **opensearch-migrations** project includes **SolrReader**, a purpose-built tool for migrating data from Solr to OpenSearch. It reads Solr backup snapshots (Lucene segments + `schema.xml`) directly, converts Solr field types to OpenSearch mappings, and bulk-indexes documents into OpenSearch — no running Solr instance required.
 
-### 9.2 Exporting from Solr
+**Why SolrReader is the recommended approach:**
 
-If re-indexing from source is not feasible, export using:
+| Advantage | Detail |
+| :--- | :--- |
+| No live Solr needed | Reads directly from Solr backup files (Lucene index segments) |
+| Schema-aware | Parses `schema.xml` and translates Solr field types to OpenSearch mappings automatically |
+| High throughput | Uses the OpenSearch Bulk API for efficient indexing |
+| Part of this project | Available in the `SolrReader/` directory of the opensearch-migrations repository |
+
+**Workflow:**
+1. Create a Solr backup/snapshot of the collection to migrate.
+2. Point SolrReader at the backup directory.
+3. SolrReader reads the Lucene segments, converts field types using the schema, and bulk-indexes into OpenSearch.
+
+SolrReader is part of the broader **Reindex From Snapshot (RFS)** pipeline in this repository, which also includes `SearchSnapshotExtractor` for reading Lucene indexes and `RfsPipeline` for orchestrating the migration.
+
+### 9.2 Re-indexing from Source
+
+If the original data source (database, data lake, etc.) is available and up to date, re-indexing from source is an alternative that avoids Solr-specific artifacts. This approach is appropriate when the Solr index is derived from a canonical data store and the indexing pipeline can be rebuilt against OpenSearch.
+
+### 9.3 Exporting from Solr
+
+If neither SolrReader nor re-indexing from source is feasible, export using:
 
 - **Solr Export Handler** (`/export`) — streams all documents.
 - **CursorMark pagination** — use `cursorMark=*` with `sort=id asc` for large collections.
@@ -278,7 +298,7 @@ GET /solr/<collection>/select?q=*:*&rows=1000&sort=id+asc&cursorMark=*&wt=json&f
 
 Repeat with the `nextCursorMark` value from each response until `nextCursorMark == cursorMark`.
 
-### 9.3 Indexing into OpenSearch
+### 9.4 Indexing into OpenSearch
 
 1. Map the Solr `uniqueKey` value to OpenSearch `_id` (see Section 2).
 2. Remove Solr internal fields (`_version_`, `_root_`, `score`) from the document body.
