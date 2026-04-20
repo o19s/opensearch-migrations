@@ -149,7 +149,7 @@ jq -r '
   [
     $results[] |
     {
-      tier: (.description // "unknown" | capture("^(?<t>[a-z]+-)[0-9]") // {t: "other-"} | .t | rtrimstr("-")),
+      tier: (.testCase.description // "unknown" | capture("^(?<t>[a-z]+-)[0-9]") // {t: "other-"} | .t | rtrimstr("-")),
       success: .success
     }
   ] |
@@ -175,16 +175,19 @@ EOF
 jq -r '
   .results.results[] |
   {
-    desc: (.description // "unknown"),
+    desc: (.testCase.description // "unknown"),
     status: (if .success then "PASS" else "FAIL" end),
+    error: (.error // null),
     assertions_pass: ([.gradingResult.componentResults[]? | select(.pass == true)] | length),
     assertions_total: ([.gradingResult.componentResults[]?] | length),
     failures: [.gradingResult.componentResults[]? | select(.pass == false) | .reason // "no reason"] | join("; ")
   } |
   if .status == "PASS" then
     "- [x] **\(.desc)** (\(.assertions_pass)/\(.assertions_total) assertions)"
+  elif .error then
+    "- [ ] **\(.desc)** — ERROR\n  > \(.error | .[0:120])"
   else
-    "- [ ] **\(.desc)** (\(.assertions_pass)/\(.assertions_total) assertions)\n  > \(.failures)"
+    "- [ ] **\(.desc)** (\(.assertions_pass)/\(.assertions_total) assertions)\n  > \(.failures | .[0:200])"
   end
 ' "$JSON_OUT" >> "$MD_OUT"
 

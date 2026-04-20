@@ -94,7 +94,7 @@ tests:
             const hasOverview = 'overview' in props;
             const noVersion = !('_version_' in props);
             return (hasTitle && hasOverview && noVersion)
-              ? { pass: true, score: 1 }
+              ? { pass: true, score: 1, reason: 'Valid mapping with expected fields' }
               : { pass: false, score: 0, reason: 'Missing expected fields or _version_ not excluded' };
           } catch (e) {
             return { pass: false, score: 0, reason: 'JSON parse error: ' + e.message };

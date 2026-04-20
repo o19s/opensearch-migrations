@@ -101,7 +101,7 @@ tests:
             const parsed = JSON.parse(jsonMatch[1].trim());
             const hasMappings = parsed.mappings || (parsed.settings && parsed.mappings !== undefined);
             return hasMappings
-              ? { pass: true, score: 1 }
+              ? { pass: true, score: 1, reason: 'Valid JSON with mappings key' }
               : { pass: false, score: 0, reason: 'JSON parsed but no "mappings" key found' };
           } catch (e) {
             return { pass: false, score: 0, reason: 'JSON parse error: ' + e.message };
