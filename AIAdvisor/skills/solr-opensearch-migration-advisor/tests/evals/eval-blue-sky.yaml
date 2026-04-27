@@ -11,10 +11,10 @@ description: "Blue-sky SMA evals: deeper translation, operational guidance, migr
 #   Test descriptions are prefixed by category. Use --filter-pattern to select subsets:
 #
 #   # Commit/refresh model:
-#   promptfoo eval -c eval-blue-sky.yaml --filter-pattern "^commit-"
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml --filter-pattern "^commit-"
 #
 #   # Everything:
-#   promptfoo eval -c eval-blue-sky.yaml
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml
 #
 #   promptfoo view
 
@@ -48,7 +48,7 @@ tests:
   # ═══════════════════════════════════════════════════════════════
 
   # ─────────────────────────────────────────────────────────────
-  #  Commit/Refresh Model (commit-*) — 2 tests
+  #  Commit/Refresh Model (commit-*) — 3 tests
   #
   #  Why this matters: Solr's two-tier commit model (hard commit
   #  vs soft commit) maps to OpenSearch's refresh_interval and
@@ -72,18 +72,16 @@ tests:
       - type: llm-rubric
         value: >-
           The response must correctly map BOTH Solr commit settings to OpenSearch:
-          1. autoSoftCommit.maxTime (1000ms) maps to index.refresh_interval (should recommend "1s" or similar).
+          1. autoSoftCommit.maxTime (1000ms) maps to index.refresh_interval (should
+             recommend "1s" or similar). The response must mention "refresh_interval".
           2. autoCommit.maxTime (15000ms) maps to translog flush settings — either
              index.translog.sync_interval or index.translog.flush_threshold_size or
-             index.translog.durability. The response must mention translog, not just refresh_interval.
+             index.translog.durability. The response must mention "translog", not just
+             refresh_interval.
           3. The response should explain that openSearcher=false has no direct equivalent because
              OpenSearch always opens a new searcher on refresh.
           A response that only mentions refresh_interval and ignores translog/flush is WRONG.
         metric: commit-maps-both-tiers
-      - type: icontains
-        value: "refresh_interval"
-      - type: icontains
-        value: "translog"
 
   - description: "commit-02: commitWithin and bulk indexing refresh strategy"
     vars:
@@ -103,20 +101,39 @@ tests:
           The response must address BOTH scenarios:
           1. commitWithin replacement: should recommend the refresh query parameter
              (?refresh=wait_for or ?refresh=true) for per-request visibility control.
-             Must NOT say "just set refresh_interval=5s globally" as a substitute for
-             per-request commitWithin — that changes cluster-wide behavior.
+             The response must mention the "?refresh" query parameter or "refresh=wait_for"
+             or "refresh=true". Must NOT say "just set refresh_interval=5s globally" as a
+             substitute for per-request commitWithin — that changes cluster-wide behavior.
           2. Bulk import strategy: should recommend disabling refresh during bulk load
              (refresh_interval=-1 or "index.refresh_interval": "-1") and re-enabling
-             afterward, possibly mentioning _forcemerge after load.
+             afterward, possibly mentioning _forcemerge after load. The response must
+             mention setting refresh_interval to -1 or explicitly disabling refresh.
           A response that conflates the two scenarios or only addresses one is incomplete.
         metric: commit-per-request-and-bulk
-      - type: contains-any
-        value:
-          - "refresh=wait_for"
-          - "refresh=true"
-          - "?refresh"
-      - type: contains-any
-        value:
-          - "refresh_interval"
-          - "\"-1\""
-          - "disable refresh"
+
+  - description: "commit-03: plain-language commit/visibility question (less technical user)"
+    vars:
+      query: |
+        We're moving from Solr to OpenSearch. In Solr, when we add or update a
+        product, it takes a couple of seconds before it shows up in search results.
+        Our team configured this timing somehow in Solr's settings.
+
+        In OpenSearch, how do we control how quickly new or updated documents
+        become searchable? We need it to be fast for live updates (a few seconds)
+        but during our big nightly data loads we'd rather prioritize speed over
+        immediate visibility.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide practical guidance accessible to a user who may
+          not know Solr commit internals. Verify:
+          1. Explains that OpenSearch uses refresh_interval to control how often new
+             documents become searchable — analogous to Solr's soft commit timing.
+          2. For live updates: recommends a short refresh_interval (e.g., "1s") or the
+             ?refresh=wait_for query parameter for per-request visibility.
+          3. For bulk loads: recommends temporarily disabling refresh (refresh_interval=-1)
+             during the load and re-enabling afterward.
+          4. Does NOT assume the user knows Solr's autoSoftCommit/autoCommit/translog
+             terminology — the explanation should stand on its own.
+          A response that only describes concepts without actionable settings is NOT sufficient.
+        metric: commit-03-accessible-guidance
