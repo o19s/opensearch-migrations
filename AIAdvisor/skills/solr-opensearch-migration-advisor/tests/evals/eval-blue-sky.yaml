@@ -11,10 +11,10 @@ description: "Blue-sky SMA evals: deeper translation, operational guidance, migr
 #   Test descriptions are prefixed by category. Use --filter-pattern to select subsets:
 #
 #   # Function query translation:
-#   promptfoo eval -c eval-blue-sky.yaml --filter-pattern "^funcq-"
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml --filter-pattern "^funcq-"
 #
 #   # Everything:
-#   promptfoo eval -c eval-blue-sky.yaml
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml
 #
 #   promptfoo view
 
@@ -30,7 +30,6 @@ defaultTest:
   vars:
     ecommerce_schema: "file://fixtures/ecommerce-schema.xml"
     ecommerce_solrconfig: "file://fixtures/ecommerce-solrconfig.xml"
-    ecommerce_dih: "file://fixtures/ecommerce-dih-config.xml"
   options:
     provider:
       id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
@@ -50,7 +49,7 @@ tests:
   # ═══════════════════════════════════════════════════════════════
 
   # ─────────────────────────────────────────────────────────────
-  #  Function Query Translation (funcq-*) — 4 tests
+  #  Function Query Translation (funcq-*) — 5 tests
   #
   #  Why this matters: Solr bf expressions are a mini-language.
   #  Shallow "use function_score" advice doesn't help; the advisor
@@ -67,23 +66,38 @@ tests:
         bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
 
         Explain how the recip() parameters map to the OpenSearch decay function
-        parameters (scale, offset, decay). Provide the complete OpenSearch query JSON.
+        parameters (scale, offset, decay).
+
+        **Output format:** Provide the complete OpenSearch query JSON. For example,
+        a function_score query with a single decay function looks like this:
+
+        ```json
+        {
+          "query": {
+            "function_score": {
+              "query": { "match_all": {} },
+              "functions": [
+                {
+                  "gauss": {
+                    "my_date_field": {
+                      "origin": "now",
+                      "scale": "30d",
+                      "offset": "5d",
+                      "decay": 0.5
+                    }
+                  },
+                  "weight": 1.0
+                }
+              ],
+              "boost_mode": "multiply"
+            }
+          }
+        }
+        ```
+
+        Use the actual field names and parameter values from our Solr config,
+        not the placeholder values in the example above.
     assert:
-      - type: icontains
-        value: "function_score"
-      - type: contains-any
-        value:
-          - "gauss"
-          - "exp"
-          - "linear"
-          - "decay"
-      - type: icontains
-        value: "updated_at"
-      - type: contains-any
-        value:
-          - "scale"
-          - "offset"
-          - "origin"
       - type: llm-rubric
         value: >-
           The response must provide a complete, correct OpenSearch function_score query
@@ -96,6 +110,9 @@ tests:
              in a time unit like "365d" or "1y" or similar order of magnitude.
           4. The ^0.5 boost is translated as a weight on the function (e.g. "weight": 0.5)
              or equivalent boost_mode adjustment.
+          5. The response includes the terms "function_score" and "updated_at" and uses
+             one of the decay function types (gauss, exp, or linear), with concrete
+             parameter values for scale, offset, or origin — not just a description.
           A response that just says "use gauss decay" without showing the actual JSON
           with concrete parameter values is NOT sufficient.
         metric: funcq-01-param-correctness
@@ -109,22 +126,10 @@ tests:
         We boost popular products using:
         bf=log(review_count)^0.5
 
-        Provide the OpenSearch function_score equivalent. Note how the log()
-        wrapping and the ^0.5 boost translate.
+        **Output format:** Provide the complete OpenSearch function_score query JSON
+        (see funcq-01 for an example of the expected JSON structure). Use the actual
+        field names and parameter values from our Solr config.
     assert:
-      - type: icontains
-        value: "function_score"
-      - type: contains-any
-        value:
-          - "field_value_factor"
-          - "script_score"
-      - type: icontains
-        value: "review_count"
-      - type: contains-any
-        value:
-          - "log"
-          - "ln"
-          - "modifier"
       - type: llm-rubric
         value: >-
           The response must provide a complete OpenSearch function_score query that
@@ -137,6 +142,8 @@ tests:
           3. Handles the missing/zero-value case (e.g. "missing": 1 for field_value_factor,
              or a guard in the script to avoid log(0)).
           4. Shows complete, valid JSON — not pseudocode or partial snippets.
+          5. The response includes the terms "function_score" and "review_count" and
+             uses either field_value_factor or script_score with a log/ln modifier.
           A response that just says "use field_value_factor with log modifier" without
           concrete JSON is NOT sufficient.
         metric: funcq-02-field-value-correctness
@@ -156,26 +163,11 @@ tests:
         pt=40.7128,-74.0060
 
         The store_location field is a LatLonPointSpatialField.
-        Provide the OpenSearch query JSON with the equivalent geo-distance decay.
+
+        **Output format:** Provide the complete OpenSearch query JSON
+        (see funcq-01 for an example of the expected JSON structure). Use the actual
+        field names, coordinates, and parameter values from our Solr config.
     assert:
-      - type: icontains
-        value: "function_score"
-      - type: contains-any
-        value:
-          - "gauss"
-          - "exp"
-          - "linear"
-          - "decay"
-      - type: contains-any
-        value:
-          - "geo_point"
-          - "store_location"
-          - "location"
-      - type: contains-any
-        value:
-          - "40.7128"
-          - "-74.006"
-          - "origin"
       - type: llm-rubric
         value: >-
           The response must provide a complete OpenSearch function_score query that
@@ -189,6 +181,9 @@ tests:
              recip denominator.
           5. The main query (multi_match on product_name^10 description^5 for "laptop")
              is preserved as the inner query of the function_score wrapper.
+          6. The response includes the terms "function_score" and references the
+             store_location field with the coordinates 40.7128 / -74.0060 and uses
+             one of the decay function types (gauss, exp, or linear).
           A response that only shows the decay function without the wrapping
           function_score + multi_match structure is NOT sufficient.
         metric: funcq-03-geodist-correctness
@@ -209,25 +204,47 @@ tests:
         bq=in_stock:true^10
         bq=avg_rating:[4 TO *]^3
 
-        Provide the complete OpenSearch query JSON that combines all boost
-        signals. Note how multiple bf values and multiple bq values translate.
+        **Output format:** Provide the complete OpenSearch query JSON that combines
+        all boost signals. Note how multiple bf values and multiple bq values translate.
     assert:
-      - type: icontains
-        value: "function_score"
-      - type: icontains
-        value: "should"
-      - type: icontains
-        value: "updated_at"
-      - type: icontains
-        value: "review_count"
-      - type: icontains
-        value: "in_stock"
-      - type: javascript
-        value: |
-          const lower = output.toLowerCase();
-          const hasMultipleFunctions = (lower.includes('functions') || lower.includes('script'))
-            && lower.includes('updated_at') && lower.includes('review_count');
-          const hasBothBq = lower.includes('in_stock') && (lower.includes('avg_rating') || lower.includes('4'));
-          return (hasMultipleFunctions && hasBothBq)
-            ? { pass: true, score: 1 }
-            : { pass: false, score: 0, reason: 'Must translate both bf expressions as function_score functions AND both bq expressions as should clauses' };
+      - type: llm-rubric
+        value: >-
+          The response must provide a complete OpenSearch function_score query that
+          combines ALL four boost signals. Verify:
+          1. Both bf expressions are translated as separate entries in the functions array:
+             a decay function on updated_at AND a field_value_factor/script on review_count.
+          2. Both bq expressions are translated as should clauses in a bool query:
+             in_stock:true and avg_rating:[4 TO *].
+          3. The response includes the terms "function_score", "should", "updated_at",
+             "review_count", and "in_stock".
+          4. Shows complete, valid JSON — not pseudocode or partial snippets.
+          A response that only translates some of the boost signals while ignoring
+          others is NOT sufficient.
+        metric: funcq-04-combined-correctness
+
+  - description: "funcq-05: plain-language recency boost question (less technical user)"
+    vars:
+      query: |
+        I'm migrating from Solr to OpenSearch. In our current Solr setup, newer
+        products show up higher in search results — our search team set this up
+        with some kind of date boosting formula. We want the same behavior in
+        OpenSearch.
+
+        Our product documents have an "updated_at" date field. How do we make
+        OpenSearch rank recently updated products higher? Please show the query
+        JSON we'd need.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide practical guidance for boosting recent documents
+          in OpenSearch, accessible to a user who may not know Solr internals. Verify:
+          1. Recommends function_score with a decay function (gauss, exp, or linear) on
+             the updated_at field as the primary approach.
+          2. Explains what the decay function does in plain terms — newer documents get
+             higher scores, with scores decreasing as documents age.
+          3. Provides complete, runnable OpenSearch query JSON (not just a description).
+          4. Does NOT assume the user knows Solr bf/recip syntax — the explanation
+             should stand on its own without requiring Solr knowledge.
+          A response that only describes the concept without showing concrete JSON
+          is NOT sufficient.
+        metric: funcq-05-accessible-guidance
