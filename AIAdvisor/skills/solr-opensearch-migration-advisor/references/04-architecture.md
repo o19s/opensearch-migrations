@@ -278,7 +278,7 @@ The **opensearch-migrations** project includes **SolrReader**, a purpose-built t
 2. Point SolrReader at the backup directory.
 3. SolrReader reads the Lucene segments, converts field types using the schema, and bulk-indexes into OpenSearch.
 
-SolrReader is part of the broader **Reindex From Snapshot (RFS)** pipeline in this repository, which also includes `SearchSnapshotExtractor` for reading Lucene indexes and `RfsPipeline` for orchestrating the migration.
+SolrReader is built on the **Reindex From Snapshot (RFS)** pipeline in this repository (which also includes `SearchSnapshotExtractor` and `RfsPipeline`). Note: the RFS pipeline was originally designed for Elasticsearch-to-OpenSearch migration; SolrReader extends the same infrastructure to handle Solr backup snapshots.
 
 ### 9.2 Re-indexing from Source
 

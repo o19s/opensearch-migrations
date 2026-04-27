@@ -11,10 +11,10 @@ description: "Blue-sky SMA evals: deeper translation, operational guidance, migr
 #   Test descriptions are prefixed by category. Use --filter-pattern to select subsets:
 #
 #   # Data migration strategy:
-#   promptfoo eval -c eval-blue-sky.yaml --filter-pattern "^datamig-"
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml --filter-pattern "^datamig-"
 #
 #   # Everything:
-#   promptfoo eval -c eval-blue-sky.yaml
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml
 #
 #   promptfoo view
 
@@ -46,7 +46,7 @@ tests:
   # ═══════════════════════════════════════════════════════════════
 
   # ─────────────────────────────────────────────────────────────
-  #  Data Migration Strategy (datamig-*) — 2 tests
+  #  Data Migration Strategy (datamig-*) — 3 tests
   #
   #  Why this matters: The advisor must recommend HOW to move data,
   #  not just how to translate the schema. The SolrReader tool in
@@ -69,18 +69,14 @@ tests:
         value: >-
           The response MUST recommend the SolrReader tool (part of the
           opensearch-migrations project) or the Reindex From Snapshot (RFS) pipeline
-          as the primary approach for migrating data from Solr backups.
+          as the primary approach for migrating data from Solr backups. It must
+          mention at least one of these by name: "SolrReader", "Solr Reader",
+          "Reindex From Snapshot", or "RFS".
           It should explain that SolrReader reads Solr backup files (Lucene segments)
           directly and bulk-indexes into OpenSearch without needing a running Solr instance.
           Generic advice like "use the Bulk API" or "write a custom script" without
           mentioning SolrReader/RFS is NOT sufficient.
         metric: datamig-recommends-solrreader
-      - type: contains-any
-        value:
-          - "SolrReader"
-          - "Solr Reader"
-          - "Reindex From Snapshot"
-          - "RFS"
 
   - description: "datamig-02: data migration strategy when no backups exist"
     vars:
@@ -96,17 +92,36 @@ tests:
           The response should present a practical strategy covering:
           1. Creating a Solr backup/snapshot first, then using SolrReader/RFS to migrate.
              The advisor should mention that creating a snapshot is straightforward and
-             then SolrReader can read it.
+             then SolrReader can read it. Must use the words "snapshot" or "backup".
           2. Alternatively, exporting via Solr's Export Handler (/export) or cursor-based
-             pagination as a fallback if snapshots are not viable.
+             pagination (cursorMark) as a fallback if snapshots are not viable.
           The response must give actionable steps, not just a list of tools.
           It must NOT recommend re-indexing from the source database since the user
           explicitly said the database is out of date.
         metric: datamig-no-backup-strategy
-      - type: contains-any
-        value:
-          - "snapshot"
-          - "backup"
-          - "SolrReader"
-          - "/export"
-          - "cursorMark"
+
+  - description: "datamig-03: plain-language data migration question (less technical user)"
+    vars:
+      query: |
+        We have about 2 million products in our Solr search engine and we need
+        to move them over to OpenSearch. What's the easiest way to do this?
+
+        We're not super technical on the search side — our dev team set up Solr
+        years ago and we mostly just use it. We can take some downtime if needed.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide practical, accessible guidance for migrating data
+          from Solr to OpenSearch. Verify:
+          1. Recommends creating a Solr backup/snapshot and using SolrReader (from the
+             opensearch-migrations project) as the simplest path — or explains the
+             concept in plain terms even if using different wording.
+          2. Explains the process in terms a non-search-expert can follow: take a backup,
+             run the migration tool, verify the data in OpenSearch.
+          3. Does NOT assume familiarity with Lucene internals, RFS pipelines, or
+             cursorMark pagination — keeps the explanation high-level.
+          4. Acknowledges the small dataset size (2M docs) and downtime availability
+             as factors that simplify the migration.
+          A response that jumps straight into technical details about Lucene segments
+          or bulk API internals without a plain-language summary is NOT ideal.
+        metric: datamig-03-accessible-guidance
