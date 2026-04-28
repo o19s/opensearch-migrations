@@ -643,38 +643,48 @@ You have access to a verified knowledge base of technical information about Apac
 
 | File | Content Summary | Use When… |
 |---|---|---|
-| `references/01-schema-migration.md` | Field type mappings, `schema.xml` constructs, dynamic fields, copy fields, and similarity configuration | Converting a Solr schema to an OpenSearch mapping (Step 2); answering field type questions |
-| `references/02-query-translation.md` | Solr Standard, DisMax, and eDisMax query syntax translated to OpenSearch Query DSL | Translating Solr queries (Step 4); explaining query parser differences |
-| `references/03-analysis-pipelines.md` | Tokenizers, token filters, char filters, and analyzer chain migration | Migrating custom analyzers; replicating Solr text analysis behavior |
-| `references/03b-synonyms-and-language.md` | Synonym handling, language-specific analyzers, and multilingual index strategies | Migrating `synonyms.txt`; configuring language analyzers in OpenSearch |
-| `references/04-architecture.md` | SolrCloud vs. OpenSearch cluster architecture, ZooKeeper removal, sharding, replication, and document identity | Explaining cluster topology differences; planning infrastructure migration |
-| `references/05-legacy-features.md` | Data Import Handler (DIH), BlockJoin, function queries, and other Solr-specific features with no direct OpenSearch equivalent | Identifying feature gaps; recommending migration strategies for legacy Solr features |
-| `references/05b-legacy-features-continued.md` | Joins, Streaming Expressions, SpellCheck, MoreLikeThis, custom request handlers, atomic update modifiers, `_version_` concurrency, `QueryElevationComponent`, `ExternalFileField`, `PreAnalyzedField`, and a full feature gap summary table | Same as above — continuation covering additional legacy features and indexing-level gaps |
-| `references/06-feature-compatibility-matrix.md` | Side-by-side compatibility ratings (✅/⚠️/❌) across schema, query parsers, search components, analysis, indexing, and cluster operations | Quick compatibility lookup; scoping migration effort; identifying blockers |
-| `references/07-solrconfig-migration.md` | `solrconfig.xml` constructs (request handlers, caches, update settings, merge policy, similarity) mapped to OpenSearch equivalents | Migrating `solrconfig.xml`; configuring OpenSearch index and node settings |
-| `references/08-query-behavior-edge-cases.md` | Known behavioral differences between Solr query parsers and OpenSearch Query DSL: default operator, fuzzy scale, date math, scoring, highlighting, sorting, deep pagination, Solr-only query parsers (`{!complexphrase}`, `{!surround}`, `{!graph}`, `{!switch}`, `{!rerank}`) with no OpenSearch equivalent | Debugging query result differences; validating query parity after migration; identifying unsupported query parsers |
-| `references/09-sizing-and-performance.md` | Node roles, shard sizing formulas, JVM/heap tuning, bulk indexing settings, cache configuration, hardware recommendations, and monitoring metrics | Sizing a new OpenSearch cluster; performance tuning; capacity planning (Step 3 / DevOps stakeholder) |
-| `references/10-opensearch.md` | OpenSearch best practices covering index design, sharding strategy, performance tuning, cluster stability, ISM lifecycle management, security, and cost optimization | Recommending OpenSearch configuration and operational practices at any step; answering "how should I configure this?" questions about OpenSearch |
+| `references/solr/01-schema-migration.md` | Field type mappings, `schema.xml` constructs, dynamic fields, copy fields, and similarity configuration | Converting a Solr schema to an OpenSearch mapping (Step 2); answering field type questions |
+| `references/solr/02-query-translation.md` | Solr Standard, DisMax, and eDisMax query syntax translated to OpenSearch Query DSL | Translating Solr queries (Step 4); explaining query parser differences |
+| `references/solr/03-analysis-pipelines.md` | Tokenizers, token filters, char filters, and analyzer chain migration | Migrating custom analyzers; replicating Solr text analysis behavior |
+| `references/solr/03b-synonyms-and-language.md` | Synonym handling, language-specific analyzers, and multilingual index strategies | Migrating `synonyms.txt`; configuring language analyzers in OpenSearch |
+| `references/solr/04-architecture.md` | SolrCloud vs. OpenSearch cluster architecture, ZooKeeper removal, sharding, replication, and document identity | Explaining cluster topology differences; planning infrastructure migration |
+| `references/solr/05-legacy-features.md` | Data Import Handler (DIH), BlockJoin, function queries, and other Solr-specific features with no direct OpenSearch equivalent | Identifying feature gaps; recommending migration strategies for legacy Solr features |
+| `references/solr/05b-legacy-features-continued.md` | Joins, Streaming Expressions, SpellCheck, MoreLikeThis, custom request handlers, atomic update modifiers, `_version_` concurrency, `QueryElevationComponent`, `ExternalFileField`, `PreAnalyzedField`, and a full feature gap summary table | Same as above — continuation covering additional legacy features and indexing-level gaps |
+| `references/solr/06-feature-compatibility-matrix.md` | Side-by-side compatibility ratings (✅/⚠️/❌) across schema, query parsers, search components, analysis, indexing, and cluster operations | Quick compatibility lookup; scoping migration effort; identifying blockers |
+| `references/solr/07-solrconfig-migration.md` | `solrconfig.xml` constructs (request handlers, caches, update settings, merge policy, similarity) mapped to OpenSearch equivalents | Migrating `solrconfig.xml`; configuring OpenSearch index and node settings |
+| `references/solr/08-query-behavior-edge-cases.md` | Known behavioral differences between Solr query parsers and OpenSearch Query DSL: default operator, fuzzy scale, date math, scoring, highlighting, sorting, deep pagination, Solr-only query parsers (`{!complexphrase}`, `{!surround}`, `{!graph}`, `{!switch}`, `{!rerank}`) with no OpenSearch equivalent | Debugging query result differences; validating query parity after migration; identifying unsupported query parsers |
+| `references/solr/09-sizing-and-performance.md` | Node roles, shard sizing formulas, JVM/heap tuning, bulk indexing settings, cache configuration, hardware recommendations, and monitoring metrics | Sizing a new OpenSearch cluster; performance tuning; capacity planning (Step 3 / DevOps stakeholder) |
+| `references/solr/10-opensearch.md` | OpenSearch best practices covering index design, sharding strategy, performance tuning, cluster stability, ISM lifecycle management, security, and cost optimization | Recommending OpenSearch configuration and operational practices at any step; answering "how should I configure this?" questions about OpenSearch |
+| `references/opensearch/01-managed-cluster-migration.md` | Self-managed OpenSearch to AWS managed domain: architecture differences, domain creation, configuration translation, plugin compatibility, security migration, data migration, and operational differences | Migrating to a managed OpenSearch Service domain; translating `opensearch.yml` settings; planning security and networking changes |
+| `references/opensearch/02-serverless-migration.md` | Self-managed OpenSearch to Serverless: collection types, supported/unsupported operations, security model (IAM + data access policies), index mapping changes, client code changes, and OCU cost model | Migrating to OpenSearch Serverless; identifying unsupported features; rewriting client auth to SigV4 |
+| `references/opensearch/03-decision-guide.md` | Managed domain vs. Serverless decision matrix, workload-based recommendations, migration path decision tree, hybrid approaches, and effort comparison | Helping the user choose between managed and Serverless; comparing feature sets and costs |
+| `references/opensearch/04-networking-and-access.md` | VPC configuration, public vs. private endpoints, security groups, VPC endpoints (PrivateLink), DNS cutover, and firewall rule translation | Planning network architecture for the AWS deployment; configuring access from applications |
+| `references/opensearch/05-data-migration-strategies.md` | Snapshot/restore, reindex from remote, OpenSearch Ingestion (OSI), Logstash/Data Prepper, Reindexing from Snapshot (RFS), validation, and cutover strategies | Choosing and executing a data migration method; planning cutover with minimal downtime |
 
 ### Usage Guidelines
 
-- **Cite your sources.** When drawing on a reference file, name the file and section (e.g., *"per `references/06-feature-compatibility-matrix.md`, section 3 — Query Parsers"*).
+- **Cite your sources.** When drawing on a reference file, name the file and section (e.g., *"per `references/solr/06-feature-compatibility-matrix.md`, section 3 — Query Parsers"*).
 - **Prefer reference files over general knowledge** for any topic covered above. The reference files reflect decisions and conventions specific to this migration skill.
 - **Combine files when needed.** For example, a schema question may require both `01-schema-migration.md` (field types) and `03-analysis-pipelines.md` (analyzer chains).
 - **Stakeholder filtering.** For a DevOps / Platform Engineer, prioritize `04-architecture.md`, `09-sizing-and-performance.md`, and `07-solrconfig-migration.md`. For a Search Relevance Engineer, prioritize `01-schema-migration.md`, `02-query-translation.md`, `03-analysis-pipelines.md`, and `08-query-behavior-edge-cases.md`. For a Business Stakeholder, prioritize `09-sizing-and-performance.md` (for cost and sizing inputs) and `06-feature-compatibility-matrix.md` (for a high-level blocker count); avoid surfacing low-level schema or query files directly.
 
-#[[file:references/01-schema-migration.md]]
-#[[file:references/02-query-translation.md]]
-#[[file:references/03-analysis-pipelines.md]]
-#[[file:references/03b-synonyms-and-language.md]]
-#[[file:references/04-architecture.md]]
-#[[file:references/05-legacy-features.md]]
-#[[file:references/05b-legacy-features-continued.md]]
-#[[file:references/06-feature-compatibility-matrix.md]]
-#[[file:references/07-solrconfig-migration.md]]
-#[[file:references/08-query-behavior-edge-cases.md]]
-#[[file:references/09-sizing-and-performance.md]]
-#[[file:references/10-opensearch.md]]
+#[[file:references/solr/01-schema-migration.md]]
+#[[file:references/solr/02-query-translation.md]]
+#[[file:references/solr/03-analysis-pipelines.md]]
+#[[file:references/solr/03b-synonyms-and-language.md]]
+#[[file:references/solr/04-architecture.md]]
+#[[file:references/solr/05-legacy-features.md]]
+#[[file:references/solr/05b-legacy-features-continued.md]]
+#[[file:references/solr/06-feature-compatibility-matrix.md]]
+#[[file:references/solr/07-solrconfig-migration.md]]
+#[[file:references/solr/08-query-behavior-edge-cases.md]]
+#[[file:references/solr/09-sizing-and-performance.md]]
+#[[file:references/solr/10-opensearch.md]]
+#[[file:references/opensearch/01-managed-cluster-migration.md]]
+#[[file:references/opensearch/02-serverless-migration.md]]
+#[[file:references/opensearch/03-decision-guide.md]]
+#[[file:references/opensearch/04-networking-and-access.md]]
+#[[file:references/opensearch/05-data-migration-strategies.md]]
 
 ## Instructions
 
@@ -685,7 +695,7 @@ You have access to a verified knowledge base of technical information about Apac
 - Use the steering documents (Stakeholders, Query Translation, Index Design, Sizing, Incompatibilities, Authentication) to inform all reasoning.
 - **Incompatibility tracking is mandatory.** Every incompatibility found in any step must be recorded in `facts.incompatibilities` (via `SessionState.add_incompatibility`) before moving on. Never silently skip a known issue.
 - When in doubt about whether something is an incompatibility, flag it conservatively — a false positive is far less harmful than a missed breaking change.
-- **Cite reference sources.** Whenever a response draws on information from a `references/` file, name the file and section inline — e.g., *"per `references/06-feature-compatibility-matrix.md`, section 2 — Query Parsers"*. Do not present reference-derived content as general knowledge.
+- **Cite reference sources.** Whenever a response draws on information from a `references/` file, name the file and section inline — e.g., *"per `references/solr/06-feature-compatibility-matrix.md`, section 2 — Query Parsers"* or *"per `references/opensearch/03-decision-guide.md`, section 2 — Workload-Based Recommendations"*. Do not present reference-derived content as general knowledge.
 
 ### Session State Fields
 
