@@ -1,7 +1,26 @@
 from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
 import os
 import shutil
+import sys
 import tempfile
+
+# Suppress asyncio "event loop is closed" noise from subprocess cleanup.
+# The SDK spawns a subprocess; when the event loop closes, Python writes
+# a warning to stderr. Promptfoo captures all stderr as ERROR, so we
+# filter it out here.
+_original_stderr = sys.stderr
+
+
+class _FilteredStderr:
+    def write(self, msg):
+        if "is closed" not in msg:
+            _original_stderr.write(msg)
+
+    def flush(self):
+        _original_stderr.flush()
+
+
+sys.stderr = _FilteredStderr()
 
 script_path = "/".join(os.path.realpath(__file__).split("/")[:-1])
 default_cwd = f"{script_path}/../../../solr-opensearch-migration-advisor"
