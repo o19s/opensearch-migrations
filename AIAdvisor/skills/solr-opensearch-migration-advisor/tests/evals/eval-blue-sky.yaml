@@ -1,0 +1,147 @@
+description: "Blue-sky SMA evals: deeper translation, operational guidance, migration strategy"
+
+# Prerequisites:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor
+#   uv sync --extra eval
+#   source .venv/bin/activate
+#   cp .env.example .env   # fill in CLAUDE_CODE_OAUTH_TOKEN
+#   export PROMPTFOO_PYTHON=$(pwd)/.venv/bin/python
+#
+# Running tests:
+#   Test descriptions are prefixed by category. Use --filter-pattern to select subsets:
+#
+#   # Commit/refresh model:
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml --filter-pattern "^commit-"
+#
+#   # Everything:
+#   tests/scripts/run_evals.sh tests/evals/eval-blue-sky.yaml
+#
+#   promptfoo view
+
+providers:
+  - id: 'file://claude_requests.py'
+    label: 'Claude agent invocation'
+    config:
+      timeout: 3000000
+
+defaultTest:
+  metadata:
+    continue: false
+  vars:
+    ecommerce_solrconfig: "file://fixtures/ecommerce-solrconfig.xml"
+  options:
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      config:
+        region: us-east-1
+        # Judge max_tokens: 512 is sufficient for the JSON verdict
+        # {"pass": bool, "score": float, "reason": "..."}.
+        # If judge responses are truncated, first simplify the rubric —
+        # overly complex rubrics are the usual cause. If the rubric
+        # complexity is warranted, increase max_tokens to 1024 here.
+        max_tokens: 512
+        # Prevent 'Could not extract JSON from llm-rubric response':
+        # https://github.com/promptfoo/promptfoo/issues/2084
+        response_format: json_object
+
+prompts:
+  - id: blue-sky-prompt
+    label: "Blue-sky SMA eval"
+    raw: "{{query}}"
+
+tests:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  COMMIT / REFRESH MODEL
+  # ═══════════════════════════════════════════════════════════════
+
+  # ─────────────────────────────────────────────────────────────
+  #  Commit/Refresh Model (commit-*) — 3 tests
+  #
+  #  Why this matters: Solr's two-tier commit model (hard commit
+  #  vs soft commit) maps to OpenSearch's refresh_interval and
+  #  translog flush, but the semantics differ. Incorrect mapping
+  #  causes either data loss risk or unnecessary NRT latency.
+  # ─────────────────────────────────────────────────────────────
+
+  - description: "commit-01: autoSoftCommit + autoCommit -> refresh_interval + translog settings"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch. Here is our solrconfig.xml:
+        {{ecommerce_solrconfig}}
+
+        Our current commit settings are:
+        - autoSoftCommit maxTime = 1000ms
+        - autoCommit maxTime = 15000ms with openSearcher=false
+
+        What are the equivalent OpenSearch settings? Provide the exact
+        PUT _settings JSON and explain how each Solr setting maps.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must correctly map BOTH Solr commit settings to OpenSearch:
+          1. autoSoftCommit.maxTime (1000ms) maps to index.refresh_interval (should
+             recommend "1s" or similar). The response must mention "refresh_interval".
+          2. autoCommit.maxTime (15000ms) maps to translog flush settings — either
+             index.translog.sync_interval or index.translog.flush_threshold_size or
+             index.translog.durability. The response must mention "translog", not just
+             refresh_interval.
+          3. The response should explain that openSearcher=false has no direct equivalent because
+             OpenSearch always opens a new searcher on refresh.
+          A response that only mentions refresh_interval and ignores translog/flush is WRONG.
+        metric: commit-maps-both-tiers
+
+  - description: "commit-02: commitWithin and bulk indexing refresh strategy"
+    vars:
+      query: |
+        I'm migrating from Solr 8.11 to OpenSearch.
+
+        In our Solr application code, we use commitWithin=5000 on individual
+        document updates so they become visible within 5 seconds. During our
+        nightly bulk import, we send a hard commit after the batch completes.
+
+        How do I replicate both behaviors in OpenSearch? I need:
+        1. Per-request "make visible within N ms" for live updates
+        2. A bulk import strategy where I skip refresh overhead during load
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must address BOTH scenarios:
+          1. commitWithin replacement: should recommend the refresh query parameter
+             (?refresh=wait_for or ?refresh=true) for per-request visibility control.
+             The response must mention the "?refresh" query parameter or "refresh=wait_for"
+             or "refresh=true". Must NOT say "just set refresh_interval=5s globally" as a
+             substitute for per-request commitWithin — that changes cluster-wide behavior.
+          2. Bulk import strategy: should recommend disabling refresh during bulk load
+             (refresh_interval=-1 or "index.refresh_interval": "-1") and re-enabling
+             afterward, possibly mentioning _forcemerge after load. The response must
+             mention setting refresh_interval to -1 or explicitly disabling refresh.
+          A response that conflates the two scenarios or only addresses one is incomplete.
+        metric: commit-per-request-and-bulk
+
+  - description: "commit-03: plain-language commit/visibility question (less technical user)"
+    vars:
+      query: |
+        We're moving from Solr to OpenSearch. In Solr, when we add or update a
+        product, it takes a couple of seconds before it shows up in search results.
+        Our team configured this timing somehow in Solr's settings.
+
+        In OpenSearch, how do we control how quickly new or updated documents
+        become searchable? We need it to be fast for live updates (a few seconds)
+        but during our big nightly data loads we'd rather prioritize speed over
+        immediate visibility.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The response must provide practical guidance accessible to a user who may
+          not know Solr commit internals. Verify:
+          1. Explains that OpenSearch uses refresh_interval to control how often new
+             documents become searchable — analogous to Solr's soft commit timing.
+          2. For live updates: recommends a short refresh_interval (e.g., "1s") or the
+             ?refresh=wait_for query parameter for per-request visibility.
+          3. For bulk loads: recommends temporarily disabling refresh (refresh_interval=-1)
+             during the load and re-enabling afterward.
+          4. Does NOT assume the user knows Solr's autoSoftCommit/autoCommit/translog
+             terminology — the explanation should stand on its own.
+          A response that only describes concepts without actionable settings is NOT sufficient.
+        metric: commit-03-accessible-guidance
