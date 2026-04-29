@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Realistic e-commerce Solr 8.11 solrconfig.xml for blue-sky eval tests.
+  Covers: commit settings, caches, cache warming, URP chains,
+  request handlers, and update handlers.
+-->
+<config>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       COMMIT SETTINGS (tested by commit-* evals)
+       ═══════════════════════════════════════════════════════════ -->
+  <autoSoftCommit>
+    <maxTime>1000</maxTime>
+  </autoSoftCommit>
+  <autoCommit>
+    <maxTime>15000</maxTime>
+    <openSearcher>false</openSearcher>
+  </autoCommit>
+
+  <indexConfig>
+    <ramBufferSizeMB>256</ramBufferSizeMB>
+    <maxBufferedDocs>10000</maxBufferedDocs>
+    <mergePolicyFactory class="org.apache.solr.index.TieredMergePolicyFactory">
+      <int name="maxMergeAtOnce">10</int>
+      <int name="segmentsPerTier">10</int>
+      <double name="maxMergedSegmentMB">5120</double>
+    </mergePolicyFactory>
+  </indexConfig>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CACHES (tested by cache-* evals)
+       ═══════════════════════════════════════════════════════════ -->
+  <query>
+    <filterCache class="solr.CaffeineCache"
+                 size="4096"
+                 initialSize="1024"
+                 autowarmCount="256"/>
+    <queryResultCache class="solr.CaffeineCache"
+                      size="1024"
+                      initialSize="256"
+                      autowarmCount="128"
+                      maxRamMB="256"/>
+    <documentCache class="solr.CaffeineCache"
+                   size="8192"
+                   initialSize="2048"/>
+    <fieldValueCache class="solr.CaffeineCache"
+                     size="512"
+                     showItems="32"/>
+
+    <!-- Cache warming queries (tested by cache-02) -->
+    <listener event="newSearcher" class="solr.QuerySenderListener">
+      <arr name="queries">
+        <lst>
+          <str name="q">*:*</str>
+          <str name="sort">avg_rating desc</str>
+          <str name="rows">0</str>
+        </lst>
+        <lst>
+          <str name="q">*:*</str>
+          <str name="fq">in_stock:true</str>
+          <str name="rows">0</str>
+        </lst>
+        <lst>
+          <str name="q">*:*</str>
+          <str name="fq">category:Electronics</str>
+          <str name="rows">0</str>
+        </lst>
+        <lst>
+          <str name="q">*:*</str>
+          <str name="facet">true</str>
+          <str name="facet.field">category</str>
+          <str name="facet.field">brand</str>
+          <str name="rows">0</str>
+        </lst>
+      </arr>
+    </listener>
+    <listener event="firstSearcher" class="solr.QuerySenderListener">
+      <arr name="queries">
+        <lst>
+          <str name="q">*:*</str>
+          <str name="rows">0</str>
+        </lst>
+      </arr>
+    </listener>
+
+    <maxBooleanClauses>1024</maxBooleanClauses>
+    <enableLazyFieldLoading>true</enableLazyFieldLoading>
+  </query>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       UPDATE REQUEST PROCESSOR CHAINS (tested by urp-* evals)
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Default chain: UUID, timestamp, HTML strip, dedup -->
+  <updateRequestProcessorChain name="enrichment-chain" default="true">
+    <processor class="solr.UUIDUpdateProcessorFactory">
+      <str name="fieldName">doc_uuid</str>
+    </processor>
+    <processor class="solr.TimestampUpdateProcessorFactory">
+      <str name="fieldName">indexed_at</str>
+    </processor>
+    <processor class="solr.RegexReplaceProcessorFactory">
+      <str name="fieldName">description_raw</str>
+      <str name="pattern"><![CDATA[<[^>]+>]]></str>
+      <str name="replacement"> </str>
+    </processor>
+    <processor class="solr.SignatureUpdateProcessorFactory">
+      <bool name="enabled">true</bool>
+      <str name="signatureField">content_sig</str>
+      <str name="fields">product_name,description</str>
+      <str name="signatureClass">solr.processor.Lookup3Signature</str>
+      <bool name="overwriteDupes">true</bool>
+    </processor>
+    <processor class="solr.LogUpdateProcessorFactory"/>
+    <processor class="solr.RunUpdateProcessorFactory"/>
+  </updateRequestProcessorChain>
+
+  <!-- Language detection chain -->
+  <updateRequestProcessorChain name="langid-chain">
+    <processor class="solr.LangDetectLanguageIdentifierUpdateProcessorFactory">
+      <str name="langid.fl">product_name,description</str>
+      <str name="langid.langField">detected_lang</str>
+      <bool name="langid.map">true</bool>
+      <str name="langid.map.lcmap">zh-cn:zh zh-tw:zh ko:ko ja:ja</str>
+      <str name="langid.fallback">en</str>
+    </processor>
+    <processor class="solr.RunUpdateProcessorFactory"/>
+  </updateRequestProcessorChain>
+
+  <!-- Bulk import chain (optimized for throughput) -->
+  <updateRequestProcessorChain name="bulk-import">
+    <processor class="solr.TimestampUpdateProcessorFactory">
+      <str name="fieldName">indexed_at</str>
+    </processor>
+    <processor class="solr.RunUpdateProcessorFactory"/>
+  </updateRequestProcessorChain>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       REQUEST HANDLERS
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Primary product search (eDisMax) -->
+  <requestHandler name="/search" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="defType">edismax</str>
+      <str name="qf">product_name^10 product_name_split^8 description^3 short_description^2 brand^5 category^2 tags^1</str>
+      <str name="pf">product_name^15 description^5</str>
+      <str name="pf2">product_name^8</str>
+      <str name="bf">recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5</str>
+      <str name="bq">in_stock:true^10</str>
+      <str name="mm">2&lt;-1 5&lt;80%</str>
+      <str name="ps">3</str>
+      <str name="tie">0.1</str>
+      <str name="fl">id,product_name,description,price,sale_price,brand,category,avg_rating,review_count,in_stock,store_location</str>
+      <str name="hl">true</str>
+      <str name="hl.fl">product_name,description,short_description</str>
+      <str name="hl.fragsize">150</str>
+      <str name="hl.snippets">3</str>
+      <str name="hl.simple.pre"><![CDATA[<em>]]></str>
+      <str name="hl.simple.post"><![CDATA[</em>]]></str>
+      <str name="facet">true</str>
+      <str name="facet.field">category</str>
+      <str name="facet.field">brand</str>
+      <str name="facet.range">sale_price</str>
+      <str name="f.sale_price.facet.range.start">0</str>
+      <str name="f.sale_price.facet.range.end">1000</str>
+      <str name="f.sale_price.facet.range.gap">50</str>
+      <str name="facet.mincount">1</str>
+    </lst>
+    <lst name="invariants">
+      <str name="rows">20</str>
+    </lst>
+  </requestHandler>
+
+  <!-- Autocomplete/suggest handler -->
+  <requestHandler name="/suggest" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="defType">edismax</str>
+      <str name="qf">product_name_suggest^10 brand^5</str>
+      <str name="rows">10</str>
+      <str name="fl">id,product_name,brand,category</str>
+    </lst>
+  </requestHandler>
+
+  <!-- Spatial/store locator search -->
+  <requestHandler name="/stores" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="defType">edismax</str>
+      <str name="qf">product_name^5 brand^3</str>
+      <str name="bf">recip(geodist(),1,100,100)</str>
+      <str name="sfield">store_location</str>
+      <str name="fl">id,product_name,brand,store_location,score</str>
+      <str name="sort">score desc</str>
+    </lst>
+  </requestHandler>
+
+  <!-- Browse/category handler (uses result grouping) -->
+  <requestHandler name="/browse" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="defType">edismax</str>
+      <str name="qf">product_name^5 description^2</str>
+      <str name="group">true</str>
+      <str name="group.field">brand</str>
+      <str name="group.limit">3</str>
+      <str name="group.ngroups">true</str>
+      <str name="group.sort">avg_rating desc</str>
+      <str name="fl">id,product_name,brand,avg_rating,sale_price</str>
+    </lst>
+  </requestHandler>
+
+  <!-- Admin / monitoring -->
+  <requestHandler name="/admin/ping" class="solr.PingRequestHandler">
+    <lst name="invariants">
+      <str name="q">*:*</str>
+      <str name="rows">0</str>
+    </lst>
+  </requestHandler>
+
+  <!-- Update handler with default chain -->
+  <requestHandler name="/update" class="solr.UpdateRequestHandler">
+    <lst name="defaults">
+      <str name="update.chain">enrichment-chain</str>
+    </lst>
+  </requestHandler>
+
+  <!-- Bulk import update handler -->
+  <requestHandler name="/update/bulk" class="solr.UpdateRequestHandler">
+    <lst name="defaults">
+      <str name="update.chain">bulk-import</str>
+    </lst>
+  </requestHandler>
+</config>
