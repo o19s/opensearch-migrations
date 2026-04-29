@@ -13,4 +13,7 @@ AWS_REGION=$AWS_REGION \
 AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
 AWS_BEARER_TOKEN_BEDROCK=$AWS_BEARER_TOKEN_BEDROCK \
 BEDROCK_INFERENCE_PROFILE_ARN=$BEDROCK_INFERENCE_PROFILE_ARN \
-promptfoo eval -c $SCRIPT_DIR/../evals/eval.yaml --no-cache --max-concurrency 1
+EVAL_CONFIG="${1:-$SCRIPT_DIR/../evals/eval.yaml}"
+shift 2>/dev/null || true
+
+promptfoo eval -c "$EVAL_CONFIG" --no-cache --max-concurrency 1 "$@"
