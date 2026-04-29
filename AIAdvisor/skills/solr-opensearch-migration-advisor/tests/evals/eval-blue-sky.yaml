@@ -35,7 +35,15 @@ defaultTest:
       id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
       config:
         region: us-east-1
+        # Judge max_tokens: 512 is sufficient for the JSON verdict
+        # {"pass": bool, "score": float, "reason": "..."}.
+        # If judge responses are truncated, first simplify the rubric —
+        # overly complex rubrics are the usual cause. If the rubric
+        # complexity is warranted, increase max_tokens to 1024 here.
         max_tokens: 512
+        # Prevent 'Could not extract JSON from llm-rubric response':
+        # https://github.com/promptfoo/promptfoo/issues/2084
+        response_format: json_object
 
 prompts:
   - id: blue-sky-prompt
@@ -197,12 +205,15 @@ tests:
         Here is our full /search handler config:
         {{ecommerce_solrconfig}}
 
-        The /search handler combines recency boost, popularity boost, and
-        in-stock boosting:
+        The /search handler's solrconfig.xml defaults define a single bf and bq,
+        but our application overrides them at query time with these combined
+        parameters (treat this as the complete set):
         bf=recip(ms(NOW,updated_at),3.16e-11,1,1)^0.5
         bf=log(review_count)^0.3
         bq=in_stock:true^10
         bq=avg_rating:[4 TO *]^3
+
+        Translate ALL four boost signals above, not just the solrconfig defaults.
 
         **Output format:** Provide the complete OpenSearch query JSON that combines
         all boost signals. Note how multiple bf values and multiple bq values translate.
