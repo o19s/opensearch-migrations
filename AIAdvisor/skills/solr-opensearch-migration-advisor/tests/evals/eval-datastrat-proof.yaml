@@ -36,11 +36,16 @@ defaultTest:
   metadata:
     continue: false
   options:
+    # Default judge: direct Anthropic API via the local Claude Code OAuth
+    # credential (~/.claude/.credentials.json) — no ANTHROPIC_API_KEY needed,
+    # no Bedrock account-setup friction. Requires promptfoo >= 0.121.11.
+    # Override with: export JUDGE_PROVIDER=bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
     provider:
-      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      id: '{{env.JUDGE_PROVIDER | default("anthropic:messages:claude-sonnet-4-5-20250929")}}'
       config:
-        region: us-east-1
+        apiKeyRequired: false   # use Claude Code OAuth instead of ANTHROPIC_API_KEY
         max_tokens: 512
+        response_format: json_object
 
 prompts:
   - id: datastrat-prompt
@@ -78,11 +83,8 @@ tests:
           - "SolrBackupSource"
           - "SolrDocumentSource"
           - "SolrMultiCollectionSource"
-      # Must describe the pipeline architecture
+      # Must describe the pipeline architecture (class names only base model won't know)
       - type: contains-any
         value:
           - "DocumentMigrationPipeline"
           - "DocumentSource"
-          - "RFS"
-          - "Reindex-From-Snapshot"
-          - "reindex from snapshot"

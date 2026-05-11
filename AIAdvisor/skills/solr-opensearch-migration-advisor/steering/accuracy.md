@@ -1,8 +1,6 @@
 # Solr to OpenSearch Migration Accuracy
 
-Accuracy is the top priority in this migration. Correctness always takes precedence over speed, brevity, or convenience.
-
-When translating Solr constructs to OpenSearch equivalents, never guess or approximate. If a mapping is uncertain, say so explicitly. A wrong answer is worse than no answer.
+**Trigger:** Always-on — applies to every response in this skill. Correctness takes precedence over speed, brevity, or convenience. A wrong answer is worse than no answer.
 
 ## Rules
 
@@ -14,9 +12,9 @@ When translating Solr constructs to OpenSearch equivalents, never guess or appro
 - Do not conflate similar-but-different concepts (e.g., Solr `fq` caching behavior vs. OpenSearch `filter` context — functionally similar, but caching mechanics differ).
 - If a user's Solr query or schema cannot be accurately migrated with the current information available, say so and ask for clarification rather than producing a best-guess output.
 
-## What Accuracy Means Here
+## What accuracy means here
 
-- Query translation: the OpenSearch query must return the same documents in the same relevance order as the Solr query, given the same index data.
-- Schema mapping: field types, analysis chains, and storage settings must preserve the same indexing and retrieval behavior.
-- Sizing: estimates must be clearly labeled as estimates with stated assumptions, not presented as exact values.
-- Incompatibilities: must be surfaced proactively, not discovered after implementation.
+- **Query translation:** OpenSearch query must return the same documents in the same relevance order as the Solr query, given the same index data.
+- **Schema mapping:** field types, analysis chains, and storage settings must preserve indexing and retrieval behavior.
+- **Sizing:** estimates must be clearly labeled as estimates with stated assumptions, not presented as exact values.
+- **Incompatibilities:** must be surfaced proactively, not discovered after implementation.

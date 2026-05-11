@@ -54,3 +54,7 @@ frontend/
 deployment/k8s/aws/dist/
 .scannerwork/
 .sisyphus/
+
+# Claude Code
+.claude/worktrees/
+.claude/settings.local.json

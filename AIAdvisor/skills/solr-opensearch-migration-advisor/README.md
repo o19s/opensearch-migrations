@@ -15,6 +15,18 @@ An **OpenSearch Agent Skill** that helps migrate from [Apache Solr](https://solr
 
 # Developer Guide
 
+## Skill Structure
+
+- `SKILL.md` — orchestrator: workflow steps and routing into steering and references.
+- `steering/` — triggers + hard rules + pointers. Each file says *when* the topic activates, *what* rules must hold, and *which* reference to load. Short by design — no tutorial prose.
+- `references/` — explanatory knowledge base; the single source of truth for *how* and *why* (field mappings, query translation, analyzer chains, sizing formulas, etc.).
+- `sessions/` — persisted `SessionState` for resumable migrations.
+- `setup/` — Docker and harness configuration for running the skill.
+- `scripts/` — implementation code (MCP server, session loader).
+- `tests/` — unit tests (`pytest`) and evals (`tests/evals/`).
+
+When adding new guidance: rules and triggers go in `steering/`; explanations and examples go in `references/`. If `steering/` starts to read like a tutorial, move that content into a reference file and leave a pointer behind.
+
 ## Running the Tests
 
 ```bash
