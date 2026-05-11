@@ -1,0 +1,207 @@
+description: "Skill guidance impact: bare-vs-guided across 7 Querqy/SMUI/OpenSearch stumpers"
+
+# Demonstrates that targeted reference content (references/11 + references/12)
+# moves a weaker target model (Haiku 4.5) from RED to GREEN on questions that
+# require specific Querqy class names, plugin endpoints, SMUI export format,
+# OpenSearch Search Pipelines specifics, and ISM rolling-window patterns.
+#
+# Designed around two architectural choices:
+#   1. Target model is HAIKU 4.5 (not Sonnet) — Sonnet is "too smart" and
+#      answers most of these from training. Haiku has the gaps that the
+#      skill is meant to fill.
+#   2. Both providers run in /tmp isolation (claude_requests.py copies the
+#      fixture to a tempdir) so the agent cannot traverse up to the real
+#      skill's references/ directory.
+#
+# Question selection: 7 stumpers from tests/evals/triage/triage-results.md,
+# all of which were RED on at least one criterion for both Haiku and Qwen
+# in the bare-model triage sweep (see triage/sweep.py).
+#
+# Running:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor/tests/evals
+#   PROMPTFOO_PYTHON=../../.venv/bin/python promptfoo eval -c eval-guidance-impact.yaml --no-cache
+#   promptfoo view
+
+providers:
+  # Bare: isolated /tmp fixture, no references, only the brief CLAUDE.md
+  - id: 'file://claude_requests.py'
+    label: 'haiku-bare'
+    config:
+      cwd: fixtures/guidance-bare
+      model: claude-haiku-4-5-20251001
+      allowed_tools: ["Read", "Glob", "Grep"]
+      timeout: 3000000
+
+  # Guided: same isolated /tmp pattern, but the fixture's CLAUDE.md
+  # contains references/11 and references/12 inlined.
+  - id: 'file://claude_requests.py'
+    label: 'haiku-guided'
+    config:
+      cwd: fixtures/guidance-guided
+      model: claude-haiku-4-5-20251001
+      allowed_tools: ["Read", "Glob", "Grep"]
+      timeout: 3000000
+
+  # Local Qwen via Ollama. Ollama isn't an agent (no tool use, no file
+  # traversal), so the bare-vs-guided distinction is enforced at the
+  # system-prompt level by which fixture's CLAUDE.md gets loaded.
+  # Useful for q12/q16 — Haiku already knew those bare; Qwen doesn't.
+  # Filter at run time:
+  #   promptfoo eval -c eval-guidance-impact.yaml \
+  #     --filter-providers qwen --filter-pattern "q12|q16"
+  - id: 'file://ollama_requests.py'
+    label: 'qwen-bare'
+    config:
+      cwd: fixtures/guidance-bare
+      model: qwen2.5:7b
+      timeout: 600000
+
+  - id: 'file://ollama_requests.py'
+    label: 'qwen-guided'
+    config:
+      cwd: fixtures/guidance-guided
+      model: qwen2.5:7b
+      timeout: 600000
+
+defaultTest:
+  metadata:
+    continue: false
+  options:
+    # Sonnet stays as the LLM-rubric judge — judge != target. The "too
+    # smart" problem only matters for the model under test.
+    #
+    # Default judge: direct Anthropic API using the local Claude Code OAuth
+    # credential (~/.claude/.credentials.json). This avoids needing a
+    # separate ANTHROPIC_API_KEY and avoids Bedrock account-setup friction
+    # (Anthropic-on-Bedrock requires a use-case form before first use).
+    #
+    # To override (e.g. to use Bedrock once your account is approved):
+    #   export JUDGE_PROVIDER=bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("anthropic:messages:claude-sonnet-4-5-20250929")}}'
+      config:
+        apiKeyRequired: false   # use Claude Code OAuth instead of ANTHROPIC_API_KEY
+        max_tokens: 512
+        response_format: json_object
+
+prompts:
+  - id: guidance-impact
+    label: "Guidance impact prompt"
+    raw: "{{query}}"
+
+tests:
+
+  # ─── Objective fact questions: substring assertions ──────────────
+
+  - description: "q01 — Querqy CommonRules rewriter FQCN"
+    vars:
+      query: |
+        I'm setting up the Querqy plugin on a self-managed OpenSearch
+        cluster and need to register a CommonRules rewriter via the REST
+        API. What is the exact fully-qualified Java class name I put in
+        the `class` field of the PUT body?
+    assert:
+      # Real class is querqy.opensearch.rewriter.SimpleCommonRulesRewriterFactory
+      - type: icontains
+        value: "SimpleCommonRulesRewriterFactory"
+      - type: icontains
+        value: "querqy.opensearch.rewriter"
+
+  - description: "q02 — Querqy info_logging request field + decorations response"
+    vars:
+      query: |
+        On the OpenSearch Querqy plugin, I want per-query debug logging
+        of which Common Rules fired. What is the exact JSON field name I
+        add inside the querqy query clause to enable it, and what is the
+        exact name of the response payload that contains the rule-match
+        / decoration data? Give the two names.
+    assert:
+      - type: icontains
+        value: "info_logging"
+      - type: icontains
+        value: "decorations"
+
+  - description: "q04 — SMUI->OpenSearch deploy endpoint (replaces file copy)"
+    vars:
+      query: |
+        For Solr, SMUI deploys rules by copying a rules text file into
+        Solr's config directory and triggering a reload. When the target
+        is OpenSearch with the Querqy plugin, what specific REST endpoint
+        replaces the file-copy step? Give the exact path and HTTP method.
+    assert:
+      - type: contains-any
+        value:
+          - "_plugins/_querqy/rewriter"
+          - "_querqy/rewriter"
+      - type: icontains
+        value: "PUT"
+
+  - description: "q12 — OpenSearch Search Pipelines (intercept queries pre-execution)"
+    vars:
+      query: |
+        Querqy's DELETE rule strips terms from a query before search runs.
+        On OpenSearch *without* the Querqy plugin (e.g. AWS managed
+        OpenSearch Service), what specific OpenSearch 2.x feature can
+        intercept and modify search requests before execution? Name the
+        feature and the processor type that runs pre-shard.
+    assert:
+      - type: icontains
+        value: "search pipeline"
+      - type: contains-any
+        value:
+          - "request processor"
+          - "search request processor"
+
+  - description: "q16 — Rolling-window write routing on OpenSearch"
+    vars:
+      query: |
+        Our SolrCloud uses a collection alias that simultaneously routes
+        writes to the latest time-partitioned collection while searches
+        span all collections. OpenSearch index aliases can fan out
+        searches but only one underlying index can receive writes. What
+        is the idiomatic OpenSearch pattern for a rolling-window
+        architecture? Name both the policy mechanism and the alias flag.
+    assert:
+      - type: contains-any
+        value:
+          - "ISM"
+          - "Index State Management"
+      - type: icontains
+        value: "is_write_index"
+
+  # ─── Subjective consultant questions: llm-rubric ─────────────────
+
+  - description: "q05 — SMUI v4.0.11 OpenSearch scope (labelling vs deployment)"
+    vars:
+      query: |
+        SMUI v4.0.11 added OpenSearch support according to the release
+        notes. As a migration consultant, what specifically did v4.0.11
+        add — full OpenSearch deployment parity with Solr, or something
+        narrower? What does this mean for a team planning to use SMUI as
+        their rules-management UI on OpenSearch?
+    assert:
+      - type: llm-rubric
+        value: |
+          The response correctly identifies that SMUI v4.0.11's OpenSearch
+          "support" is limited to a UI/front-end labelling change (PR #139:
+          changes the "Push to Solr" button text when target is OpenSearch).
+          It must NOT claim full deployment parity. It must explicitly
+          flag that SMUI does not natively deploy rules to OpenSearch and
+          that the team will need an additional pipeline (e.g. exporting
+          and PUT-ing to the Querqy plugin's REST API) outside of SMUI.
+
+  - description: "q07 — SMUI rule export format (plain-text Common Rules)"
+    vars:
+      query: |
+        What is the format of a SMUI rules export file — JSON, XML, or
+        something else? Show a short example of what the export looks
+        like for a term that has a SYNONYM rule and an UP rule.
+    assert:
+      - type: llm-rubric
+        value: |
+          The response correctly states the format is plain-text Querqy
+          Common Rules (NOT JSON, NOT XML). The example must use the
+          `term =>` arrow syntax with tab-indented `SYNONYM:` and
+          `UP(weight):` lines (or visually equivalent indentation). The
+          response must NOT fabricate a JSON or XML schema for SMUI
+          exports.
