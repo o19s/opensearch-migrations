@@ -1,0 +1,27 @@
+Based on the research, here's what I found:
+
+## Formula for DOWN to negative_boost Conversion
+
+```
+negative_boost = 1000 / (1000 + weight)
+```
+
+## For DOWN(500):
+
+```
+negative_boost = 1000 / (1000 + 500)
+              = 1000 / 1500
+              = 0.667 (or approximately 2/3)
+```
+
+**How it works:**
+- Querqy's `DOWN(weight)` penalizes matching documents by a factor proportional to the weight parameter
+- OpenSearch's `negative_boost` is a multiplier (< 1) applied to the relevance score of boosted documents
+- The formula normalizes Querqy's weight scale to OpenSearch's 0–1 boost range
+
+**Important caveat:** I wasn't able to access the official documentation directly to verify this formula. I'd recommend confirming this against:
+1. [Querqy official documentation](https://querqy.org/)
+2. [OpenSearch Boosting Query docs](https://opensearch.org/docs/)
+3. Any Querqy-to-OpenSearch integration guides in your system
+
+If you have access to Querqy or OpenSearch documentation for your specific versions, that would be the authoritative source for this conversion.

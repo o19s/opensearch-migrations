@@ -1,0 +1,24 @@
+# The Setting: `index.mapping.total_fields.limit`
+
+**Default value**: 1000 fields
+
+With 800+ dynamic fields already defined, you're approaching this limit. Solr's dynamic field pattern approach (e.g., `*_s`, `*_i`) maps directly to OpenSearch's field explosion problem—each unique field name you index counts against this limit.
+
+## The Risks of Increasing It
+
+1. **Mapping bloat and cluster state pressure** — Every field addition updates the cluster mapping metadata. At 2000+ fields, mapping updates become slow and expensive, especially on multi-node clusters where the state must replicate.
+
+2. **Memory and CPU cost** — Each field consumes heap for its mapping definition, field statistics, and index structures. 2000+ fields significantly increases per-shard memory footprint.
+
+3. **Indexing and query slowdown** — Field resolution, inverted index construction, and aggregation operations all scale with field count. Queries on high-cardinality dynamic fields become expensive.
+
+4. **Unmapped field hazard** — If you increase the limit without controlling field creation, Solr's wildcard patterns can cause "mapping explosion"—accidentally indexing a typo or edge-case value creates a new field that persists. At scale, this spirals quickly.
+
+## Better Approach Than Raising the Limit
+
+Instead of lifting `total_fields.limit`, consider:
+- **Object or nested fields** — Group related dynamic fields into a single object: instead of `document_1_s`, `document_2_s`, etc., use `documents: [{ id: 1, value: "..." }, ...]`
+- **Keyword + dynamic suffix consolidation** — If *_s, *_i, *_txt, *_dt are truly all indexed at query time, collapse them into a single field with a subfield strategy or explicit mapping.
+- **Solr → OpenSearch schema redesign** — Solr's dynamic field model doesn't port directly; OpenSearch expects explicit, bounded schemas. Invest time mapping Solr's `*_suffix` patterns to intentional field definitions or structured objects.
+
+What's your current field count per index, and are all 800+ fields actively queried, or is this potential cardinality?

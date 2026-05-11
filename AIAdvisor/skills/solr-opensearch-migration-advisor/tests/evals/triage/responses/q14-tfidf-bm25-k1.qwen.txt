@@ -1,0 +1,30 @@
+When migrating from Solr 6.x, which uses ClassicSimilarity with Term Frequency-Inverse Document Frequency (TF-IDF) scoring, to OpenSearch (which by default uses the BM25 similarity model), there are several changes in ranking behavior that you might observe, especially on short text fields like product titles. Here’s a detailed explanation:
+
+### Ranking Behavior Changes
+
+1. **Term Frequency Saturation**:
+   - In Solr 6.x with ClassicSimilarity, term frequency (TF) is not capped and can increase indefinitely as the document length increases.
+   - In OpenSearch's BM25 model, term frequency saturation is controlled by a parameter that limits how much TF can contribute to the score.
+
+### BM25 Parameters
+
+BM25 has several parameters that control its behavior. The key parameter for controlling term frequency saturation in BM25 is `k1` (also known as `k1` or `b`). This parameter influences how quickly the contribution of additional occurrences of a term diminishes as the document length increases.
+
+- **k1**: This parameter controls the point at which the term frequency starts to saturate. A higher value for `k1` means that the term frequency will increase more rapidly, while a lower value will result in slower saturation.
+  
+### Approximating TF-IDF Behavior
+
+To approximate the behavior of Solr 6.x's ClassicSimilarity (which is closer to TF-IDF), you would want to set the BM25 `k1` parameter to a relatively high value. In practice, values around 1.2 to 2.0 are often used for this purpose.
+
+- **Example**: Setting `k1` to approximately 1.2 can help approximate the behavior of TF-IDF in Solr 6.x.
+  
+### Summary
+
+To migrate from Solr 6.x (ClassicSimilarity/TF-IDF) to OpenSearch (BM25), you should focus on adjusting the `k1` parameter. A value around 1.2 for `k1` can help approximate the TF-IDF behavior observed in Solr 6.x, especially when dealing with short text fields like product titles.
+
+### Additional Considerations
+
+- **Document Length Normalization**: BM25 inherently normalizes document length, which is a key difference from ClassicSimilarity/TF-IDF. This means that longer documents are not automatically given higher scores just because they contain more terms.
+- **Field-Specific Tuning**: Depending on the specific use case and field characteristics, you might need to fine-tune other BM25 parameters such as `b` (which controls length normalization) or `k3` (which affects how much document frequency contributes to the score).
+
+By carefully tuning these parameters, you can better align the ranking behavior of your OpenSearch setup with the expectations set by Solr 6.x.

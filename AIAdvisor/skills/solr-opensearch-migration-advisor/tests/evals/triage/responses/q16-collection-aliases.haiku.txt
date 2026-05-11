@@ -1,0 +1,50 @@
+You've identified the core difference: OpenSearch index aliases can't write to multiple targets like Solr collection aliases. For a rolling-window architecture, here's how to handle it:
+
+## Best approach: Use OpenSearch **Data Streams**
+
+Data Streams are designed for exactly this pattern. They abstract away the rolling-window complexity:
+
+```kotlin
+// Write to the data stream (not a concrete index)
+// OpenSearch automatically routes to the current backing index
+client.index(IndexRequest().index("logs-app-default").source(data))
+
+// Search across the window via the data stream
+client.search(SearchRequest().indices("logs-app-default"))
+```
+
+Data Streams handle:
+- **Automatic rollover** on size/age (configured in ILM policy)
+- **Index creation** following a naming pattern (`.ds-logs-app-default-YYYY.MM.dd-NNN`)
+- **Write routing** to the latest backing index only
+- **Search across all** — queries on the stream search all backing indices
+
+## If you can't use Data Streams (legacy setup):
+
+**Application-level routing for writes** + **alias for reads**:
+
+```kotlin
+// Determine the current index at write time
+val today = LocalDate.now()
+val currentIndex = "logs-${today.format(DateTimeFormatter.ISO_DATE)}"
+
+// Write to the calculated index
+client.index(IndexRequest().index(currentIndex).source(data))
+
+// Search via alias (includes all indices in the window)
+client.search(SearchRequest().indices("logs-alias"))
+```
+
+Then manage the alias separately:
+- **Template** auto-creates daily indices matching the pattern
+- **ILM policy** rolls over and deletes old indices
+- **Alias management** adds new indices, removes old ones (manual or scripted)
+
+## Trade-offs:
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Data Streams** | Native abstraction, automatic rollover, simple code | Requires OpenSearch 1.0+ |
+| **App routing + ILM** | Works on older versions, explicit control | More operational overhead, error-prone if index doesn't exist yet |
+
+**Recommendation**: Use Data Streams if your OpenSearch version supports it (1.0+). Otherwise, go with app-level routing + an ILM policy to automate the window management. Are you already on a version that supports Data Streams, or working with a legacy setup?

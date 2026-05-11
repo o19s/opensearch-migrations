@@ -1,0 +1,62 @@
+SMUI (Semantic Meaning User Interface) is part of Alibaba Cloud's Natural Language Processing (NLP) suite, which includes models like TUNA. The format for exporting SMUI rules can vary depending on the specific implementation or version of the system, but typically it might be in JSON or XML formats.
+
+### Example Format: JSON
+
+Here’s an example of what a SMUI rule export file might look like in JSON format:
+
+```json
+{
+  "term": {
+    "id": "001",
+    "name": "example_term",
+    "rules": [
+      {
+        "type": "SYNONYM",
+        "value": ["synonym1", "synonym2"]
+      },
+      {
+        "type": "UP",
+        "value": "higher_term_id"
+      }
+    ]
+  }
+}
+```
+
+### Explanation:
+- **term**: The main object representing a term.
+- **id**: A unique identifier for the term.
+- **name**: The name or label of the term.
+- **rules**: An array containing different types of rules associated with the term.
+  - **SYNONYM**: Rules that define synonyms for the term. Each synonym is represented as a string in an array.
+  - **UP**: Rules that specify a higher-level term (parent) to which this term belongs.
+
+### Example Format: XML
+
+Here’s how it might look in XML format:
+
+```xml
+<term id="001" name="example_term">
+    <rules>
+        <rule type="SYNONYM">
+            <value>synonym1</value>
+            <value>synonym2</value>
+        </rule>
+        <rule type="UP">
+            <value>higher_term_id</value>
+        </rule>
+    </rules>
+</term>
+```
+
+### Explanation:
+- **term**: The main element representing a term.
+- **id**: A unique identifier for the term.
+- **name**: The name or label of the term.
+- **rules**: An array containing different types of rules associated with the term.
+  - **rule**: Each rule is represented as an XML element, where `type` attribute specifies the type (SYNONYM or UP).
+  - **value**: Contains the actual value for each rule.
+
+### Notes:
+- The exact structure and tags can vary based on the specific implementation of SMUI rules in Alibaba Cloud.
+- Ensure that you refer to the official documentation provided by Alibaba Cloud for the most accurate format and details.
