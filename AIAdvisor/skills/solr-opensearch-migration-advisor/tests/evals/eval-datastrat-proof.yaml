@@ -1,0 +1,88 @@
+description: "Data migration strategy: bare-vs-guided proof"
+
+# Proves that reference doc 10-data-migration-tooling.md enables the advisor
+# to give specific, correct answers about opensearch-migrations SolrReader.
+#
+# Two isolated providers:
+#   skill-bare/    → SKILL.md only, no references (expect RED on datastrat-03)
+#   skill-guided/  → SKILL.md + 10-data-migration-tooling.md (expect GREEN)
+#
+# Both run in /tmp isolation — the agent cannot traverse up to find
+# the real skill references in the parent directory.
+#
+# Running:
+#   cd AIAdvisor/skills/solr-opensearch-migration-advisor/tests/evals
+#   PROMPTFOO_PYTHON=../../.venv/bin/python promptfoo eval -c eval-datastrat-proof.yaml --no-cache
+#   promptfoo view
+
+providers:
+  # Bare: isolated to /tmp, no skill discovery, no web access — pure model knowledge
+  - id: 'file://claude_requests.py'
+    label: 'bare (no references)'
+    config:
+      cwd: fixtures/skill-bare
+      allowed_tools: ["Read", "Glob", "Grep"]
+      timeout: 3000000
+
+  # Guided: isolated to /tmp with reference docs, skill discovery enabled
+  - id: 'file://claude_requests.py'
+    label: 'guided (with references)'
+    config:
+      cwd: fixtures/skill-guided
+      allowed_tools: ["Read", "Glob", "Grep", "Skill"]
+      timeout: 3000000
+
+defaultTest:
+  metadata:
+    continue: false
+  options:
+    provider:
+      id: '{{env.JUDGE_PROVIDER | default("bedrock:us.anthropic.claude-sonnet-4-5-20250929-v1:0")}}'
+      config:
+        region: us-east-1
+        max_tokens: 512
+
+prompts:
+  - id: datastrat-prompt
+    label: "Data migration strategy eval"
+    raw: "{{query}}"
+
+tests:
+
+  # ─── KEY PROOF: bare should FAIL, guided should PASS ─────────
+  #
+  # These assertions require specific implementation details that only
+  # our reference doc (10-data-migration-tooling.md) provides:
+  #   - SolrBackupSource / SolrDocumentSource class names
+  #   - Three backup layout types (flat, SolrCloud shard, UUID-mapped)
+  #   - The RFS pipeline architecture (DocumentMigrationPipeline)
+  #
+  - description: "datastrat-03: SolrReader implementation details"
+    vars:
+      query: |
+        I'm a DevOps engineer migrating from Solr 8.11 to OpenSearch on AWS.
+        We have 50M documents across 3 collections in a SolrCloud cluster.
+
+        I've heard the opensearch-migrations project has a SolrReader module
+        for migrating Solr data to OpenSearch.
+
+        1. What are the two Java source classes that implement the snapshot
+           and live-HTTP migration paths?
+        2. What backup directory layouts does the snapshot path support?
+        3. How does the RFS pipeline architecture connect SolrReader to
+           the OpenSearch bulk indexing sink?
+    assert:
+      # Must name at least one of the specific source classes
+      - type: contains-any
+        value:
+          - "SolrBackupSource"
+          - "SolrDocumentSource"
+          - "SolrMultiCollectionSource"
+      # Must describe the pipeline architecture
+      - type: contains-any
+        value:
+          - "DocumentMigrationPipeline"
+          - "DocumentSource"
+          - "RFS"
+          - "Reindex-From-Snapshot"
+          - "reindex from snapshot"
