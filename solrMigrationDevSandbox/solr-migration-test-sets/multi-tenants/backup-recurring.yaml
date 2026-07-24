@@ -1,0 +1,15 @@
+# Apply the backup via kubectl apply -n ma -f backup-recurring.yaml
+apiVersion: solr.apache.org/v1beta1
+kind: SolrBackup
+metadata:
+  name: backup-recurring
+  namespace: ma
+spec:
+  repositoryName: "localstack-s3" # Repository to use, should match value from SolrCloud CR
+  solrCloud: solr-source # name of the solr cluster used in SolrCloud CR
+  #collections: # When omitted, all collections are included
+  #  - techproducts
+  #  - foodproducts
+  recurrence: # Store one backup every 5 minutes, and keep a week at a time.
+    schedule: "@every 5m"
+    maxSaved: 7
