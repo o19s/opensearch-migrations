@@ -12,7 +12,7 @@ enabled, you may run into errors because the scripts try to create a configset f
 To enable auth, first create a secret with credentials of your choice:
 
 ```bash
-kubectl create secret generic solr-auth-creds -n ma --from-literal=username=admin --from-literal=password=admin
+kubectl create secret generic solr-auth-creds -n ma --type=kubernetes.io/basic-auth --from-literal=username=admin --from-literal=password=admin
 ```
 
 Then, for more reliable results, consider reinstalling the helm chart via:
@@ -21,7 +21,7 @@ Then, for more reliable results, consider reinstalling the helm chart via:
 # Uninstall first
 helm uninstall -n ma tc
 
-# Then, from inside deployments/k8s/
+# Then, from inside deployments/k8s/charts/aggregates/testClusters/
 helm install -n ma tc . -f valuesSolrSource.yaml --set solrSource.replicas=3 \
   --set solrSource.solrOptions.security.authenticationType=Basic \
   --set solrSource.solrOptions.security.basicAuthSecret=solr-auth-creds
@@ -126,36 +126,38 @@ automatically by the solr-operator. You then have to point to the right backup d
 externally managed snapshot name:
 
 ```json lines
-// instead of
-"sourceClusters": {
-  "solr-source": {
-    //...
-    "snapshotInfo": {
+{
+  // instead of
+  "sourceClusters": {
+    "solr-source": {
       //...
-      "backups": {
-        "solr-migration-snapshot": {
-          "createSnapshotConfig": {},
-          "repoName": "localstack-s3"
+      "snapshotInfo": {
+        //...
+        "backups": {
+          "solr-migration-snapshot": {
+            "createSnapshotConfig": {},
+            "repoName": "localstack-s3"
+          }
         }
       }
-    }
-  },
-  //...
-}
-// this
-"sourceClusters": {
-  "solr-source": {
+    },
     //...
-    "snapshotInfo": {
+  },
+  // use this:
+  "sourceClusters": {
+    "solr-source": {
       //...
-      "backups": {
-        "solr-migration-snapshot": {
-          "externallyManagedSnapshotName": "backup-simple",
-          "repoName": "localstack-s3"
+      "snapshotInfo": {
+        //...
+        "backups": {
+          "solr-migration-snapshot": {
+            "externallyManagedSnapshotName": "backup-simple",
+            "repoName": "localstack-s3"
+          }
         }
       }
-    }
-  },
-  //...
+    },
+    //...
+  }
 }
 ```
