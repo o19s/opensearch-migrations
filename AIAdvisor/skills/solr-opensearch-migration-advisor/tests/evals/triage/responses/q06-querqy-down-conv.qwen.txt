@@ -1,0 +1,56 @@
+In Querqy, the `DOWN` rule is used to penalize matches by a certain factor. The `DOWN` rule in Querqy can be thought of as applying a negative boost to the score of matching documents.
+
+To translate this into OpenSearch's `boosting query` with `negative_boost`, you need to understand that the `negative_boost` parameter works differently from the `DOWN` weight in Querqy. In Querqy, a `DOWN` value is applied as a multiplier to the score of matching documents. However, in OpenSearch, `negative_boost` is used to adjust the score by a specific factor.
+
+The formula to convert a `DOWN` weight to a `negative_boost` value can be derived based on how you want to penalize the matches. If we assume that a `DOWN(500)` rule in Querqy means multiplying the score of matching documents by 1/500, then the equivalent `negative_boost` in OpenSearch would be -499.
+
+Here's the formula:
+
+\[ \text{negative\_boost} = -\left(\frac{1}{\text{DOWN weight}} - 1\right) \]
+
+For a `DOWN(500)` rule:
+
+\[ \text{negative\_boost} = -\left(\frac{1}{500} - 1\right) = -\left(0.002 - 1\right) = -(-0.998) = 0.998 \]
+
+However, in practice, you would use the negative value:
+
+\[ \text{negative\_boost} = -0.998 \]
+
+So, for a `DOWN(500)` rule in Querqy, the equivalent `negative_boost` in OpenSearch is `-0.998`.
+
+Here's how you can apply it in an OpenSearch query:
+
+```json
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "field_name": "some_value"
+          }
+        }
+      ],
+      "should": [
+        {
+          "boosting": {
+            "positive": {
+              "match": {
+                "field_name": "another_value"
+              }
+            },
+            "negative": {
+              "match": {
+                "field_name": "penalized_value"
+              },
+              "negative_boost": -0.998
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+This query will apply a negative boost of `-0.998` to the score of documents that match `penalized_value`, effectively penalizing them as per the Querqy `DOWN(500)` rule.

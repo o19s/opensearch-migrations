@@ -1,0 +1,47 @@
+# Lucene Migration: Where the Assumption Breaks
+
+That's a common misconception. Here's where it fails in practice:
+
+## Core Issues
+
+**Lucene is a library, not a system.**  
+Elasticsearch, Solr, and other products *wrap* Lucene but add layers (HTTP API, distributed coordination, schema management, query parsing) that don't map 1:1. Porting "Lucene to Lucene" is fine; porting *systems* is not.
+
+**Query syntax diverges immediately.**  
+- Lucene's raw query language is a baseline. Elasticsearch and Solr both extend it: Lucene doesn't have range queries with `gte` syntax, nested queries, bool queries with `must_not`, etc.
+- Custom query parsers in your current system probably exist—find them and audit what they do.
+
+**Analysis chains are custom per system.**  
+Lucene ships with standard tokenizers and filters, but:
+- Elasticsearch uses different default analyzers by version (5.x, 7.x, 8.x all differ)
+- Character mappings, stemming, synonym expansion, lowercasing order—all matter and don't auto-map
+- If you've customized tokenizers or filters in production, those don't migrate; they recompile at best
+
+**Indexing is often schema-bound in ways Lucene alone isn't.**  
+- Your current system's field definitions (type, analyzed vs. not, stored vs. docvalues, etc.) live outside Lucene
+- Moving between systems usually means reindexing—a full reindex often happens anyway due to analyzer drift
+
+## Operational Breakdown
+
+**Distributed vs. single-node:** If moving from standalone Lucene to Elasticsearch or vice versa:
+- Replication, sharding, quorum semantics, shard allocation—all new
+- Failover and recovery are completely different
+- Performance under load is not comparable (single-node Lucene has no coordination overhead; distributed systems do)
+
+**Scoring and relevance:**  
+- TF-IDF is standard, but systems customize it (BM25 vs. raw TF-IDF, coord factor, vector similarity)
+- Custom scoring in one system (boost queries, function scoring, scripts) usually doesn't port
+
+**Backup/restore, upgrades, operational tooling:**  
+- Index format is internal to Lucene; systems have their own serialization
+- Upgrading a system often requires reindex; upgrading Lucene itself may not
+
+## Questions to Ask
+
+1. **What's the current system?** (Raw Lucene library, Elasticsearch, Solr, custom wrapper?) 
+2. **What's the target?** 
+3. **What queries do you run?** (Get the actual query DSL—syntactic port often hides semantic drift)
+4. **What's the index size, and what's your reindex tolerance?** (Reindex is often cheaper than hand-porting analyzers)
+5. **Do you have custom tokenizers, filters, or scorers?** (Those are the real porting work, and Lucene doesn't prevent it—they're system-specific)
+
+**Bottom line:** Expect 60–70% of the work to be index configuration, testing queries, and operational integration—not the Lucene core. Plan for a reindex.

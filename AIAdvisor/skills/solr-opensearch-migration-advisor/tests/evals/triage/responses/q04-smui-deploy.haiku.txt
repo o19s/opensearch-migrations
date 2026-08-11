@@ -1,0 +1,9 @@
+I don't have built-in knowledge of SMUI's specific OpenSearch deployment mechanism or the exact API endpoint it uses. This is detailed internal implementation knowledge that would require me to either search the SMUI documentation or examine the source code.
+
+I can help you find this in a few ways:
+
+1. **Search SMUI documentation** — if you have a link or know where it's hosted, I can fetch it
+2. **Check the codebase** — if SMUI source is available locally or you can point me to the repo, I can grep for OpenSearch-related deployment logic
+3. **Web search** — I can search for SMUI + OpenSearch integration documentation
+
+Do you have access to the SMUI source code or documentation in your current project, or should I search the web for the OpenSearch API endpoint SMUI uses for rule deployment?

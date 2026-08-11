@@ -1,0 +1,33 @@
+In the OpenSearch Querqy plugin, the chain order for the rewriter rules is typically defined in a configuration file similar to how it's done in Solr using `querqy.xml`. Specifically, this configuration is usually found in an OpenSearch plugin-specific configuration directory.
+
+Here’s a breakdown of where and how you can define the chain order:
+
+1. **Configuration File**: The rewriter chain order for Querqy in OpenSearch is often defined in a JSON or XML configuration file that is part of the Querqy plugin setup. This file might be named something like `querqy.yml` or `querqy.json`, depending on the version and setup of your OpenSearch cluster.
+
+2. **Location**: The exact location can vary, but it's commonly found in:
+   - `/opensearch/plugins/querqy/config/querqy.yml`
+   - `/opensearch/plugins/querqy/config/querqy.json`
+
+3. **Cluster State vs Per-Query**: 
+   - **Cluster State**: The cluster state typically does not directly define the rewriter chain order for Querqy. It is more about the overall health and configuration of the cluster.
+   - **Per-Query**: While you can dynamically modify the rewriter chain per query using specific API calls or configurations, this is less common and usually done through predefined settings in the configuration file.
+
+4. **Mechanism**:
+   - The configuration file defines a list of rules that are applied in a specified order.
+   - Each rule in the chain can be configured with its own parameters and conditions.
+   - When a query comes in, Querqy processes it according to the defined rewriter chain, applying each rule in sequence until one of them returns a result or all rules have been processed.
+
+Here is an example snippet from a `querqy.yml` file that defines a rewriter chain:
+
+```yaml
+querqy:
+  rewriters:
+    - name: "exampleRewriter1"
+      class: "org.apache.solr.rewrite.example.ExampleRewriteRule"
+    - name: "exampleRewriter2"
+      class: "org.apache.solr.rewrite.example.AnotherExampleRewriteRule"
+```
+
+In this example, `exampleRewriter1` is applied first, followed by `exampleRewriter2`.
+
+To summarize, the chain order for Querqy rewriters in OpenSearch is defined in a configuration file (like `querqy.yml` or `querqy.json`), not directly in the cluster state or per-query.

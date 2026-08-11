@@ -1,0 +1,33 @@
+**Short answer: No, Querqy is not available as an OpenSearch plugin on AWS OpenSearch Service.** AWS OpenSearch doesn't support custom plugin installation on the managed service, and Querqy itself has no official OpenSearch plugin—it was built specifically for Solr.
+
+Here's what you need to do instead:
+
+### 1. **Move Query Rewriting to Application Code**
+This is the most portable approach. Instead of rules at the search layer:
+- Implement query rewriting logic in your application (modify user queries before sending to OpenSearch)
+- Use Querqy's rule syntax as reference but rewrite it in your language
+- Maintain rule files alongside your application, not in the search cluster
+
+### 2. **Use OpenSearch's Built-In Features**
+OpenSearch has limited but useful alternatives:
+- **Synonym filters**: Handle synonym expansion and term mapping
+- **Custom analyzers**: Control tokenization and normalization
+- **Query rules** (if available in your OpenSearch version): Some versions support query rules, though limited vs. Querqy
+- **Lowercase + stemming filters**: Replace some Querqy simplifications
+
+### 3. **Hybrid Approach (Recommended)**
+- Use OpenSearch built-ins for simple cases (synonyms, stemming)
+- Implement application-layer rewriting for complex rules (boosting, filtering, term expansion)
+- This avoids pushing too much logic into the managed service and gives you more control
+
+### 4. **Consider Self-Managed OpenSearch**
+If Querqy is critical, you could run OpenSearch on EC2 instead of using the managed service. This lets you install plugins, but you lose the operational benefits of the managed service.
+
+**Migration path**: Start with analyzing your Querqy rules—classify them by type (synonym, boost, filter, etc.)—then map each category to OpenSearch alternatives or application code. Most common Querqy use cases (boosting, synonyms, filters) are addressable through built-in features + app-layer logic.
+
+What types of rewriting rules do you use most heavily? That'll determine the best approach for your migration.
+
+Sources:
+- AWS OpenSearch documentation on managed service limitations and plugin support
+- Querqy project (Solr-specific plugin)
+- OpenSearch built-in analyzer and filter ecosystem

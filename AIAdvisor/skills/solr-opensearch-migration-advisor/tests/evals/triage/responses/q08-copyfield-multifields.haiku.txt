@@ -1,0 +1,47 @@
+**Use multi-fields.** Here's why:
+
+## Multi-fields vs copy_to
+
+| Factor | Multi-fields | copy_to |
+|--------|--------------|---------|
+| **Semantic fit** | title_en and title_bidirect_syn are *variants* of the same field | Implies independent fields |
+| **Index size** | Single raw value + multiple analyzed versions | Stores value multiple times |
+| **Query syntax** | `title.en`, `title.bidirect_syn` — clear intent | `title_en`, `title_bidirect_syn` — less obvious relationship |
+| **Maintenance** | All variants live in one mapping block | Separate field definitions to keep in sync |
+| **Search UX** | Clients know to search `title` or its sub-variants | Need to know all field name conventions |
+
+## OpenSearch mapping
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "title": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "en": {
+            "type": "text",
+            "analyzer": "english"
+          },
+          "bidirect_syn": {
+            "type": "text",
+            "analyzer": "bidirect_syn"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Query: `GET /_search { "query": { "match": { "title.en": "...", "title.bidirect_syn": "..." } } }`
+
+## When to use copy_to instead
+
+Use `copy_to` when fields are **conceptually independent**, not analyzer variants:
+- Copying `first_name` + `last_name` → `full_name` (separate search field for "all name parts at once")
+- Copying nested object arrays into a flat search field
+- When the target field is searched *without* referencing the source
+
+Multi-fields is OpenSearch idiomatic for this pattern—it's what replaced Solr's `copyField` for analyzer variations.

@@ -1,0 +1,22 @@
+I don't have access to search to verify the exact current details, so let me be honest about what I can confidently tell you:
+
+**In Solr eDisMax** (general understanding):
+- **bf (Boost Functions)**: Multiplicative — the boost function result multiplies the relevance score
+- **boost**: This term is ambiguous in eDisMax. You may be referring to:
+  - Individual clause boost like `(query)^2` — multiplicative
+  - **bq (Boost Query)** — multiplicative by default (applies as an additional scoring factor)
+
+**OpenSearch function_score mapping**:
+- Multiplicative behavior → `"boost_mode": "multiply"`
+- Additive behavior → `"boost_mode": "sum"`
+
+**However**, I'm not fully confident about:
+1. Whether there's a parameter called just `boost` in eDisMax (vs `bf` and `bq`)
+2. The exact semantic difference between `bf` and `bq` if both exist
+3. Whether `bq` ever behaves additively vs always multiplicatively
+
+Since you're asking for exact technical details, I'd recommend checking the official docs:
+- **Solr**: https://solr.apache.org/docs/latest/edismax-query-parser.html
+- **OpenSearch**: https://opensearch.org/docs/latest/query-dsl/compound/function-score/
+
+If you can share the specific Solr docs or your use case, I can help you map it precisely to OpenSearch.

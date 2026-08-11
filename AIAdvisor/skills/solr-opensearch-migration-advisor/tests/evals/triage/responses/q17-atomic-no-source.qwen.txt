@@ -1,0 +1,39 @@
+When migrating from Apache Solr to OpenSearch, one of the key differences you might encounter is in how partial updates are handled, especially given your current setup where `stored=false` on most fields but supports atomic updates via docValues.
+
+### Partial Updates in Solr vs. OpenSearch
+
+1. **Partial Updates with `stored=false`:**
+   - In Solr, when a field has `stored=false`, it means the field is not stored in the index and cannot be updated directly using partial update operations like `update` or `upsert`. However, fields that support atomic updates via docValues (like integers, longs, etc.) can still be updated atomically.
+   - This means you could increment a numeric value without needing to re-fetch the entire document.
+
+2. **Partial Updates in OpenSearch:**
+   - In OpenSearch, partial updates are handled differently. If a field is not stored (`stored=false`), it cannot be updated directly using the `update` API or similar operations.
+   - To update such fields, you typically need to fetch the entire document, modify the necessary fields, and then re-index the document.
+
+### Specific Problem with Partial Updates
+
+When migrating from Solr to OpenSearch, if your application relies on partial updates for non-stored fields (even though they support atomic updates via docValues in Solr), you might face the following issues:
+
+1. **Inability to Directly Update Non-Stored Fields:**
+   - In OpenSearch, you cannot directly update a field that is not stored (`stored=false`). You would need to fetch the entire document, modify the fields as needed, and then re-index it.
+
+2. **Increased Complexity in Handling Updates:**
+   - This change can increase the complexity of your application logic because you now have to handle fetching documents, modifying them, and re-indexing them instead of performing atomic updates.
+   
+3. **Potential Performance Impact:**
+   - Fetching a document, modifying it, and then indexing it back might introduce additional latency compared to direct partial updates in Solr.
+
+### Possible Solutions
+
+1. **Change Field Storage Settings:**
+   - If possible, consider changing the storage settings of non-stored fields to `stored=true` during the migration process. This would allow you to use OpenSearch's update APIs more directly.
+   
+2. **Use Scripting for Updates:**
+   - You can leverage OpenSearch’s scripting capabilities (e.g., using Painless scripts) to perform updates in a more flexible manner, even if fields are not stored.
+
+3. **Custom Workflows:**
+   - Implement custom workflows or middleware that handle the fetching and re-indexing process efficiently, ensuring minimal impact on application performance.
+
+### Conclusion
+
+The primary issue you will face is the inability to directly update non-stored fields in OpenSearch as you could in Solr. This requires a change in how updates are handled, potentially increasing complexity and impacting performance. Careful planning and possibly modifying your data model or update logic might be necessary during the migration process.
