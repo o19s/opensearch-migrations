@@ -8,7 +8,7 @@ from pathlib import Path
 # Configuration
 # ============================================================================
 
-FILE = sys.argv[1] if len(sys.argv) > 1 else "tuple.log"
+FILE = sys.argv[1] if len(sys.argv) > 1 else "test.log"
 
 # Maximum tolerated percentage difference.
 # 0.01 means 0.01%.

@@ -1,0 +1,200 @@
+{ "index": { "_id": "1" } }
+{ "name": "Laptop Pro 15", "category": "Electronics", "price": 1499.99 }
+{ "index": { "_id": "2" } }
+{ "name": "Wireless Mouse", "category": "Electronics", "price": 29.99 }
+{ "index": { "_id": "3" } }
+{ "name": "Mechanical Keyboard", "category": "Electronics", "price": 89.99 }
+{ "index": { "_id": "4" } }
+{ "name": "Office Chair", "category": "Furniture", "price": 249.99 }
+{ "index": { "_id": "5" } }
+{ "name": "Standing Desk", "category": "Furniture", "price": 499.99 }
+{ "index": { "_id": "6" } }
+{ "name": "Coffee Maker", "category": "Kitchen", "price": 79.99 }
+{ "index": { "_id": "7" } }
+{ "name": "Vacuum Cleaner", "category": "Home", "price": 199.99 }
+{ "index": { "_id": "8" } }
+{ "name": "Bluetooth Speaker", "category": "Audio", "price": 59.99 }
+{ "index": { "_id": "9" } }
+{ "name": "Smart Watch", "category": "Wearables", "price": 299.99 }
+{ "index": { "_id": "10" } }
+{ "name": "USB-C Hub", "category": "Accessories", "price": 39.99 }
+{ "index": { "_id": "11" } }
+{ "name": "4K Monitor 27", "category": "Electronics", "price": 449.99 }
+{ "index": { "_id": "12" } }
+{ "name": "Wireless Headphones", "category": "Audio", "price": 129.99 }
+{ "index": { "_id": "13" } }
+{ "name": "Tablet Air", "category": "Electronics", "price": 599.99 }
+{ "index": { "_id": "14" } }
+{ "name": "Webcam HD", "category": "Electronics", "price": 69.99 }
+{ "index": { "_id": "15" } }
+{ "name": "Portable SSD 1TB", "category": "Accessories", "price": 109.99 }
+{ "index": { "_id": "16" } }
+{ "name": "Gaming Monitor", "category": "Electronics", "price": 379.99 }
+{ "index": { "_id": "17" } }
+{ "name": "Wireless Charger", "category": "Accessories", "price": 24.99 }
+{ "index": { "_id": "18" } }
+{ "name": "Smartphone X", "category": "Electronics", "price": 899.99 }
+{ "index": { "_id": "19" } }
+{ "name": "Laptop Sleeve", "category": "Accessories", "price": 34.99 }
+{ "index": { "_id": "20" } }
+{ "name": "Bluetooth Earbuds", "category": "Audio", "price": 79.99 }
+{ "index": { "_id": "21" } }
+{ "name": "Bookshelf", "category": "Furniture", "price": 129.99 }
+{ "index": { "_id": "22" } }
+{ "name": "Ergonomic Desk Chair", "category": "Furniture", "price": 329.99 }
+{ "index": { "_id": "23" } }
+{ "name": "Filing Cabinet", "category": "Furniture", "price": 159.99 }
+{ "index": { "_id": "24" } }
+{ "name": "Office Desk Lamp", "category": "Furniture", "price": 44.99 }
+{ "index": { "_id": "25" } }
+{ "name": "Folding Table", "category": "Furniture", "price": 89.99 }
+{ "index": { "_id": "26" } }
+{ "name": "Dining Table", "category": "Furniture", "price": 549.99 }
+{ "index": { "_id": "27" } }
+{ "name": "Bar Stool", "category": "Furniture", "price": 74.99 }
+{ "index": { "_id": "28" } }
+{ "name": "Bedside Table", "category": "Furniture", "price": 99.99 }
+{ "index": { "_id": "29" } }
+{ "name": "Floor Lamp", "category": "Home", "price": 119.99 }
+{ "index": { "_id": "30" } }
+{ "name": "Area Rug", "category": "Home", "price": 199.99 }
+{ "index": { "_id": "31" } }
+{ "name": "Electric Kettle", "category": "Kitchen", "price": 49.99 }
+{ "index": { "_id": "32" } }
+{ "name": "Toaster Oven", "category": "Kitchen", "price": 129.99 }
+{ "index": { "_id": "33" } }
+{ "name": "Blender Pro", "category": "Kitchen", "price": 89.99 }
+{ "index": { "_id": "34" } }
+{ "name": "Food Processor", "category": "Kitchen", "price": 149.99 }
+{ "index": { "_id": "35" } }
+{ "name": "Nonstick Cookware Set", "category": "Kitchen", "price": 179.99 }
+{ "index": { "_id": "36" } }
+{ "name": "Chef Knife", "category": "Kitchen", "price": 59.99 }
+{ "index": { "_id": "37" } }
+{ "name": "Coffee Grinder", "category": "Kitchen", "price": 69.99 }
+{ "index": { "_id": "38" } }
+{ "name": "Air Fryer", "category": "Kitchen", "price": 119.99 }
+{ "index": { "_id": "39" } }
+{ "name": "Dinnerware Set", "category": "Kitchen", "price": 99.99 }
+{ "index": { "_id": "40" } }
+{ "name": "Water Filter Pitcher", "category": "Kitchen", "price": 39.99 }
+{ "index": { "_id": "41" } }
+{ "name": "Robot Vacuum", "category": "Home", "price": 399.99 }
+{ "index": { "_id": "42" } }
+{ "name": "Air Purifier", "category": "Home", "price": 229.99 }
+{ "index": { "_id": "43" } }
+{ "name": "Humidifier", "category": "Home", "price": 69.99 }
+{ "index": { "_id": "44" } }
+{ "name": "Electric Fan", "category": "Home", "price": 54.99 }
+{ "index": { "_id": "45" } }
+{ "name": "Space Heater", "category": "Home", "price": 89.99 }
+{ "index": { "_id": "46" } }
+{ "name": "Smart Light Bulbs", "category": "Home", "price": 39.99 }
+{ "index": { "_id": "47" } }
+{ "name": "LED Desk Lamp", "category": "Home", "price": 34.99 }
+{ "index": { "_id": "48" } }
+{ "name": "Digital Alarm Clock", "category": "Home", "price": 29.99 }
+{ "index": { "_id": "49" } }
+{ "name": "Air Mattress", "category": "Home", "price": 79.99 }
+{ "index": { "_id": "50" } }
+{ "name": "Storage Organizer", "category": "Home", "price": 24.99 }
+{ "index": { "_id": "51" } }
+{ "name": "Smart Fitness Watch", "category": "Wearables", "price": 249.99 }
+{ "index": { "_id": "52" } }
+{ "name": "Fitness Tracker", "category": "Wearables", "price": 99.99 }
+{ "index": { "_id": "53" } }
+{ "name": "Smart Glasses", "category": "Wearables", "price": 399.99 }
+{ "index": { "_id": "54" } }
+{ "name": "Fitness Band", "category": "Wearables", "price": 59.99 }
+{ "index": { "_id": "55" } }
+{ "name": "Sports Earbuds", "category": "Wearables", "price": 119.99 }
+{ "index": { "_id": "56" } }
+{ "name": "USB-C Cable", "category": "Accessories", "price": 14.99 }
+{ "index": { "_id": "57" } }
+{ "name": "Laptop Stand", "category": "Accessories", "price": 49.99 }
+{ "index": { "_id": "58" } }
+{ "name": "Wireless Presenter", "category": "Accessories", "price": 29.99 }
+{ "index": { "_id": "59" } }
+{ "name": "Cable Management Kit", "category": "Accessories", "price": 19.99 }
+{ "index": { "_id": "60" } }
+{ "name": "Power Bank 20000mAh", "category": "Accessories", "price": 49.99 }
+{ "index": { "_id": "61" } }
+{ "name": "Soundbar", "category": "Audio", "price": 249.99 }
+{ "index": { "_id": "62" } }
+{ "name": "Studio Microphone", "category": "Audio", "price": 159.99 }
+{ "index": { "_id": "63" } }
+{ "name": "Noise Cancelling Headphones", "category": "Audio", "price": 199.99 }
+{ "index": { "_id": "64" } }
+{ "name": "Home Theater Receiver", "category": "Audio", "price": 349.99 }
+{ "index": { "_id": "65" } }
+{ "name": "Turntable", "category": "Audio", "price": 279.99 }
+{ "index": { "_id": "66" } }
+{ "name": "Portable Speaker Mini", "category": "Audio", "price": 39.99 }
+{ "index": { "_id": "67" } }
+{ "name": "MIDI Keyboard", "category": "Audio", "price": 129.99 }
+{ "index": { "_id": "68" } }
+{ "name": "Digital Piano", "category": "Audio", "price": 699.99 }
+{ "index": { "_id": "69" } }
+{ "name": "Audio Interface", "category": "Audio", "price": 149.99 }
+{ "index": { "_id": "70" } }
+{ "name": "Wireless Microphone", "category": "Audio", "price": 109.99 }
+{ "index": { "_id": "71" } }
+{ "name": "Electric Toothbrush", "category": "Personal Care", "price": 79.99 }
+{ "index": { "_id": "72" } }
+{ "name": "Hair Dryer", "category": "Personal Care", "price": 59.99 }
+{ "index": { "_id": "73" } }
+{ "name": "Hair Trimmer", "category": "Personal Care", "price": 49.99 }
+{ "index": { "_id": "74" } }
+{ "name": "Shaving Kit", "category": "Personal Care", "price": 39.99 }
+{ "index": { "_id": "75" } }
+{ "name": "Facial Cleansing Brush", "category": "Personal Care", "price": 34.99 }
+{ "index": { "_id": "76" } }
+{ "name": "Yoga Mat", "category": "Sports", "price": 29.99 }
+{ "index": { "_id": "77" } }
+{ "name": "Adjustable Dumbbells", "category": "Sports", "price": 249.99 }
+{ "index": { "_id": "78" } }
+{ "name": "Resistance Bands", "category": "Sports", "price": 24.99 }
+{ "index": { "_id": "79" } }
+{ "name": "Exercise Bike", "category": "Sports", "price": 599.99 }
+{ "index": { "_id": "80" } }
+{ "name": "Running Shoes", "category": "Sports", "price": 119.99 }
+{ "index": { "_id": "81" } }
+{ "name": "Camping Tent", "category": "Outdoor", "price": 189.99 }
+{ "index": { "_id": "82" } }
+{ "name": "Hiking Backpack", "category": "Outdoor", "price": 129.99 }
+{ "index": { "_id": "83" } }
+{ "name": "Portable Camping Stove", "category": "Outdoor", "price": 69.99 }
+{ "index": { "_id": "84" } }
+{ "name": "LED Camping Lantern", "category": "Outdoor", "price": 39.99 }
+{ "index": { "_id": "85" } }
+{ "name": "Sleeping Bag", "category": "Outdoor", "price": 99.99 }
+{ "index": { "_id": "86" } }
+{ "name": "Garden Hose", "category": "Garden", "price": 34.99 }
+{ "index": { "_id": "87" } }
+{ "name": "Electric Lawn Mower", "category": "Garden", "price": 449.99 }
+{ "index": { "_id": "88" } }
+{ "name": "Garden Tool Set", "category": "Garden", "price": 79.99 }
+{ "index": { "_id": "89" } }
+{ "name": "Plant Pot Set", "category": "Garden", "price": 29.99 }
+{ "index": { "_id": "90" } }
+{ "name": "Outdoor String Lights", "category": "Garden", "price": 49.99 }
+{ "index": { "_id": "91" } }
+{ "name": "Bluetooth Keyboard", "category": "Electronics", "price": 69.99 }
+{ "index": { "_id": "92" } }
+{ "name": "Graphics Tablet", "category": "Electronics", "price": 199.99 }
+{ "index": { "_id": "93" } }
+{ "name": "Smart Home Display", "category": "Electronics", "price": 149.99 }
+{ "index": { "_id": "94" } }
+{ "name": "Streaming Stick", "category": "Electronics", "price": 49.99 }
+{ "index": { "_id": "95" } }
+{ "name": "Wi-Fi Router", "category": "Electronics", "price": 129.99 }
+{ "index": { "_id": "96" } }
+{ "name": "Monitor Arm", "category": "Accessories", "price": 89.99 }
+{ "index": { "_id": "97" } }
+{ "name": "Desk Mat", "category": "Accessories", "price": 29.99 }
+{ "index": { "_id": "98" } }
+{ "name": "External DVD Drive", "category": "Accessories", "price": 44.99 }
+{ "index": { "_id": "99" } }
+{ "name": "HDMI Cable", "category": "Accessories", "price": 12.99 }
+{ "index": { "_id": "100" } }
+{ "name": "Surge Protector", "category": "Accessories", "price": 24.99 }

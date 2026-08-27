@@ -32,7 +32,7 @@ def short_connection_id(value):
 
     return str(value)[:CONNECTION_ID_LENGTH]
 
-FILE = sys.argv[1] if len(sys.argv) > 1 else "tuple.log"
+FILE = sys.argv[1] if len(sys.argv) > 1 else "output.log"
 
 RBO_P = 0.9
 
