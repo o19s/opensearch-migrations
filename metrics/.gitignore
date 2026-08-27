@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+migration-tui.log
+output.log
+.pytest_cache/
