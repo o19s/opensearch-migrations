@@ -1,0 +1,32 @@
+OpenSearch **cannot reconstruct unstored fields from docValues during partial updates**. This is the core difference.
+
+In Solr, atomic updates work because Solr can:
+1. Retrieve the current document state by reading unstored fields *from their docValues*
+2. Apply the partial update to specified fields
+3. Reindex with the merged data
+
+OpenSearch's update API requires a complete, retrievable document:
+- It fetches `_source` (the stored JSON) to apply partial updates
+- If `_source` is disabled or a field isn't in `_source`, that field is **lost during the update**
+- docValues in OpenSearch are read-only column stores for search/aggregation — they cannot be used to reconstruct missing document data
+
+**Specific failure scenario:**
+
+```
+Field: name (stored=false, docValues=true)
+Field: status (stored=true)
+
+Solr: Update status → works, name preserved via docValues
+OpenSearch: Update status → name disappears from _source
+```
+
+**Your options:**
+
+1. **Enable `_source` storage** — simplest, but increases index size (~30-50% overhead)
+2. **Selectively store update-critical fields** — store only fields you'll partially update, keep others indexed-only
+3. **Reindex from source of truth** — on updates, fetch full document from your database/cache, reindex completely (eliminates partial updates)
+4. **Disable partial updates** — use bulk indexing instead; requires application refactoring
+
+If you're currently doing frequent atomic updates (e.g., incrementing counters, toggling flags), option 1 is usually the pragmatic choice. If updates are rare, option 3 might align better with your data flow.
+
+What's your update pattern — frequent small deltas, or occasional bulk refreshes?

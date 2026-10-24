@@ -1,0 +1,48 @@
+The key parameter is **`k1`**, which controls **term frequency saturation** in BM25.
+
+## The Parameter: k1
+
+- **Default**: 1.2
+- **Range**: Typically 0–2.0+
+- **Effect**: Controls how rapidly term frequency impact diminishes after the first few occurrences
+
+### Ranking Behavior Changes on Short Fields
+
+**Solr TF-IDF** (ClassicSimilarity):
+- Linear TF growth: more occurrences = proportionally higher score
+- No saturation point
+- Short fields (titles) get amplified scoring because repeated terms boost linearly
+
+**OpenSearch BM25** (default k1=1.2):
+- TF exhibits **saturation**: additional term occurrences have diminishing returns
+- Short fields get **penalized** relative to TF-IDF because:
+  - A title with a repeated term doesn't score proportionally higher
+  - The saturation curve flattens after ~2–3 occurrences
+
+### Approximating TF-IDF Behavior
+
+To reduce saturation and approximate TF-IDF on short fields, **lower k1**:
+
+| k1 Value | Behavior |
+|----------|----------|
+| **1.2** (default) | Moderate saturation (OpenSearch standard) |
+| **0.5** | Higher TF influence, closer to TF-IDF |
+| **0.0** | Minimal TF impact (rarely desired, no term frequency consideration) |
+| **2.0+** | More saturation, fewer TF repetitions matter |
+
+**Practical tuning**: Start with **k1=0.5–1.0** for short text fields (product titles, category names) to recover TF-IDF-like behavior where repeated keywords matter more.
+
+You'd also tune **`b`** (field length normalization, default 0.75):
+- Lower `b` (e.g., 0.1–0.3) for short fields to reduce length-based scoring variance
+- Higher `b` (e.g., 0.9–1.0) for longer fields
+
+Set these in OpenSearch index settings under `index.similarity.default`:
+```json
+{
+  "settings": {
+    "index.similarity.default.type": "BM25",
+    "index.similarity.default.k1": 0.7,
+    "index.similarity.default.b": 0.3
+  }
+}
+```

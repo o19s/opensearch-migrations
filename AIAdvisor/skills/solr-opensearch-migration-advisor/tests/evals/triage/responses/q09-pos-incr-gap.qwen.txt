@@ -1,0 +1,64 @@
+In OpenSearch, the `position_increment_gap` setting is not directly configurable in the same way as it is in Solr. However, you can achieve similar behavior by adjusting your mappings and query settings.
+
+### Default Position Increment Gap in OpenSearch
+
+OpenSearch does not have a direct equivalent to Solr's `position_increment_gap`. Instead, OpenSearch uses a different approach for handling token positions and phrase queries. By default, OpenSearch allows phrase matches across value boundaries without needing an explicit setting like `position_increment_gap`.
+
+### Preserving Behavior with OpenSearch Mappings
+
+If you want to preserve the behavior where multi-valued text fields allow phrase matches across value boundaries (which is equivalent to a `position_increment_gap` of 0 in Solr), you can use the following approach:
+
+1. **Use `match_phrase_prefix` Query**: In OpenSearch, you can use the `match_phrase_prefix` query to achieve similar behavior. This allows partial phrase matching where the prefix part of the phrase is matched.
+
+2. **Custom Analyzer with Token Filter**: You might need to customize your analyzer to ensure that tokens are split in a way that preserves the desired behavior. For example, using a custom token filter like `lowercase` or `asciifolding` can help maintain consistent tokenization.
+
+3. **Mapping and Index Settings**:
+   - Ensure that your text fields use an appropriate analyzer that splits tokens as needed.
+   - Use the `match_phrase_prefix` query to allow phrase-like matching across value boundaries.
+
+Here is an example of how you might set up a mapping in OpenSearch:
+
+```json
+PUT /my_index
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "standard",
+          "filter": ["lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "multi_valued_field": {
+        "type": "text",
+        "analyzer": "my_analyzer"
+      }
+    }
+  }
+}
+```
+
+And here is an example of a query that would allow phrase-like matching:
+
+```json
+GET /my_index/_search
+{
+  "query": {
+    "match_phrase_prefix": {
+      "multi_valued_field": "example phrase"
+    }
+  }
+}
+```
+
+### Explanation
+
+- **Analyzer**: The `my_analyzer` uses the standard tokenizer and converts tokens to lowercase. This ensures consistent tokenization.
+- **Mapping**: The `multi_valued_field` is defined as a text field with the custom analyzer applied.
+- **Query**: The `match_phrase_prefix` query allows for phrase-like matching where partial phrases can be matched across value boundaries.
+
+By using this approach, you can achieve behavior similar to what you had in Solr with `position_increment_gap=0`.

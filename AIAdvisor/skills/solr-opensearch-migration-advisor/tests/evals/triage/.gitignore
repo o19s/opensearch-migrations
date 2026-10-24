@@ -1,0 +1,10 @@
+# Cache is addressable by hash(model + prompt) — not useful for human review.
+cache/
+
+# Run logs and JSON exports are regenerable from sweep.py + responses/.
+*.log
+*.json
+
+# Eval-guidance-impact run artifacts (regenerable via promptfoo).
+guidance-impact*
+qwen-q12-q16*

@@ -1,0 +1,40 @@
+This claim is dangerous because custom Solr components often embed critical business logic that becomes invisible during upgrades, migrations, or personnel transitions. Here are the key component types to inventory:
+
+## Critical Custom Components to Document
+
+**Analysis Chain (Tokenization & Filtering)**
+- Custom `Analyzer`, `Tokenizer`, `TokenFilter` implementations
+- Domain-specific text processing (e.g., product code parsing, chemical nomenclature)
+- **Why dangerous**: Search relevance depends entirely on this. Without documentation, you can't migrate to Elasticsearch or upgrade Solr versions without silent query behavior changes.
+
+**Search & Query Handling**
+- Custom `QueryParser`, `QParserPlugin`
+- Custom `RequestHandler` (beyond standard `/select`, `/update`)
+- Custom `ResponseWriter` (beyond JSON/XML)
+- **Why dangerous**: Business logic for how queries are parsed/executed is buried here. You don't know what you'd lose if you switched platforms.
+
+**Scoring & Ranking**
+- Custom `SimilarityFactory` (TF-IDF customizations)
+- Custom scoring plugins
+- **Why dangerous**: Affects search quality and user experience in ways you can't reproduce elsewhere.
+
+**Indexing Pipeline**
+- Custom `UpdateProcessor` (runs during document indexing)
+- Custom field type definitions
+- **Why dangerous**: Data transformation logic that affects what's searchable. Losing this means re-indexing or corrupt data.
+
+**Schema & Field Types**
+- Non-standard field type definitions in `schema.xml`
+- Custom copyField logic
+- **Why dangerous**: Core data model assumptions embedded without explanation.
+
+## Why This Claim Is Dangerous
+
+1. **Vendor lock-in**: You're stuck with Solr forever or face a massive re-implementation
+2. **Knowledge loss**: When the original author leaves, you have no idea why search works
+3. **Silent breakage**: Solr upgrades can break custom components without error messages
+4. **Migration cost**: Moving to managed Solr, Elasticsearch, or newer versions becomes 10x more expensive
+5. **Compliance gaps**: Undocumented data transformations in custom components may violate audit requirements
+6. **Performance blindness**: You don't understand your own system's behavior
+
+**Immediate action**: Audit the Solr installation for anything in `lib/`, custom entries in `solrconfig.xml`, and any non-standard classes. Treat "we don't think we have custom components" as a red flag for missing documentation, not actual absence.

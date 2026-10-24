@@ -1,0 +1,66 @@
+Solr's LocalParams let you encode query logic inline as strings. OpenSearch doesn't have this syntax, so the architectural shift is:
+
+**Query Builder Pattern** — move from string-based query parameterization to programmatic query construction in your application layer.
+
+Here's the specific pattern:
+
+```kotlin
+// Solr: logic encoded in query string
+// q={!boost b=recip(ms(NOW,date),3.16e-11,1,1) v=$qq}&qq=kotlin
+// q={!type=edismax qf='title^2 body' v=$qq}&qq=kotlin
+
+// OpenSearch: build the query in code
+data class SearchRequest(
+    val q: String,
+    val qf: Map<String, Float> = mapOf("title" to 2f, "body" to 1f),
+    val boostFn: BoostFunction = Reciprocal(),
+    val timeField: String = "date"
+)
+
+sealed class BoostFunction
+data class Recip(val ms: Double = 3.16e-11, val a: Double = 1.0, val b: Double = 1.0) : BoostFunction()
+data class Script(val source: String) : BoostFunction()
+
+fun buildQuery(req: SearchRequest): Query {
+    val multiMatch = MultiMatchQuery.Builder()
+        .query(req.q)
+        .fields(req.qf)
+        .type(TextQueryType.BestFields)
+        .build()
+
+    return when (req.boostFn) {
+        is Recip -> FunctionScoreQuery.Builder()
+            .query(multiMatch)
+            .functions(listOf(
+                FunctionScore.Builder()
+                    .filter(MatchAllQuery.Builder().build())
+                    .weight(1.0)
+                    .build()
+            ))
+            // Use script scoring for recip function
+            .boostMode(FunctionBoostMode.Multiply)
+            .scoreMode(FunctionScoreMode.Sum)
+            .build()
+        is Script -> FunctionScoreQuery.Builder()
+            .query(multiMatch)
+            .scriptScore(ScriptScore.Builder()
+                .script(Script.Builder().source(req.boostFn.source).build())
+                .build())
+            .build()
+    }
+}
+```
+
+**Key shifts:**
+
+1. **Move parameter resolution from query-time to code-time**: Instead of passing `$qq` and letting Solr interpret it, your controller/service resolves all parameters before building the query.
+
+2. **Use OpenSearch client builders**: The Java/Kotlin OpenSearch client provides strongly-typed query builders that replace inline syntax.
+
+3. **Function scoring**: Solr's inline boost functions (`recip`, `linear`, etc.) become OpenSearch `function_score` queries with scripts or built-in functions. For `recip(ms(NOW,date),...)` specifically, use a `script_score` with a Painless script or approximate with decay functions.
+
+4. **Multi-match for edismax**: `{!type=edismax qf='field^weight...'}` becomes `multi_match` with `fields` map and explicit field boosts.
+
+5. **Configuration over Convention**: Store common patterns (default qf weights, boost functions, etc.) in config objects or enums rather than hardcoding them in query strings.
+
+This trades Solr's inline flexibility for OpenSearch's explicitness—you now control query shape in code, which is easier to test, version, and refactor than string-based query templates.

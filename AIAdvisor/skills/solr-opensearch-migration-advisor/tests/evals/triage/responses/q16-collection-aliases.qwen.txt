@@ -1,0 +1,114 @@
+To manage a rolling-window architecture in OpenSearch, similar to how you're handling it with Solr's collection aliases, you'll need to ensure that writes are directed to the latest time-partitioned index while searches span across all relevant indices. Here’s a step-by-step approach:
+
+### 1. **Index Aliases for Writes and Reads**
+
+- **Write Alias**: Create an alias in OpenSearch that points to the latest time-partitioned index where new data should be written.
+  
+  ```bash
+  PUT /_aliases
+  {
+    "actions": [
+      { "add": { "index": "latest_index_name", "alias": "write_alias" } }
+    ]
+  }
+  ```
+
+- **Read Alias**: Create an alias that points to all time-partitioned indices where searches should be performed.
+
+  ```bash
+  PUT /_aliases
+  {
+    "actions": [
+      { "add": { "index": "index_name_1", "alias": "search_alias" } },
+      { "add": { "index": "index_name_2", "alias": "search_alias" } },
+      // Add more indices as needed
+    ]
+  }
+  ```
+
+### 2. **Dynamic Index Creation and Management**
+
+- **Index Templates**: Use index templates to automatically create new time-partitioned indices based on a naming convention (e.g., `index_name-yyyy.MM.dd`).
+
+  ```json
+  PUT _template/index_template_name
+  {
+    "index_patterns": ["index_name-*"],
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0
+    },
+    "mappings": { /* Define your mappings here */ }
+  }
+  ```
+
+- **Index Lifecycle Management**: Use OpenSearch's Index Lifecycle Management (ILM) to manage the lifecycle of indices, including rolling over to a new index and archiving old ones.
+
+### 3. **Handling Writes**
+
+When writing data:
+
+1. **Determine Latest Index Name**: Determine which time-partitioned index is currently considered "latest" based on your naming convention.
+2. **Write to Alias**: Write the document to the `write_alias`.
+
+   ```bash
+   POST /write_alias/_doc
+   {
+     "field1": "value1",
+     "timestamp": "2023-10-01T00:00:00Z"
+   }
+   ```
+
+### 4. **Handling Reads**
+
+When reading data:
+
+1. **Search Alias**: Use the `search_alias` to perform searches across all relevant time-partitioned indices.
+
+   ```bash
+   GET /search_alias/_search
+   {
+     "query": {
+       "match_all": {}
+     }
+   }
+   ```
+
+### 5. **Rolling Over Indices**
+
+- **Automatic Rolling Over**: Use ILM policies to automatically roll over data into a new index and manage the lifecycle of old indices.
+
+  ```json
+  PUT _ilm/policy/rollover_policy_name
+  {
+    "policy": {
+      "phases": {
+        "hot": {
+          "min_age": "0ms",
+          "actions": {
+            "rollover": {
+              "max_size": "5gb", // or any other criteria
+              "max_age": "1d"
+            }
+          }
+        },
+        "delete": {
+          "min_age": "30d",
+          "actions": {
+            "delete": {}
+          }
+        }
+      }
+    }
+  }
+  ```
+
+- **Manually Trigger Rolling Over**: If needed, you can manually trigger the rolling over process using ILM APIs.
+
+### 6. **Monitoring and Validation**
+
+- **Monitor Indices**: Regularly monitor the indices to ensure that data is being written correctly and that old indices are being managed properly.
+  
+- **Validation Queries**: Use validation queries to ensure that searches across all relevant indices return expected results.
+
+By following these steps, you can effectively manage a rolling-window architecture in OpenSearch similar to how it's handled with Solr's collection aliases.

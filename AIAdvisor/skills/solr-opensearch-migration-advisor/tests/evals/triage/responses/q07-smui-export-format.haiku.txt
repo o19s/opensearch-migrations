@@ -1,0 +1,7 @@
+I'd need permission to search the web, but I can help another way. Do you have:
+
+1. **Example export files** in your working directory I can examine?
+2. **SMUI documentation** or README files available?
+3. **Source code or configuration files** that reference the export format?
+
+Alternatively, if you paste a small example of what you're looking at, I can help analyze it. The format is likely either **JSON** (most common for modern tools) or **XML** (if it's older), but I want to give you accurate details specific to SMUI rather than a guess.

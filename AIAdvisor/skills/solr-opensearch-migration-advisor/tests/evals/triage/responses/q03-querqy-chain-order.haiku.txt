@@ -1,0 +1,14 @@
+I don't have reliable information about the exact mechanism for OpenSearch Querqy plugin's rewriter chain order configuration in my training data. This is a specialized plugin configuration detail that I can't confidently answer without current documentation.
+
+To get an accurate answer, I'd recommend checking:
+
+1. **OpenSearch Querqy Plugin Documentation** — the official plugin README or docs should specify whether chain order is defined via:
+   - A configuration file (and its location/format)
+   - Cluster state/index settings
+   - Per-query parameters
+
+2. **The plugin's GitHub repository** — often the best source for configuration details and examples
+
+3. **OpenSearch forums or documentation site** — they may have deployment guides
+
+If you have a link to the plugin or documentation, I can read it and give you the exact mechanism. Alternatively, if you're working with a specific OpenSearch Querqy plugin version, sharing that context would help.

@@ -1,0 +1,5 @@
+I don't have reliable information to answer this with certainty. While I know OpenSearch 2.x includes pipeline mechanisms for query processing, I'm not confident about the exact name of the feature that specifically intercepts queries before execution (equivalent to Querqy's DELETE rule functionality) or its introduction date.
+
+The likely candidate is something in OpenSearch's **Search Pipeline** or query-processing infrastructure, but I'd need to consult the official OpenSearch documentation to give you the precise feature name and version.
+
+Could you grant WebSearch permission, or do you have access to the OpenSearch 2.x changelog? That would let me find the definitive answer about the feature name and when it was introduced.

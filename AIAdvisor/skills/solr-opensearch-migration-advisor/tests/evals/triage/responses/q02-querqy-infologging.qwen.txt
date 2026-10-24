@@ -1,0 +1,11 @@
+To enable debug logging of which rules fired, you would add the following JSON field name inside a Querqy query clause:
+
+```json
+"querqy.debug": true
+```
+
+The exact field name in the response that contains the decoration/rule-match data is:
+
+```json
+"_querqy"
+```

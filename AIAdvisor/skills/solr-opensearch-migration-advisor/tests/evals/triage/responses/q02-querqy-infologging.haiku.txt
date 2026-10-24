@@ -1,0 +1,6 @@
+I don't have permission to search the web right now. Based on my training knowledge of Querqy, the fields are likely:
+
+1. **Query parameter**: `debug` (set to `true`)
+2. **Response field**: `_querqy`
+
+However, I'm not entirely confident about these exact names without checking the official Querqy documentation. Could you grant WebSearch permission, or if you have access to the Querqy docs or plugin source code, I can verify the exact field names for you?

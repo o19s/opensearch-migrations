@@ -1,0 +1,41 @@
+When deploying Querqy rules in an environment that uses OpenSearch instead of Solr, you would typically use the OpenSearch API to manage configurations rather than copying files manually. Specifically, you can use the `PUT` request to update the configuration settings for your index.
+
+The exact API endpoint you would use is:
+
+```
+PUT /<index_name>/_settings
+```
+
+Here’s a more detailed example of how you might set this up using the OpenSearch REST API:
+
+1. **Prepare Your Querqy Rules**: Ensure that your Querqy rules are formatted correctly and stored in a JSON or YAML file.
+
+2. **Update Index Settings via API**:
+   You can use tools like `curl`, Postman, or any HTTP client to send the request. Here’s an example using `curl`:
+
+   ```sh
+   curl -X PUT "http://localhost:9200/<index_name>/_settings" -H 'Content-Type: application/json' -d'
+   {
+     "analysis": {
+       "filter": {
+         "querqy_rules": {
+           "type": "querqy",
+           "rules_file": "<path_to_your_rules_file>"
+         }
+       },
+       "analyzer": {
+         "querqy_analyzer": {
+           "type": "custom",
+           "tokenizer": "standard",
+           "filter": ["lowercase", "querqy_rules"]
+         }
+       }
+     }
+   }'
+   ```
+
+3. **Replace `<index_name>` and `<path_to_your_rules_file>`**: Replace these placeholders with the actual index name and path to your rules file.
+
+4. **Reload Configuration** (if necessary): Depending on how OpenSearch is configured, you might need to trigger a configuration reload or restart the service for changes to take effect.
+
+By using this API endpoint, you can programmatically manage Querqy configurations in OpenSearch without manually copying files, making your deployment process more automated and reliable.

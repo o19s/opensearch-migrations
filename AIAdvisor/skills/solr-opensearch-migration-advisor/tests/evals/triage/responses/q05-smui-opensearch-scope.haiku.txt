@@ -1,0 +1,12 @@
+I don't have reliable details about SMUI v4.0.11's specific OpenSearch additions in my training data. To give you accurate migration guidance, I'd need to see the actual release notes or documentation you're referencing.
+
+Can you share:
+1. **The release notes link or the specific changes listed** for v4.0.11?
+2. **What context triggered this (GitHub release, official docs, vendor announcement)?**
+
+With that, I can help you assess:
+- Whether it's feature parity or a narrower scope (e.g., basic indexing vs. full synonym/stopword rule management)
+- What gaps might remain for your use case
+- Whether you should plan for workarounds or wait for fuller support
+
+If you have the release notes document, I can read it directly and give you a clear migration assessment.

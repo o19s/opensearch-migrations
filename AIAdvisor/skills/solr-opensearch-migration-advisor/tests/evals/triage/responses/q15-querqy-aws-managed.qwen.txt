@@ -1,0 +1,37 @@
+AWS OpenSearch Service is based on Elasticsearch and shares many of its features, but there are some differences in terms of plugins and configurations. Unfortunately, Querqy is a Solr-specific plugin and does not have an equivalent directly available for use with OpenSearch.
+
+### Options to Consider:
+
+1. **Use OpenSearch's Query Rewriting Capabilities:**
+   - OpenSearch has its own query rewriting capabilities that can be configured using the `query` parameter in the request. You can define custom queries or use built-in functions like `match`, `term`, and others.
+   - For more complex transformations, you might need to implement custom logic within your application code.
+
+2. **Custom Rewrite Rules:**
+   - Implement custom rewrite rules directly in your application before sending requests to OpenSearch. This could involve using a scripting language or framework that can handle the necessary transformations.
+   - You can also use OpenSearch's `script` query to apply custom logic, though this might be more complex and less performant than dedicated Solr plugins.
+
+3. **Use a Pre-Processing Layer:**
+   - Implement a pre-processing layer in your application where you can apply the necessary query rewrites before sending requests to OpenSearch.
+   - This could involve using a library or framework that supports similar functionality as Querqy, such as Lucene's QueryParser.
+
+4. **Third-Party Solutions:**
+   - Explore third-party solutions that offer similar functionality and are compatible with OpenSearch. For example, you might find open-source projects or commercial tools that provide query rewriting capabilities.
+
+### Example of Custom Rewrite Logic in Application Code:
+
+Here’s a simple example using Python to apply some basic transformations before sending the request to OpenSearch:
+
+```python
+def rewrite_query(query):
+    # Simple example: add " AND " around terms
+    return f'"{query}"'
+
+# Usage
+original_query = "example query"
+rewritten_query = rewrite_query(original_query)
+print(rewritten_query)  # Output: '"example query"'
+```
+
+### Conclusion:
+
+While Querqy is not directly available for OpenSearch, you can achieve similar functionality through custom logic in your application or by leveraging OpenSearch's built-in capabilities. The best approach depends on the complexity of your rewrite rules and how deeply integrated they need to be with your existing system.

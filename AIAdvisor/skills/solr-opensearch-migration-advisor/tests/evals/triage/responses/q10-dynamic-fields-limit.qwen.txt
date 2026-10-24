@@ -1,0 +1,50 @@
+When using a large number of dynamic fields in your OpenSearch (formerly Elasticsearch) schema, such as 800+ fields with patterns like `*_s`, `*_i`, `*_txt`, and `*_dt`, you might encounter limitations related to the maximum number of indices or types that can be created. Here are some specific settings you should consider:
+
+1. **`index.mapping.total_fields.limit`**: This setting controls the total number of fields allowed in an index. The default value is 1000, but this can vary depending on your version and configuration.
+
+2. **`indices.max_aliases`**: This setting limits the maximum number of aliases that can be applied to an index. While not directly related to field limitations, it's important if you're using aliases for different views or versions of your data.
+
+3. **`cluster.blocks.read_only_index`**: If this block is enabled, no new indices can be created in the cluster. This might indirectly affect how many fields you can add by limiting index creation.
+
+### Risks and Considerations
+
+1. **Performance Impact**:
+   - Having too many dynamic fields can impact performance due to increased memory usage and slower query execution times.
+   - Each field requires additional storage space, which could lead to higher disk usage.
+
+2. **Configuration Limits**:
+   - If you exceed the `index.mapping.total_fields.limit`, your cluster will throw an error when attempting to add more fields.
+   - You may need to increase this limit by adjusting the configuration in the OpenSearch settings or using a custom plugin if necessary.
+
+3. **Maintenance and Management**:
+   - Managing 800+ dynamic fields can become complex, making it harder to maintain and troubleshoot issues.
+   - Ensuring data consistency across so many fields requires careful planning and testing.
+
+4. **Scalability Issues**:
+   - As the number of fields increases, the scalability of your cluster might be affected, especially if you are dealing with large volumes of data or high query loads.
+
+### Steps to Increase the Limit
+
+To increase the `index.mapping.total_fields.limit`, you can modify the OpenSearch configuration file (`opensearch.yml`):
+
+```yaml
+index.mapping.total_fields.limit: 2000
+```
+
+This example increases the limit to 2000 fields, but you should test this change in a non-production environment first to ensure it meets your needs.
+
+### Best Practices
+
+1. **Field Management**:
+   - Regularly review and manage dynamic fields to remove unused or redundant ones.
+   - Use field templates if applicable to streamline the creation of similar fields.
+
+2. **Index Design**:
+   - Consider breaking down large indices into smaller, more focused indices based on use cases.
+   - Utilize aliases for different views or versions of your data without hitting the `indices.max_aliases` limit.
+
+3. **Monitoring and Tuning**:
+   - Monitor cluster performance and adjust settings as needed to maintain optimal operation.
+   - Use OpenSearch’s built-in monitoring tools to track resource usage and identify bottlenecks.
+
+By carefully managing these settings and practices, you can mitigate risks associated with having a large number of dynamic fields in your OpenSearch schema.

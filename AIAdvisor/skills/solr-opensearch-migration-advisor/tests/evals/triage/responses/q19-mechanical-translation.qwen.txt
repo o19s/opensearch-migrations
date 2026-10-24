@@ -1,0 +1,15 @@
+When migrating from Solr to OpenSearch, while configuration conversion is indeed a significant part of the process, there are several areas where genuine redesign might be necessary due to differences in architecture and feature sets between the two systems. Here are three specific areas that often require more than just a simple translation:
+
+1. **Query Language and Syntax**:
+   - **Solr**: Solr uses its own query language (Lucene Query Parser) which can differ significantly from OpenSearch's Lucene Query DSL.
+   - **OpenSearch**: OpenSearch supports both the Lucene Query DSL and the KQL (Kibana Query Language), which is more similar to Elasticsearch's query syntax. Depending on your current Solr queries, you might need to adjust or rewrite them for compatibility with OpenSearch.
+
+2. **Indexing and Schema Design**:
+   - **Solr**: Solr allows for complex schema design including field types, dynamic fields, and various indexing options.
+   - **OpenSearch**: While OpenSearch also supports flexible schema design, the way you define mappings (similar to Solr's schema) can differ. For instance, OpenSearch uses JSON-based mapping definitions which might require adjustments in how you handle data types, analyzers, and other settings.
+
+3. **Advanced Features and Plugins**:
+   - **Solr**: Solr has a rich set of plugins for various use cases such as faceting, highlighting, and more.
+   - **OpenSearch**: OpenSearch also supports many advanced features but the implementation details can vary. For example, while both systems support faceting, the way you configure it might differ. Additionally, some specific plugins or custom configurations in Solr may not have direct equivalents in OpenSearch.
+
+These areas often require careful consideration and potentially significant changes to ensure that your application functions as expected after the migration.

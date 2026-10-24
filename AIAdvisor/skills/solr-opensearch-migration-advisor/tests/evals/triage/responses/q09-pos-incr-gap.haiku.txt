@@ -1,0 +1,24 @@
+Based on my knowledge of OpenSearch/Elasticsearch architecture:
+
+**OpenSearch's default `position_increment_gap` is 100** for text fields—quite different from Solr's default of 0. This gap of 100 positions between values in multi-valued fields **prevents phrase matches from spanning value boundaries** by design.
+
+To preserve Solr's behavior (allowing phrase matches across value boundaries), set it explicitly to 0 in your field mapping:
+
+```json
+{
+  "mappings": {
+    "properties": {
+      "your_multivalue_field": {
+        "type": "text",
+        "position_increment_gap": 0
+      }
+    }
+  }
+}
+```
+
+**Key difference in behavior:**
+- **Solr (default 0)**: Field values `["foo bar", "baz qux"]` → phrase query `"bar baz"` matches ✓
+- **OpenSearch (default 100)**: Same data → phrase query `"bar baz"` does NOT match (unless you set `position_increment_gap: 0`)
+
+For a Solr → OpenSearch migration, audit your mapping templates and add `"position_increment_gap": 0` to any multi-valued text fields where clients rely on cross-boundary phrase matching. If you have dozens of such fields, consider a shared component mapping or document the requirement so index definitions inherit it consistently.

@@ -1,0 +1,5 @@
+In OpenSearch 2.x, the specific feature that can intercept and modify queries before execution is called "Request Filters." Request Filters were introduced in OpenSearch 1.3 (and further refined in subsequent versions) to allow for custom processing of requests before they are executed by the search engine.
+
+Request Filters enable you to define a set of rules that can be applied to incoming HTTP requests, allowing you to modify queries, add or remove terms, and perform other transformations on the request before it reaches the query parser. This functionality is similar to what Querqy provides with its DELETE rule but is more general and can be used for various purposes beyond just modifying text.
+
+To use Request Filters in OpenSearch, you would define them in the `opensearch.yml` configuration file or via the API, and they would apply to all requests that match the specified criteria.

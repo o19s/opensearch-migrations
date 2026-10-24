@@ -1,0 +1,1 @@
+I don't have that specific version information. Could you share where you found this requirement (documentation link, ticket, etc.) so I can help you locate the exact version number? Or if you have access to SMUI release notes or documentation, that would tell us the version that introduced OpenSearch support.

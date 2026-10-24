@@ -1,0 +1,12 @@
+Here are 3 areas that go beyond config translation and require genuine redesign:
+
+1. **Analysis & Text Processing Pipeline**
+   - Solr's custom analysis chains (analyzers, tokenizers, filters) often don't map 1:1 to OpenSearch plugins. Custom `Analyzer`, `TokenFilter`, or `CharFilter` implementations in Java need to be rewritten or replaced with OpenSearch-compatible equivalents (or built as OpenSearch plugins). Language-specific analyzers, phonetic matching, or domain-specific tokenization logic often requires rethinking the stack, not reconfiguring it.
+
+2. **Replication Model & HA Strategy**
+   - Solr uses traditional leader-replica replication; OpenSearch uses peer-to-peer quorum-based consistency (leader election, shard allocation). This affects: failover behavior (Solr's promoted replica vs. OpenSearch's automatic shard reassignment), consistency guarantees, cluster topology decisions, and monitoring assumptions. You can't just "translate" a Solr leader-replica topology into OpenSearch config—you need to redesign for eventual consistency and quorum acknowledgment.
+
+3. **Query Construction & Client Integration**
+   - Solr clients historically build query strings (`fq=field:value&q=...&sort=...`). OpenSearch uses request-body JSON DSL exclusively. This isn't a config change—it's a refactoring of query construction logic throughout the application layer. Complex faceted searches, filters, nested queries, and custom query parsers need to be rewritten. Existing ORM integrations or query builders may not support the new semantics without adaptation.
+
+The client should audit their custom analysis code, current replication setup, and application query construction patterns first—those surface areas are where the real redesign effort lies.

@@ -1,0 +1,63 @@
+In Solr's eDisMax query parser, both `bf` (boost function) and `boost` are used to modify the relevance score of documents, but they operate in slightly different ways.
+
+### Boost Function (`bf`)
+The `bf` parameter allows you to apply a custom scoring function that can be based on any field or even external data. This is particularly useful for applying complex scoring logic beyond simple term frequency and inverse document frequency (TF-IDF) calculations.
+
+In the context of OpenSearch's `function_score` query, which is similar to Solr's eDisMax with `bf`, the `boost_mode` can be set to different values depending on how you want the function score to interact with the original relevance score. The default and most common mode for `bf` in Solr (and thus OpenSearch) is `multiply`.
+
+- **OpenSearch `function_score` boost_mode value**: `multiply`
+
+### Boost Parameter (`boost`)
+The `boost` parameter, on the other hand, simply multiplies a constant factor to the relevance score of documents that match the query. This can be used for simple boosting or downgrading of document scores.
+
+In OpenSearch's `function_score` query, when using the `boost` parameter directly (without specifying a function), it is equivalent to setting the `boost_mode` to `replace`.
+
+- **OpenSearch `function_score` boost_mode value**: `replace`
+
+### Summary
+- For `bf`, use `multiply` as the `boost_mode`.
+- For `boost`, use `replace` as the `boost_mode`.
+
+Here are examples of how these would be used in OpenSearch:
+
+#### Example with `bf`
+```json
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "match_all": {}
+      },
+      "functions": [
+        {
+          "script_score": {
+            "script": "doc['field'].value * 2" // Custom scoring function
+          }
+        }
+      ],
+      "boost_mode": "multiply"
+    }
+  }
+}
+```
+
+#### Example with `boost`
+```json
+{
+  "query": {
+    "function_score": {
+      "query": {
+        "match_all": {}
+      },
+      "functions": [
+        {
+          "boost": 2.0 // Simple boost factor
+        }
+      ],
+      "boost_mode": "replace"
+    }
+  }
+}
+```
+
+These examples illustrate how to use the `bf` and `boost` parameters in OpenSearch with the appropriate `boost_mode`.

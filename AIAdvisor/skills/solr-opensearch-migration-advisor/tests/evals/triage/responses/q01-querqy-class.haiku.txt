@@ -1,0 +1,6 @@
+I don't have reliable information about this specific class name in my training data. To get the exact fully-qualified Java class name for registering a CommonRules rewriter in the OpenSearch Querqy plugin REST API, I would need to either:
+
+1. Search online (requires your permission to use WebSearch)
+2. Look at the OpenSearch Querqy plugin source code directly
+
+Do you have access to the plugin source code or documentation, or would you like me to search for this information if you grant WebSearch permission?
